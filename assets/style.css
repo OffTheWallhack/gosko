@@ -283,16 +283,6 @@ body{background:var(--grain-light),var(--mottle),var(--black)}
 .light .rank{-webkit-text-stroke:1px var(--black)}
 .st-pts,.votes,.r-pts{transform:skew(-6deg);display:inline-block}
 
-/* tlačidlá ako nálepky s tvrdým tieňom */
-.btn{box-shadow:3px 3px 0 var(--band);transition:transform .08s,box-shadow .08s}
-.btn.primary{box-shadow:3px 3px 0 var(--cream)}
-.light .btn,.light .btn.primary,dialog .btn,dialog .btn.primary,.band.next .btn{box-shadow:3px 3px 0 var(--black)}
-.btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:1px 1px 0 var(--black)}
-.chip,.tool{box-shadow:2px 2px 0 var(--band)}
-.light .tool{box-shadow:2px 2px 0 rgba(0,0,0,.35)}
-.chip[aria-pressed="true"],.tool[aria-pressed="true"]{transform:rotate(-1.5deg)}
-.menu-btn{box-shadow:2px 2px 0 var(--band)}
-
 /* fotky ako vytlačené a prilepené */
 .gallery{gap:14px;padding:6px 4px}
 .ph{background:#fff;padding:5px 5px 18px;box-shadow:3px 4px 0 rgba(0,0,0,.45);position:relative;transition:transform .15s}
@@ -330,13 +320,13 @@ body{background:var(--grain-light),var(--mottle),var(--black)}
 .d-inline{position:relative;display:inline-block;vertical-align:middle;width:clamp(90px,22vw,140px);margin-left:14px;transform:rotate(-6deg) skew(6deg)}
 .rank{position:relative}
 .d-circle{left:-14px;top:-12px;width:62px;filter:none;z-index:0}
-.bomb{position:relative;width:170px;height:92px;flex:0 0 auto}
+.bomb{position:relative;width:200px;height:106px;flex:0 0 auto}
 .bomb .deco{position:absolute}
-.bomb .deco:nth-child(1){left:0;top:4px;width:78px;transform:rotate(-10deg)}
-.bomb .deco:nth-child(2){left:46px;top:0;width:112px;transform:rotate(7deg)}
-.bomb .deco:nth-child(3){left:84px;top:40px;width:66px;transform:rotate(-6deg)}
-.bomb .deco:nth-child(4){left:20px;top:58px;width:84px;transform:rotate(4deg)}
-.bomb .deco:nth-child(5){left:124px;top:44px;width:52px;transform:rotate(14deg)}
+.bomb .deco:nth-child(1){left:0;top:6px;width:76px;transform:rotate(-10deg)}
+.bomb .deco:nth-child(2){left:120px;top:52px;width:62px;transform:rotate(8deg)}
+.bomb .deco:nth-child(3){left:150px;top:0;width:50px;transform:rotate(14deg)}
+.bomb .deco:nth-child(4){left:56px;top:4px;width:104px;transform:rotate(6deg)}
+.bomb .deco:nth-child(5){left:24px;top:62px;width:100px;transform:rotate(-4deg)}
 footer img:not(.bomb img){display:none}
 @media (max-width:560px){
   .d-evhero{top:-14px;width:58px}
@@ -346,3 +336,45 @@ footer img:not(.bomb img){display:none}
   .page-head h1{max-width:calc(100% - 90px)}
 }
 @media (prefers-reduced-motion: reduce){ .ph,.btn{transition:none} }
+
+/* =====================================================================
+   TLAČIDLÁ AKO SKATEOVÉ DOSKY
+   drevo = bežné tlačidlo, červený spodok dosky = hlavné, grip = tmavé
+   ===================================================================== */
+:root{
+  --bolts:radial-gradient(circle at 14px 34%,#3b3b3b 1.6px,transparent 2.3px),radial-gradient(circle at 14px 66%,#3b3b3b 1.6px,transparent 2.3px),
+          radial-gradient(circle at calc(100% - 14px) 34%,#3b3b3b 1.6px,transparent 2.3px),radial-gradient(circle at calc(100% - 14px) 66%,#3b3b3b 1.6px,transparent 2.3px);
+  --grain-wood:repeating-linear-gradient(92deg,rgba(110,62,18,.13) 0 1.5px,transparent 1.5px 6px),repeating-linear-gradient(88deg,rgba(90,48,12,.10) 0 1px,transparent 1px 17px);
+  --ply:0 2px 0 #b98848,0 3px 0 #efd6a4,0 5px 0 #8c5b2a,0 7px 0 rgba(0,0,0,.4);
+  --ply-down:0 1px 0 #b98848,0 2px 0 #8c5b2a,0 3px 0 rgba(0,0,0,.4);
+}
+.btn{position:relative;border:0;border-radius:999px;padding:11px 30px 12px;font-weight:800;letter-spacing:.01em;
+  color:#2a1a0c;background:var(--bolts),var(--grain-wood),var(--grain-dark),linear-gradient(180deg,#e6c897,#cfa86c);
+  box-shadow:var(--ply);transition:transform .1s,box-shadow .1s;margin-bottom:6px}
+.btn:hover:not(:disabled){transform:rotate(-1.2deg) translateY(-1px)}
+.btn:active:not(:disabled){transform:translateY(4px);box-shadow:var(--ply-down)}
+.btn:disabled{opacity:.45;filter:saturate(.4)}
+.btn.small{padding:7px 24px 8px;font-size:.875rem}
+.btn.primary{color:var(--cream);background:var(--bolts),var(--grain-dark),var(--dots),linear-gradient(180deg,#b72a2f,#951a1e);
+  text-shadow:1px 1px 0 rgba(0,0,0,.35)}
+.btn.primary{--b:#F3EBDD}
+.btn.solid,.vote[aria-pressed="false"].solid{color:var(--cream);background:var(--bolts),var(--grain-light),var(--grain-light),#1c1c1c}
+.btn.solid{box-shadow:var(--ply)}
+.vote[aria-pressed="true"]{color:var(--cream);background:var(--bolts),var(--grain-dark),var(--dots),linear-gradient(180deg,#b72a2f,#951a1e)}
+.btn.primary,.btn.solid,.vote[aria-pressed="true"]{--bolt-c:#e8e0d2}
+.btn.primary,.btn.solid,.vote[aria-pressed="true"]{background-image:
+  radial-gradient(circle at 14px 34%,rgba(243,235,221,.85) 1.6px,transparent 2.3px),radial-gradient(circle at 14px 66%,rgba(243,235,221,.85) 1.6px,transparent 2.3px),
+  radial-gradient(circle at calc(100% - 14px) 34%,rgba(243,235,221,.85) 1.6px,transparent 2.3px),radial-gradient(circle at calc(100% - 14px) 66%,rgba(243,235,221,.85) 1.6px,transparent 2.3px),
+  var(--grain-dark)}
+.btn.solid{background-color:#1c1c1c}
+.btn.primary,.vote[aria-pressed="true"]{background-color:#a82227}
+.btn:focus-visible{outline:3px solid var(--cream);outline-offset:4px}
+.light .btn:focus-visible,dialog .btn:focus-visible{outline-color:var(--red)}
+.stage-btn{padding:8px 24px 9px}
+.x{border-radius:50%}
+
+/* filtre ako malé grip pásiky */
+.chip{border:0;border-radius:999px;padding:7px 16px;color:var(--cream);background:var(--grain-light),var(--grain-light),#232323;box-shadow:0 2px 0 #000}
+.chip[aria-pressed="true"]{color:#2a1a0c;background:var(--grain-wood),linear-gradient(180deg,#e6c897,#cfa86c);box-shadow:0 2px 0 #8c5b2a,0 3px 0 #000}
+.light .chip{box-shadow:0 2px 0 rgba(0,0,0,.5)}
+.menu-btn{border-radius:999px;border:0;background:var(--grain-wood),linear-gradient(180deg,#e6c897,#cfa86c);color:#2a1a0c;box-shadow:0 2px 0 #8c5b2a,0 3px 0 #000}

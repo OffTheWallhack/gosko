@@ -594,7 +594,7 @@ async function route() {
 }
 
 (async function start() {
-  $('footer .wrap').prepend(h('div', { class: 'bomb' }, deco('round'), deco('skate'), deco('oval'), deco('sk'), deco('burst')));
+  $('footer .wrap').prepend(h('div', { class: 'bomb' }, deco('round'), deco('oval'), deco('burst'), deco('skate'), deco('sk')));
   const menu = $('#menu');
   $('#menu-open').addEventListener('click', () => menu.showModal());
   menu.addEventListener('click', e => { if (e.target === menu || e.target.closest('a,[data-close]')) menu.close(); });
