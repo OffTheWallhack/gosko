@@ -54,6 +54,8 @@ export const EVENTS = [
     },
     awards: [{ name: 'Best Trick', rider: 'Ján Horvath' }],
     partners: ['redbull', '3style', 'newspirit', 'tysomaru', 'studnica'],
+    video: { youtubeId: 'h_ZyZHSvmL4' },
+    lat: null, lng: null,   // presná poloha na mape, napr. lat: 48.2, lng: 17.1 (doplň)
     photos: [
       { src: 'img/ba-trick-3.webp', alt: 'Kickflip pod slnečníkom Red Bull' },
       { src: 'img/ba-podium.webp', alt: 'Stupne víťazov kategórie Open' },
@@ -80,6 +82,7 @@ export const EVENTS = [
     season: 2026,
     sticker: 'round',
     stickerDate: '',
+    lat: null, lng: null,
     about: 'Druhé GOSko, tentoraz v Žiline.',
     results: {},
     awards: [],
@@ -96,6 +99,7 @@ export const EVENTS = [
     season: 2026,
     sticker: 'next',
     stickerDate: '',
+    lat: null, lng: null,
     about: 'Ďalší stop GOSko. Dátum a miesto zverejníme na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
     registration: true,
     results: {},

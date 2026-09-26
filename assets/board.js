@@ -173,31 +173,59 @@ function buildBoard(stickers, logo, renderer) {
   return { board, disposables };
 }
 
+function makeBoardScene(stickers, logo, renderer) {
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 1, .01, 20);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x2a1a1a, 1.1));
+  const key = new THREE.DirectionalLight(0xffffff, 2.3); key.position.set(1.6, 2, 3); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xff3b3b, 3.2); rim.position.set(-3, 1, -2.5); scene.add(rim);
+  const { board, disposables } = buildBoard(stickers, logo, renderer);
+  const mid = new THREE.Group(); mid.add(board); mid.rotation.z = Math.PI / 2;
+  const face = new THREE.Group(); face.add(mid); face.rotation.y = -Math.PI / 2;
+  const spin = new THREE.Group(); spin.add(face); spin.rotation.y = -.45;
+  const lean = new THREE.Group(); lean.add(spin); scene.add(lean);
+  const fitCamera = (aspect, l) => {
+    camera.aspect = aspect;
+    const tf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const hh = .45 * Math.cos(l) + .14 * Math.sin(l), hw = .45 * Math.sin(l) + .15 * Math.cos(l);
+    camera.position.set(0, 0, Math.max(hh / tf, hw / (tf * aspect)) + .06);
+    camera.updateProjectionMatrix();
+  };
+  const dispose = () => {
+    scene.traverse(o => { if (o.isMesh) { o.geometry.dispose(); if (o.material.map) o.material.map.dispose(); if (![STEEL, RED, WHEEL].includes(o.material)) o.material.dispose(); } });
+    disposables.forEach(t => t.dispose());
+  };
+  return { scene, camera, spin, lean, fitCamera, dispose };
+}
+
+/* Jednorazový obrázok dosky (napr. na zdieľateľnú kartu jazdca). Vráti canvas. */
+export async function renderBoardImage(stickers, { width = 800, height = 1100, tilt = -.42, turn = -.5 } = {}) {
+  const logo = await loadLogo();
+  const canvas = document.createElement('canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1); renderer.setSize(width, height, false);
+  const s = makeBoardScene(stickers, logo, renderer);
+  s.lean.rotation.z = tilt; s.spin.rotation.y = turn;
+  s.fitCamera(width / height, Math.abs(tilt));
+  renderer.render(s.scene, s.camera);
+  const out = document.createElement('canvas'); out.width = width; out.height = height;
+  out.getContext('2d').drawImage(canvas, 0, 0);
+  s.dispose(); renderer.dispose(); renderer.forceContextLoss();
+  return out;
+}
+
 /* Pripojí dosku na plátno. Vráti funkciu na upratanie. */
 export async function mountBoard(canvas, { stickers = [], onSticker } = {}) {
   const logo = await loadLogo();
   if (!canvas.isConnected) return () => {};
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 1, .01, 20);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x2a1a1a, 1.1));
-  const key = new THREE.DirectionalLight(0xffffff, 2.3); key.position.set(1.6, 2, 3); scene.add(key);
-  const rim = new THREE.DirectionalLight(0xff3b3b, 3.2); rim.position.set(-3, 1, -2.5); scene.add(rim);
-
-  const { board, disposables } = buildBoard(stickers, logo, renderer);
-  const mid = new THREE.Group(); mid.add(board); mid.rotation.z = Math.PI / 2;
-  const face = new THREE.Group(); face.add(mid); face.rotation.y = -Math.PI / 2;
-  const spin = new THREE.Group(); spin.add(face); spin.rotation.y = -.45;
-  const lean = new THREE.Group(); lean.add(spin); scene.add(lean);
+  const { scene, camera, spin, lean, fitCamera, dispose } = makeBoardScene(stickers, logo, renderer);
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
-    renderer.setSize(w, h, false); camera.aspect = w / h;
-    const tf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    const l = camera.aspect > .95 ? .45 : .09; lean.rotation.z = camera.aspect > .95 ? -l : l;
-    const hh = .45 * Math.cos(l) + .14 * Math.sin(l), hw = .45 * Math.sin(l) + .15 * Math.cos(l);
-    camera.position.set(0, 0, Math.max(hh / tf, hw / (tf * camera.aspect)) + .06);
-    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+    const wide = w / h > .95, l = wide ? .45 : .09; lean.rotation.z = wide ? -l : l;
+    fitCamera(w / h, l);
   }
   const ro = new ResizeObserver(resize); ro.observe(canvas); resize();
 
@@ -240,8 +268,6 @@ export async function mountBoard(canvas, { stickers = [], onSticker } = {}) {
 
   return () => {
     alive = false; ro.disconnect(); io.disconnect();
-    scene.traverse(o => { if (o.isMesh) { o.geometry.dispose(); if (o.material.map) o.material.map.dispose(); if (![STEEL, RED, WHEEL].includes(o.material)) o.material.dispose(); } });
-    disposables.forEach(t => t.dispose());
-    renderer.dispose(); renderer.forceContextLoss();
+    dispose(); renderer.dispose(); renderer.forceContextLoss();
   };
 }

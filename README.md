@@ -1,8 +1,13 @@
 # GOSko web
 
-Stránky: úvod s 3D doskou, rebríček, eventy a kalendár, stránky eventov,
-jazdci s vlastnou doskou, stavebnica skateparku s top 10, shop (zatiaľ zber
-záujmu), pre partnerov so „Zavolaj si GOSko“ a skrytý admin na adrese `#/admin`.
+Stránky: úvod s 3D doskou, rebríček, eventy a kalendár, stránky eventov s videom,
+jazdci s vlastnou doskou, odznakmi a zdieľateľnou kartou, mapa spotov od komunity,
+stavebnica skateparku s top 10, shop (zatiaľ zber záujmu), pre partnerov s media
+kitom a „Zavolaj si GOSko“, odber noviniek, vstupné QR passy a skrytý admin
+na adrese `#/admin` so skenerom na check-in (`#/admin/scan`).
+
+Web sa dá pridať na plochu telefónu ako appka a funguje aj bez signálu
+(okrem vecí, ktoré potrebujú internet: mapa, video, formuláre).
 
 ## Súbory
 
@@ -13,6 +18,14 @@ assets/app.js         stránky a logika
 assets/board.js       3D doska s nálepkami
 assets/park.js        stavebnica skateparku
 assets/store.js       ukladanie (prehliadač alebo Supabase)
+assets/badges.js      odznaky jazdcov (počítajú sa z výsledkov)
+assets/card.js        zdieľateľná karta jazdca (Instagram Story)
+assets/map.js         mapa spotov (Leaflet + OpenStreetMap)
+assets/qr.js          QR passy a skener na check-in
+assets/pwa.js         pridanie na plochu
+sw.js                 offline režim (pri väčšej zmene zvýš VERSION)
+manifest.webmanifest  nastavenie appky na ploche
+icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim
@@ -39,6 +52,9 @@ dvojklikom, prehliadač moduly nenačíta.
   Ideálne `.webp` alebo `.jpg` s šírkou okolo 1400 px.
 - **Autor fotiek:** `SITE.photoCredit`. **Kontaktný e-mail:** `SITE.email`.
 - **Bodovanie:** `POINTS`.
+- **Video:** pri evente `video: { youtubeId: '…' }` (ID je časť odkazu za `youtu.be/`).
+- **Event na mape:** pri evente doplň `lat` a `lng` (súradnice skopíruješ
+  z Google Maps: podrž prst na mieste).
 
 Na jednej doske je miesto na 8 nálepiek, jazdec vidí tie najnovšie.
 
@@ -56,20 +72,44 @@ to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
    do `CONFIG` v `data.js`. Anon kľúč je určený na verejný web.
 4. **Authentication → URL Configuration**: do *Site URL* daj adresu webu.
 5. **Authentication → SMTP**: nastav vlastný e-mailový server (napr. Resend,
-   má bezplatný plán). Bez toho prihlasovacie odkazy ľuďom nebudú chodiť.
-6. **Admin:** otvor `#/admin`, prihlás sa svojím e-mailom a potom v SQL Editore spusti:
+   má bezplatný plán). Bez toho prihlasovacie e-maily ľuďom nebudú chodiť.
+6. **Authentication → Email Templates → Magic Link**: do textu e-mailu pridaj
+   riadok `Tvoj kód: {{ .Token }}`. Ľudia, ktorí majú GOSko pridané na ploche,
+   sa tak prihlásia kódom (odkaz by sa im otvoril v Safari mimo appky).
+   Prihlásený človek ostáva prihlásený, kým sa sám neodhlási.
+7. **Admin:** otvor `#/admin`, prihlás sa svojím e-mailom a potom v SQL Editore spusti:
    ```sql
    insert into public.admins (user_id)
    select id from auth.users where email = 'tvoj@email.sk';
    ```
 
-V admine potom schvaľuješ parky a eventy od komunity a vidíš registrácie,
-objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
+V admine potom schvaľuješ parky, eventy a spoty od komunity a vidíš registrácie,
+odber noviniek, objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
+
+## Newsletter
+
+Odberatelia sa zbierajú v admine v sekcii **Odber noviniek**. Keď vyhlásiš
+event, stiahni CSV a pošli e-mail cez svoj mail alebo nástroj ako Mailchimp
+či Ecomail. Kto sa chce odhlásiť, toho zmaž v Supabase v tabuľke
+`newsletter_subscribers`.
+
+## Check-in na evente
+
+1. Jazdec sa zaregistruje na webe a dostane QR pass (nájde ho v menu „Môj pass“).
+2. Crew sa na mobile prihlási ako admin a otvorí `#/admin/scan`.
+3. Namieri kameru na QR, skontroluje meno (pri U16 aj súhlas rodiča) a potvrdí príchod.
+   Ide to aj bežnou kamerou mobilu: QR otvorí stránku na potvrdenie.
+4. V admine pri registráciách vidíš, koľko ľudí prišlo.
+
+Check-in potrebuje internet. Body do rebríčka sa stále zapisujú do `data.js`.
 
 Na hlasovanie a posielanie parkov sa treba prihlásiť e-mailom (jeden človek,
 jeden hlas). Registrácie, eventy a formuláre idú bez prihlásenia.
 
 ## Súkromie
+
+- Mapa používa podklady OpenStreetMap, ktoré sú zadarmo pri uvedení zdroja (je v rohu mapy).
+- Fotky spotov sú verejné hneď po nahratí na adrese, ktorú pozná len systém; na mape sa ukážu až po schválení.
 
 - Pri U16 registrácia vyžaduje súhlas rodiča.
 - Kontakty z formulárov vidí len admin, verejne sa nezobrazujú.

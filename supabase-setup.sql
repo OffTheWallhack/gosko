@@ -93,7 +93,16 @@ create table public.registrations (
   category text not null check (category in ('open', 'u16', 'women')),
   contact text not null check (char_length(contact) between 3 and 120),
   parent_consent boolean not null default false,
+  token uuid not null unique,                 -- obsah QR kódu na check-in
+  checked_in_at timestamptz,                  -- kedy prišiel na event
   check (category <> 'u16' or parent_consent)
+);
+create table public.newsletter_subscribers (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  email text not null unique check (email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' and char_length(email) <= 120),
+  source text check (char_length(source) <= 30),
+  consent boolean not null check (consent)
 );
 create table public.bookings (
   id uuid primary key default gen_random_uuid(),
@@ -114,18 +123,53 @@ create table public.shop_interest (
   contact text not null check (char_length(contact) between 3 and 120)
 );
 alter table public.registrations enable row level security;
+alter table public.newsletter_subscribers enable row level security;
 alter table public.bookings enable row level security;
 alter table public.shop_interest enable row level security;
 create policy "Ktokoľvek sa registruje" on public.registrations for insert to anon, authenticated with check (true);
 create policy "Admin vidí registrácie" on public.registrations for select using (public.is_admin());
+create policy "Admin zapisuje príchod" on public.registrations for update using (public.is_admin());
+create policy "Ktokoľvek sa prihlási na odber" on public.newsletter_subscribers for insert to anon, authenticated with check (consent);
+create policy "Admin vidí odberateľov" on public.newsletter_subscribers for select using (public.is_admin());
 create policy "Ktokoľvek napíše" on public.bookings for insert to anon, authenticated with check (true);
 create policy "Admin vidí objednávky" on public.bookings for select using (public.is_admin());
 create policy "Ktokoľvek prejaví záujem" on public.shop_interest for insert to anon, authenticated with check (true);
 create policy "Admin vidí záujem" on public.shop_interest for select using (public.is_admin());
 
+-- ---------- Mapa spotov ----------
+create table public.spots (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 60),
+  city text not null check (char_length(city) between 1 and 40),
+  kind text check (char_length(kind) <= 30),
+  description text check (char_length(description) <= 400),
+  lat double precision not null check (lat between -90 and 90),
+  lng double precision not null check (lng between -180 and 180),
+  photo_url text check (char_length(photo_url) <= 500),
+  approved boolean not null default false
+);
+alter table public.spots enable row level security;
+create policy "Prihlásený pošle spot" on public.spots for insert to authenticated with check (user_id = auth.uid() and approved = false);
+create policy "Admin vidí spoty" on public.spots for select using (public.is_admin());
+create policy "Admin schvaľuje spoty" on public.spots for update using (public.is_admin());
+create view public.spots_public as
+  select id, created_at, name, city, kind, description, lat, lng, photo_url from public.spots where approved;
+
+-- fotky spotov (max 3 MB, len obrázky)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('spots', 'spots', true, 3145728, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
+create policy "Prihlásený nahrá fotku spotu" on storage.objects for insert to authenticated
+  with check (bucket_id = 'spots' and (storage.foldername(name))[1] = auth.uid()::text);
+
 -- ---------- Prístupy ----------
-grant select on public.parks_ranked, public.community_events_public to anon, authenticated;
-grant insert on public.community_events, public.registrations, public.bookings, public.shop_interest to anon, authenticated;
+grant select on public.parks_ranked, public.community_events_public, public.spots_public to anon, authenticated;
+grant insert on public.community_events, public.registrations, public.bookings, public.shop_interest, public.newsletter_subscribers to anon, authenticated;
+grant select, insert, update on public.spots to authenticated;
+grant update on public.registrations to authenticated;
+grant select on public.newsletter_subscribers to authenticated;
 grant select, insert, update on public.parks to authenticated;
 grant select, insert, delete on public.votes to authenticated;
 grant select, update on public.community_events to authenticated;

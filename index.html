@@ -8,7 +8,13 @@
 <meta name="theme-color" content="#111111">
 <meta property="og:title" content="GOSko | Game of S.K.A.T.E. na Slovensku">
 <meta property="og:image" content="img/ba-podium.webp">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GOSko">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
@@ -23,6 +29,7 @@
       <a href="#/rebricek" data-nav="rebricek">Rebríček</a>
       <a href="#/eventy" data-nav="eventy">Eventy</a>
       <a href="#/jazdci" data-nav="jazdci">Jazdci</a>
+      <a href="#/mapa" data-nav="mapa">Mapa</a>
       <a href="#/parky" data-nav="parky">Parky</a>
       <a href="#/shop" data-nav="shop">Shop</a>
       <a href="#/partneri" data-nav="partneri">Pre partnerov</a>
@@ -38,9 +45,11 @@
     <a href="#/rebricek">Rebríček</a>
     <a href="#/eventy">Eventy</a>
     <a href="#/jazdci">Jazdci</a>
+    <a href="#/mapa">Mapa spotov</a>
     <a href="#/parky">Parky</a>
     <a href="#/shop">Shop</a>
     <a href="#/partneri">Pre partnerov</a>
+    <a href="#/pass" data-pass-link hidden>Môj pass</a>
   </nav>
 </dialog>
 
@@ -50,7 +59,10 @@
   <div class="wrap">
     <img src="img/logo.webp" alt="" width="56" height="60">
     <p>GOSko robí komunita pre komunitu. Game of S.K.A.T.E. súťaže po Slovensku.</p>
-    <a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a>
+    <div class="foot-links">
+      <button class="btn small" id="footer-news" type="button">Odber noviniek</button>
+      <a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a>
+    </div>
   </div>
 </footer>
 
