@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GOSko | Game of S.K.A.T.E. na Slovensku</title>
+<meta name="description" content="GOSko je séria Game of S.K.A.T.E. súťaží po Slovensku. Rebríček, eventy, jazdci a stavebnica skateparku.">
+<meta name="theme-color" content="#111111">
+<meta property="og:title" content="GOSko | Game of S.K.A.T.E. na Slovensku">
+<meta property="og:image" content="img/ba-podium.webp">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#/" aria-label="GOSko, úvod"><img src="img/logo.webp" alt="" width="640" height="686"><span>GOSko</span></a>
+    <nav class="nav" aria-label="Hlavné menu">
+      <a href="#/rebricek" data-nav="rebricek">Rebríček</a>
+      <a href="#/eventy" data-nav="eventy">Eventy</a>
+      <a href="#/jazdci" data-nav="jazdci">Jazdci</a>
+      <a href="#/parky" data-nav="parky">Parky</a>
+      <a href="#/shop" data-nav="shop">Shop</a>
+      <a href="#/partneri" data-nav="partneri">Pre partnerov</a>
+    </nav>
+    <button class="menu-btn" id="menu-open" type="button" aria-haspopup="dialog">Menu</button>
+  </div>
+</header>
+
+<dialog id="menu" aria-label="Menu">
+  <button class="x" type="button" data-close aria-label="Zavrieť menu">✕</button>
+  <nav>
+    <a href="#/">Úvod</a>
+    <a href="#/rebricek">Rebríček</a>
+    <a href="#/eventy">Eventy</a>
+    <a href="#/jazdci">Jazdci</a>
+    <a href="#/parky">Parky</a>
+    <a href="#/shop">Shop</a>
+    <a href="#/partneri">Pre partnerov</a>
+  </nav>
+</dialog>
+
+<main id="main" tabindex="-1"></main>
+
+<footer>
+  <div class="wrap">
+    <img src="img/logo.webp" alt="" width="56" height="60">
+    <p>GOSko robí komunita pre komunitu. Game of S.K.A.T.E. súťaže po Slovensku.</p>
+    <a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a>
+  </div>
+</footer>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>
