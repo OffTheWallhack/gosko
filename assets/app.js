@@ -2,6 +2,7 @@ import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PR
 import { mountBoard, MAX_STICKERS } from './board.js';
 import { mountBuilder, renderThumb, cleanLayout, slimLayout } from './park.js';
 import { getStore, INBOX } from './store.js';
+import { deco } from './deco.js';
 
 /* ---------- pomocníci ---------- */
 function h(tag, props, ...kids) {
@@ -154,7 +155,9 @@ function lightbox(photos, index) {
 }
 
 /* ---------- spoločné kúsky stránok ---------- */
-const pageHead = (title, lead, ...extra) => h('div', { class: 'wrap page-head' }, h('h1', { class: 'wide' }, title), lead && h('p', { class: 'lead' }, lead), extra);
+const HEAD_DECO = ['land', 'oval', 'skate', 'round', 'sk', 'burst'];
+let headN = 0;
+const pageHead = (title, lead, ...extra) => h('div', { class: 'wrap page-head' }, deco(HEAD_DECO[headN++ % HEAD_DECO.length], 'd-head'), h('h1', { class: 'wide' }, title), lead && h('p', { class: 'lead' }, lead), extra);
 function bands() {
   return h('nav', { class: 'bands', 'aria-label': 'Eventy GOSko' }, EVENTS.filter(e => e.status === 'done' || e.status === 'next').map(ev =>
     h('a', { class: 'band' + (ev.status === 'next' ? ' next' : ''), href: '#/event/' + ev.id },
@@ -165,7 +168,7 @@ function standingsList(rows, { limit, eventMode } = {}) {
   if (!rows.length) return h('p', { class: 'empty' }, 'Výsledky doplníme.');
   return h('ol', { class: 'standings' }, rows.slice(0, limit || rows.length).map((r, i) =>
     h('li', {},
-      h('span', { class: 'rank wide', 'aria-hidden': 'true' }, eventMode ? r.best : i + 1),
+      h('span', { class: 'rank wide', 'aria-hidden': 'true' }, eventMode ? r.best : i + 1, i === 0 ? deco('circle', 'd-circle') : null),
       h('a', { class: 'st-name', href: '#/jazdec/' + r.slug }, r.name),
       h('span', { class: 'st-meta' }, eventMode ? `${r.best}. miesto` : `${r.events} ${plural(r.events, 'event', 'eventy', 'eventov')}, najlepšie ${r.best}. miesto`),
       h('span', { class: 'st-pts cond' }, `${r.points} b.`))));
@@ -190,12 +193,12 @@ function pageHome(root) {
         h('img', { class: 'logo', src: 'img/logo.webp', alt: 'GOSko', width: 640, height: 686 }),
         h('h1', { class: 'wide' }, 'Game of S.K.A.T.E. po Slovensku'),
         h('p', {}, 'Každý stop nechá na doske nálepku. Ťukni na nálepku a pozri, čo sa tam dialo.')),
-      h('div', { class: 'board-stage' }, canvas, h('p', { class: 'hint cond' }, 'Potiahni do strany a dosku otočíš'))),
+      h('div', { class: 'board-stage' }, canvas, deco('skate', 'd-stage-tl'), deco('burst', 'd-stage-br'), deco('arrow', 'd-stage-arrow'), h('p', { class: 'hint cond' }, 'Potiahni do strany a dosku otočíš'))),
     bands()));
 
   const top = standings('open');
   root.append(h('section', { class: 'sec' }, h('div', { class: 'wrap' },
-    h('h2', { class: 'wide' }, `Rebríček ${SITE.season}`),
+    h('h2', { class: 'wide' }, `Rebríček ${SITE.season}`, deco('land', 'd-inline')),
     h('p', { class: 'lead' }, 'Kategória Open. Body zo všetkých zastávok sezóny.'),
     standingsList(top, { limit: 3 }),
     h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek' }, 'Celý rebríček')))));
@@ -314,6 +317,7 @@ function pageEvent(root, id) {
   if (!ev) return pageNotFound(root);
   const meta = [ev.place, fmtDate(ev.date)].filter(Boolean).join(', ') || (ev.status === 'next' ? 'Dátum a miesto čoskoro' : '');
   root.append(h('header', { class: 'ev-hero' }, h('div', { class: 'wrap' },
+    deco('round', 'd-evhero'),
     h('a', { class: 'back', href: '#/eventy' }, 'Všetky eventy'),
     h('h1', { class: 'wide' }, ev.name), meta && h('p', { class: 'cond ev-hero-meta' }, meta))));
   const body = h('div', { class: 'wrap page-body' }, h('p', { class: 'lead' }, ev.about));
@@ -362,14 +366,15 @@ function pageRider(root, s) {
         r.results.map(x => h('li', {}, h('a', { href: '#/event/' + x.ev.id }, x.ev.name), ` ${x.place}. miesto, ${catName(x.cat)}, ${pointsFor(x.place)} b.`)),
         r.awards.map(a => h('li', {}, h('a', { href: '#/event/' + a.ev.id }, a.ev.name), ` ${a.name}`))),
       h('p', { class: 'note' }, 'Si to ty? Napíš nám na Instagram a doplníme tvoj profil.')),
-    h('div', { class: 'board-stage' }, canvas, h('p', { class: 'hint cond' }, 'Ťukni na nálepku a otvorí sa event')))));
+    h('div', { class: 'board-stage' }, canvas, deco('land', 'd-stage-tl'), h('p', { class: 'hint cond' }, 'Ťukni na nálepku a otvorí sa event')))));
   const stop = mountBoard(canvas, { stickers: riderStickers(r), onSticker: go });
   return () => stop.then(f => f());
 }
 
 async function pageParks(root) {
   const tools = h('div', { class: 'tools', role: 'toolbar', 'aria-label': 'Prekážky' });
-  const section = h('section', { class: 'builder light' }, h('div', { class: 'wrap' },
+  const section = h('section', { class: 'builder light' }, h('div', { class: 'wrap rel' },
+    deco('oval', 'd-head'),
     h('h1', { class: 'wide red' }, 'Postav si skatepark'),
     h('p', { class: 'lead' }, 'Vyber prekážku a ťukni na plochu. Keď je park hotový, pošli ho. Najlepšie parky podľa hlasov budú v top 10.'),
     h('div', { class: 'viewing', hidden: true }, h('p', { class: 'viewing-text' }), h('button', { class: 'btn viewing-exit', type: 'button' }, 'Späť na môj park')),
@@ -589,6 +594,7 @@ async function route() {
 }
 
 (async function start() {
+  $('footer .wrap').prepend(h('div', { class: 'bomb' }, deco('round'), deco('skate'), deco('oval'), deco('sk'), deco('burst')));
   const menu = $('#menu');
   $('#menu-open').addEventListener('click', () => menu.showModal());
   menu.addEventListener('click', e => { if (e.target === menu || e.target.closest('a,[data-close]')) menu.close(); });
