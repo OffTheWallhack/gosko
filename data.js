@@ -109,6 +109,11 @@ export const EVENTS = [
   },
 ];
 
+/* Partneri. Voliteľné polia (doplníš, až keď ich máš od partnera, nič si nevymýšľame):
+     logo:  'img/partners/redbull.svg'   (SVG alebo PNG na priehľadnom pozadí)
+     url:   'https://…'                   (web partnera)
+     about: 'Krátky text o partnerovi'    (keď je vyplnený, partner dostane vlastnú stránku)
+   Kým polia chýbajú, partner sa ukáže len ako text s odkazom na Instagram. */
 export const PARTNERS = {
   redbull: { name: 'Red Bull', instagram: 'redbullsk' },
   '3style': { name: '3Style Academy', instagram: '3styleacademy.eu' },
@@ -140,3 +145,37 @@ export const PRODUCTS = [
   { id: 'hoodie', name: 'Mikina GOSko', mock: 'hoodie', note: 'Mikina s logom GOSko.', sizes: ['S', 'M', 'L', 'XL'] },
   { id: 'deck', name: 'Doska GOSko', mock: 'deck', note: 'Doska s logom GOSko.', sizes: ['8.0"', '8.25"', '8.5"'] },
 ];
+
+/* =====================================================================
+   SEZÓNY, PRAVIDLÁ, FAQ, SÚKROMIE
+   ===================================================================== */
+
+/* Sezóny. Keď sezóna skončí, daj finished: true a jej šampióni sa ukážu v Sieni slávy.
+   Pri novej sezóne zmeň SITE.season hore a pridaj riadok sem. */
+export const SEASONS = {
+  2026: { finished: false },
+};
+
+/* Pravidlá sezóny a cesta do finále. Kým je finale: null, sekcia „Cesta do finále“ sa nezobrazuje.
+   Vyplň, až keď pravidlá naozaj platia:
+     finale: { slots: 16, eventsLeft: 1, name: 'Finále' }
+       slots      = koľko jazdcov z rebríčka postupuje do finále
+       eventsLeft = koľko bodovaných eventov ešte zostáva pred finále (nechaj prázdne, spočíta sa z eventov „ďalší stop“)
+     countBest: 2   = do rebríčka sa rátajú len N najlepších výsledkov jazdca (null = rátajú sa všetky) */
+export const SEASON_RULES = {
+  finale: null,
+  countBest: null,
+};
+
+/* Pravidlá a FAQ. Kým sú prázdne, stránka Pravidlá sa v menu nezobrazuje.
+   RULES: [{ title: 'Ako sa hrá', text: 'Text. Prázdny riadok = nový odstavec.' }]
+   FAQ:   [{ q: 'Otázka?', a: 'Odpoveď.' }]
+   Pošli mi ich a doplním ich presne tak, ako ich napíšeš. */
+export const RULES = [];
+export const FAQ = [];
+
+/* Súkromie jazdcov. Predvolene sa mená ukazujú celé (rovnako ako na Instagrame).
+   Ak si rodič alebo jazdec praje skrátené meno, pridaj riadok:
+     'marek-kupkovic': 'initial'    ->  na webe sa ukáže „Marek K.“
+   Kľúč je meno bez diakritiky malými písmenami, slová spojené pomlčkou. */
+export const RIDER_PRIVACY = {};

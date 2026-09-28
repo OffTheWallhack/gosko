@@ -20,12 +20,14 @@ export const INBOX = {
   newsletter_subscribers: 'Odber noviniek',
   bookings: 'Objednávky pop-upov',
   shop_interest: 'Záujem o shop',
+  privacy_requests: 'Žiadosti o súkromie',
 };
 
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
 
 function demoStore() {
-  const K = { parks: 'gosko:parks', votes: 'gosko:votes', events: 'gosko:community-events', spots: 'gosko:spots' };
+  const K = { parks: 'gosko:parks', votes: 'gosko:votes', events: 'gosko:community-events', spots: 'gosko:spots',
+    results: 'gosko:results', awards: 'gosko:awards', brackets: 'gosko:brackets', photos: 'gosko:event-photos' };
   const loadParks = () => {
     let p = LS.get(K.parks, null);
     if (!p) { p = SEEDS.map((s, i) => ({ ...s, id: 'seed-' + i, votes: 0, created: Date.now() - (i + 1) * 864e5 })); LS.set(K.parks, p); }
@@ -73,11 +75,42 @@ function demoStore() {
     async pendingParks() { return []; },
     async pendingEvents() { return LS.get(K.events, []).filter(e => !e.approved); },
     async pendingSpots() { return LS.get(K.spots, []).filter(e => !e.approved); },
+    async pendingEventPhotos() { return LS.get(K.photos, []).filter(e => !e.approved); },
     async approve(kind, id) {
-      const key = kind === 'spots' ? K.spots : kind === 'events' ? K.events : null; if (!key) return;
+      const key = { spots: K.spots, events: K.events, photos: K.photos }[kind]; if (!key) return;
       const a = LS.get(key, []); const e = a.find(x => x.id === id); if (e) e.approved = true; LS.set(key, a);
     },
+    async reject(kind, id) {
+      const key = { spots: K.spots, events: K.events, photos: K.photos, parks: K.parks }[kind]; if (!key) return;
+      LS.set(key, LS.get(key, []).filter(x => x.id !== id));
+    },
     async inbox(table) { return LS.get('gosko:' + table, []); },
+
+    /* výsledky, pavúky, ocenenia */
+    async listResults() { return LS.get(K.results, []); },
+    async listAwards() { return LS.get(K.awards, []); },
+    async listBrackets() { return Object.values(LS.get(K.brackets, {})); },
+    async saveBracket(event_id, category, data) {
+      const all = LS.get(K.brackets, {}); all[event_id + '|' + category] = { event_id, category, data, updated_at: new Date().toISOString() };
+      if (!LS.set(K.brackets, all)) throw new Error('Pavúk sa nepodarilo uložiť.');
+    },
+    async deleteBracket(event_id, category) { const all = LS.get(K.brackets, {}); delete all[event_id + '|' + category]; LS.set(K.brackets, all); },
+    async saveResults(event_id, category, rows) {
+      const keep = LS.get(K.results, []).filter(r => !(r.event_id === event_id && r.category === category));
+      LS.set(K.results, [...keep, ...rows.map(r => ({ event_id, category, rider_name: r.name, place: r.place }))]);
+    },
+    async deleteResults(event_id, category) { LS.set(K.results, LS.get(K.results, []).filter(r => !(r.event_id === event_id && r.category === category))); },
+    async saveAwards(event_id, list) {
+      const keep = LS.get(K.awards, []).filter(a => a.event_id !== event_id);
+      LS.set(K.awards, [...keep, ...list.map(a => ({ event_id, name: a.name, rider_name: a.rider_name }))]);
+    },
+
+    /* fotky a klipy od komunity */
+    async listEventPhotos(event_id) { return LS.get(K.photos, []).filter(p => p.event_id === event_id).map(p => ({ ...p, pending: !p.approved })); },
+    async submitEventPhoto(row, photo) {
+      add(K.photos, { ...row, photo_url: photo ? await toDataUrl(photo) : null, approved: false });
+      return { pending: true };
+    },
   };
 }
 
@@ -143,9 +176,50 @@ async function liveStore(CONFIG) {
     async pendingParks() { return must(await sb.from('parks').select('*').eq('approved', false).order('created_at')).map(created); },
     async pendingEvents() { return must(await sb.from('community_events').select('*').eq('approved', false).order('created_at')).map(created); },
     async pendingSpots() { return must(await sb.from('spots').select('*').eq('approved', false).order('created_at')).map(created); },
+    async pendingEventPhotos() { return must(await sb.from('event_photos').select('*').eq('approved', false).order('created_at')).map(created); },
     async approve(kind, id) {
-      const table = { parks: 'parks', events: 'community_events', spots: 'spots' }[kind];
+      const table = { parks: 'parks', events: 'community_events', spots: 'spots', photos: 'event_photos' }[kind];
       must(await sb.from(table).update({ approved: true }).eq('id', id));
+    },
+    async reject(kind, id) {
+      const table = { parks: 'parks', events: 'community_events', spots: 'spots', photos: 'event_photos' }[kind];
+      if (kind === 'photos') {
+        const row = must(await sb.from('event_photos').select('photo_path').eq('id', id).maybeSingle());
+        if (row?.photo_path) await sb.storage.from('photos').remove([row.photo_path]);
+      }
+      must(await sb.from(table).delete().eq('id', id));
+    },
+
+    /* výsledky, pavúky, ocenenia */
+    async listResults() { return must(await sb.from('event_results').select('event_id,category,rider_name,place').limit(5000)); },
+    async listAwards() { return must(await sb.from('event_awards').select('event_id,name,rider_name').limit(1000)); },
+    async listBrackets() { return must(await sb.from('brackets').select('event_id,category,data,updated_at').limit(500)); },
+    async saveBracket(event_id, category, data) {
+      must(await sb.from('brackets').upsert({ event_id, category, data, updated_at: new Date().toISOString() }, { onConflict: 'event_id,category' }));
+    },
+    async deleteBracket(event_id, category) { must(await sb.from('brackets').delete().eq('event_id', event_id).eq('category', category)); },
+    async saveResults(event_id, category, rows) {
+      must(await sb.from('event_results').delete().eq('event_id', event_id).eq('category', category));
+      if (rows.length) must(await sb.from('event_results').insert(rows.map(r => ({ event_id, category, rider_name: r.name, place: r.place }))));
+    },
+    async deleteResults(event_id, category) { must(await sb.from('event_results').delete().eq('event_id', event_id).eq('category', category)); },
+    async saveAwards(event_id, list) {
+      must(await sb.from('event_awards').delete().eq('event_id', event_id));
+      if (list.length) must(await sb.from('event_awards').insert(list.map(a => ({ event_id, name: a.name, rider_name: a.rider_name }))));
+    },
+
+    /* fotky a klipy od komunity */
+    async listEventPhotos(event_id) { return must(await sb.from('event_photos_public').select('*').eq('event_id', event_id).order('created_at', { ascending: false })).map(created); },
+    async submitEventPhoto(row, photo) {
+      const u = (await session()).user.id;
+      let photo_url = null, photo_path = null;
+      if (photo) {
+        photo_path = `${u}/${newToken()}.jpg`;
+        must(await sb.storage.from('photos').upload(photo_path, photo, { contentType: 'image/jpeg', upsert: false }));
+        photo_url = sb.storage.from('photos').getPublicUrl(photo_path).data.publicUrl;
+      }
+      must(await sb.from('event_photos').insert({ ...row, photo_url, photo_path }));
+      return { pending: true };
     },
     async inbox(table) { return must(await sb.from(table).select('*').order('created_at', { ascending: false }).limit(2000)).map(created); },
   };

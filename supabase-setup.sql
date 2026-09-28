@@ -164,11 +164,101 @@ on conflict (id) do nothing;
 create policy "Prihlásený nahrá fotku spotu" on storage.objects for insert to authenticated
   with check (bucket_id = 'spots' and (storage.foldername(name))[1] = auth.uid()::text);
 
+-- ---------- Výsledky, pavúky, ocenenia ----------
+-- Výsledky sú verejné. Zapisovať ich môže len admin. Všetko z data.js ostáva,
+-- databáza má prednosť pri tej istej kategórii eventu.
+create table public.event_results (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  event_id text not null check (char_length(event_id) <= 60),
+  category text not null check (char_length(category) <= 20),
+  rider_name text not null check (char_length(rider_name) between 1 and 60),
+  place int not null check (place between 1 and 200),
+  unique (event_id, category, rider_name)
+);
+create table public.event_awards (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  event_id text not null check (char_length(event_id) <= 60),
+  name text not null check (char_length(name) between 1 and 40),
+  rider_name text not null check (char_length(rider_name) between 1 and 60)
+);
+create table public.brackets (
+  event_id text not null check (char_length(event_id) <= 60),
+  category text not null check (char_length(category) <= 20),
+  data jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (event_id, category)
+);
+alter table public.event_results enable row level security;
+alter table public.event_awards enable row level security;
+alter table public.brackets enable row level security;
+create policy "Výsledky vidí každý" on public.event_results for select using (true);
+create policy "Ocenenia vidí každý" on public.event_awards for select using (true);
+create policy "Pavúky vidí každý" on public.brackets for select using (true);
+create policy "Admin zapisuje výsledky" on public.event_results for all using (public.is_admin()) with check (public.is_admin());
+create policy "Admin zapisuje ocenenia" on public.event_awards for all using (public.is_admin()) with check (public.is_admin());
+create policy "Admin zapisuje pavúky" on public.brackets for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---------- Fotky a klipy od komunity ----------
+create table public.event_photos (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  event_id text not null check (char_length(event_id) <= 60),
+  author text not null check (char_length(author) between 1 and 40),
+  caption text check (char_length(caption) <= 120),
+  photo_url text check (char_length(photo_url) <= 500 and photo_url ~ '^https://'),
+  photo_path text check (char_length(photo_path) <= 300),
+  clip_url text check (char_length(clip_url) <= 300 and clip_url ~* '^https?://'),
+  approved boolean not null default false,
+  check (photo_url is not null or clip_url is not null)
+);
+alter table public.event_photos enable row level security;
+create policy "Prihlásený pošle fotku" on public.event_photos for insert to authenticated with check (user_id = auth.uid() and approved = false);
+create policy "Admin vidí fotky" on public.event_photos for select using (public.is_admin());
+create policy "Admin schvaľuje fotky" on public.event_photos for update using (public.is_admin());
+create policy "Admin maže fotky" on public.event_photos for delete using (public.is_admin());
+create view public.event_photos_public as
+  select id, created_at, event_id, author, caption, photo_url, clip_url from public.event_photos where approved;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('photos', 'photos', true, 3145728, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
+create policy "Prihlásený nahrá fotku z eventu" on storage.objects for insert to authenticated
+  with check (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "Admin maže fotky z eventu" on storage.objects for delete using (bucket_id = 'photos' and public.is_admin());
+
+-- ---------- Žiadosti o súkromie ----------
+create table public.privacy_requests (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  what text not null check (char_length(what) <= 80),
+  target text not null check (char_length(target) <= 200),
+  contact text not null check (char_length(contact) between 3 and 120),
+  guardian boolean not null default false
+);
+alter table public.privacy_requests enable row level security;
+create policy "Ktokoľvek pošle žiadosť" on public.privacy_requests for insert to anon, authenticated with check (true);
+create policy "Admin vidí žiadosti" on public.privacy_requests for select using (public.is_admin());
+
+-- ---------- Admin môže zamietnuť (zmazať) čakajúce položky ----------
+create policy "Admin maže parky" on public.parks for delete using (public.is_admin());
+create policy "Admin maže spoty" on public.spots for delete using (public.is_admin());
+create policy "Admin maže eventy" on public.community_events for delete using (public.is_admin());
+
 -- ---------- Prístupy ----------
 grant select on public.parks_ranked, public.community_events_public, public.spots_public to anon, authenticated;
 grant insert on public.community_events, public.registrations, public.bookings, public.shop_interest, public.newsletter_subscribers to anon, authenticated;
 grant select, insert, update on public.spots to authenticated;
 grant update on public.registrations to authenticated;
+grant select on public.event_results, public.event_awards, public.brackets to anon, authenticated;
+grant insert, update, delete on public.event_results, public.event_awards, public.brackets to authenticated;
+grant select on public.event_photos_public to anon, authenticated;
+grant select, insert, update, delete on public.event_photos to authenticated;
+grant insert on public.privacy_requests to anon, authenticated;
+grant select on public.privacy_requests to authenticated;
+grant delete on public.parks, public.spots, public.community_events to authenticated;
 grant select on public.newsletter_subscribers to authenticated;
 grant select, insert, update on public.parks to authenticated;
 grant select, insert, delete on public.votes to authenticated;

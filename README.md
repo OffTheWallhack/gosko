@@ -114,3 +114,19 @@ jeden hlas). Registrácie, eventy a formuláre idú bez prihlásenia.
 - Pri U16 registrácia vyžaduje súhlas rodiča.
 - Kontakty z formulárov vidí len admin, verejne sa nezobrazujú.
 - Pri fotkách detí z U16 majte súhlas rodičov so zverejnením.
+
+## Na evente: výsledky a TV
+
+- **Zápis výsledkov:** `#/admin/vysledky`. Vyber event a kategóriu, zapíš jazdcov (alebo ich načítaj z registrácií a check-inu), vytvor pavúk a ťukaním na meno označuj víťazov. Po dohraní klikni „Uložiť výsledky do rebríčka“. Dá sa zapísať aj len poradie bez pavúka.
+- **TV mód:** `#/tv/ID-eventu` (napr. `#/tv/bratislava-2`). Otvor na TV alebo notebooku v aute, klikni na ikonu celej obrazovky v pravom hornom rohu. Obrazovka sa každých 5 sekúnd sama obnoví a strieda pavúk, výsledky a rebríček. Keď v admine označíš „Teraz jazdia“, TV ukáže tento súboj veľkým písmom.
+- Bez Supabase sa všetko ukladá len v jednom prehliadači, TV na inom zariadení vtedy zmeny neuvidí.
+
+## Doplníš neskôr v data.js
+
+- `RULES`, `FAQ`: pravidlá a časté otázky. Kým sú prázdne, stránka Pravidlá sa v menu nezobrazuje.
+- `SEASON_RULES.finale`: koľko jazdcov postupuje do finále. Kým je `null`, sekcia „Cesta do finále“ sa nezobrazuje.
+- `PARTNERS`: `logo`, `url`, `about` pre každého partnera.
+- `RIDER_PRIVACY`: skrátené mená jazdcov na žiadosť (napr. „Marek K.“).
+- `SEASONS`: po skončení sezóny `finished: true`, šampióni sa ukážu v Sieni slávy.
+
+Ak máš Supabase už nastavený zo staršej verzie, spusti v SQL Editore len časť súboru `supabase-setup.sql` od riadku „Výsledky, pavúky, ocenenia“ po „Prístupy“, a potom nové riadky `grant` na konci.
