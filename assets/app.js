@@ -1,4 +1,5 @@
 import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY } from '../data.js';
+import { tvScene } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
 import { mountBoard, MAX_STICKERS } from './board.js';
 import { mountBuilder, renderThumb, cleanLayout, slimLayout } from './park.js';
@@ -386,9 +387,11 @@ function pageHome(root) {
     h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek' }, 'Celý rebríček')))));
 
   const last = EVENTS.filter(e => e.status === 'done' && e.photos?.length).at(-1);
-  if (last) root.append(h('section', { class: 'sec light' }, h('div', { class: 'wrap' },
-    h('h2', { class: 'wide red' }, last.name), h('p', { class: 'lead' }, [last.place, fmtDate(last.date)].filter(Boolean).join(', ')),
-    photoGrid(last.photos, 6),
+  const tv = last && tvScene({ videoId: last.video?.youtubeId, title: `${last.name}: video`, photos: last.photos, stamp: `${last.city} ${last.season}`, onPhoto: lightbox });
+  if (tv) root.append(h('section', { class: 'sec tv-sec' }, h('div', { class: 'wrap' },
+    h('h2', { class: 'wide' }, 'GOSko TV'),
+    h('p', { class: 'lead' }, `${last.name}${[last.place, fmtDate(last.date)].filter(Boolean).length ? ': ' + [last.place, fmtDate(last.date)].filter(Boolean).join(', ') : ''}. Telka sa zapne sama. Prepni kanál gombíkom alebo ťukni na fotku.`),
+    tv,
     h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/event/' + last.id }, 'Výsledky a všetky fotky')))));
 
   root.append(h('section', { class: 'cta-bands' },
@@ -591,7 +594,8 @@ async function pageEvent(root, id) {
   if (withBracket.length) put(body, h('h2', { class: 'wide sub' }, 'Pavúk'),
     withBracket.map((c, i) => h('details', { class: 'br-details', open: i === 0 }, h('summary', {}, c.name + (c.note ? ` (${c.note})` : '')),
       h('div', { class: 'br-scroll' }, bracketEl(ev.brackets[c.id], { name: displayName })))));
-  if (ev.video?.youtubeId) put(body, h('h2', { class: 'wide sub' }, 'Video'), videoEmbed(ev.video.youtubeId, `${ev.name}: video`));
+  if (ev.video?.youtubeId) put(body, h('h2', { class: 'wide sub' }, 'Video'),
+    tvScene({ videoId: ev.video.youtubeId, title: `${ev.name}: video`, photos: ev.photos || [], stamp: `${ev.city} ${ev.season}`, polaroids: false, onPhoto: lightbox }));
   if (ev.photos?.length) put(body, h('h2', { class: 'wide sub' }, 'Fotky'), photoGrid(ev.photos), SITE.photoCredit ? h('p', { class: 'note' }, `Foto: ${SITE.photoCredit}`) : null);
 
   if (ev.status === 'done') {
