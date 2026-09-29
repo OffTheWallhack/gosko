@@ -6,8 +6,9 @@
 /* Supabase: kým je prázdne, web beží v ukážkovom režime
    (formuláre, parky a hlasy sa ukladajú len v prehliadači). Postup v README. */
 export const CONFIG = {
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
+  SUPABASE_URL: 'https://moxscedyreyvhkbkebmv.supabase.co',
+  // Verejný (publishable) kľúč, je určený na web. Tajný kľúč (sb_secret_…) sem nikdy nepatrí.
+  SUPABASE_ANON_KEY: 'sb_publishable_xxQm6zYj66nQ32z4Qi4lJA_DyQrOY5T',
 };
 
 export const SITE = {
