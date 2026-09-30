@@ -705,7 +705,7 @@ h2 .tag{margin-left:8px;vertical-align:middle;font-stretch:100%;font-size:.7rem;
 .osd-ch.show{opacity:1}
 .osd-play{left:6%;bottom:6%}
 .osd-stamp{right:6%;bottom:6%}
-.crt-screen:has(iframe) .osd-play,.crt-screen:has(iframe) .osd-stamp{opacity:0}
+.crt-screen:not(.show-photo):has(iframe) .osd-play,.crt-screen:not(.show-photo):has(iframe) .osd-stamp{opacity:0}
 
 .crt-panel{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:6%;padding:8% 5% 9%;border-radius:10px;
   background:linear-gradient(180deg,#28241f,#171513);box-shadow:inset 0 0 0 2px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,255,255,.08)}
@@ -746,3 +746,40 @@ h2 .tag{margin-left:8px;vertical-align:middle;font-stretch:100%;font-size:.7rem;
   .pol-right .p4{right:8%;top:4%}.pol-right .p5{right:26%;top:36%}.pol-right .p6{right:2%;top:64%}
   .tv-scene.plain .pol-wall{display:none}
 }
+
+/* ---- telka: klikanie na obrazovku, ozdobné ovládanie ---- */
+.crt-hit{position:absolute;inset:0;z-index:6;padding:0;border:0;border-radius:inherit;background:transparent;cursor:pointer}
+.crt-hit:focus-visible{outline:3px solid var(--cream);outline-offset:-8px}
+.crt-photo-layer{position:absolute;inset:0;z-index:1;visibility:hidden;opacity:0;background:#050705}
+.crt-photo-layer .crt-photo{display:block;width:100%;height:100%;object-fit:cover;filter:contrast(1.1) saturate(1.2) brightness(.96)}
+.crt-screen.show-photo .crt-photo-layer{visibility:visible;opacity:1}
+.crt-posterimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:contrast(1.1) saturate(1.2)}
+.crt-yt{position:absolute;inset:0;width:100%;height:100%;border:0}
+.crt-video:not(.paused) .crt-play{display:none}
+.crt-knob{cursor:pointer;display:grid;place-items:center;transition:transform .25s}
+.crt-knob span{font-size:.62rem;pointer-events:none}
+.crt-knob:active{transform:none}
+
+/* ---- pás polaroidov na spodku stránok ---- */
+.fun-wrap{position:relative;max-width:1200px;margin:34px auto 10px;padding:0 20px}
+.fun-strip{display:flex;gap:18px;overflow-x:auto;padding:30px 6px 16px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.fun-strip .pol{flex:0 0 min(58vw,230px);scroll-snap-align:center}
+.fun-deco{position:absolute;right:calc(var(--rail) + 14px);top:-6px;width:74px;height:auto;transform:rotate(10deg);pointer-events:none}
+.fun-wrap .fun-note{margin:0 0 -8px;font-size:.9rem}
+@media (min-width:980px){
+  .fun-strip{flex-wrap:wrap;justify-content:center;overflow:visible;padding-top:34px}
+  .fun-strip .pol{flex:0 0 200px}
+}
+.tv-scene .pol.ph{cursor:zoom-in}
+.fun-wrap .pol.ph{position:relative;transform:rotate(var(--r,0deg))}
+.fun-wrap .pol.ph:hover,.fun-wrap .pol.ph:focus-visible{transform:rotate(0) scale(1.05);z-index:5}
+.fun-wrap .pol.ph::before{content:"";position:absolute;top:-9px;left:50%;width:62px;height:20px;margin-left:-31px;background:rgba(243,235,221,.78);transform:rotate(-4deg);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+
+/* ---- mobil: hore hlavné informácie, zábava až dole ---- */
+.fun-divider{display:flex;align-items:center;gap:12px;margin:34px 0 0;padding:0 20px;color:var(--muted-dark);font-size:1rem;text-transform:uppercase;letter-spacing:.08em}
+.fun-divider::before,.fun-divider::after{content:"";flex:1;border-top:2px dashed var(--line-dark)}
+.hero.compact{padding-top:14px}
+.hero.compact .hero-copy{grid-template-columns:76px 1fr}
+.hero.compact .hero-copy p{margin-top:10px}
+.hero.compact + .countdown{margin-top:14px}
+.board-sec .board-stage{margin-top:8px}

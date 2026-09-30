@@ -1,5 +1,5 @@
 import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY } from '../data.js';
-import { tvScene } from './crt.js';
+import { tvScene, polaroidStrip } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
 import { mountBoard, MAX_STICKERS } from './board.js';
 import { mountBuilder, renderThumb, cleanLayout, slimLayout } from './park.js';
@@ -368,41 +368,54 @@ function finaleEl(cat, season) {
    STRÁNKY
    ===================================================================== */
 function pageHome(root) {
+  /* Na mobile je hore to hlavné (ďalší event, eventy, rebríček), zábava až dole.
+     Rozloženie sa vyberie pri načítaní stránky. */
+  const narrow = window.matchMedia('(max-width: 719px)').matches;
+  const boardText = 'Každý stop nechá na doske nálepku. Ťukni na nálepku a pozri, čo sa tam dialo.';
   const canvas = h('canvas', { 'aria-label': '3D skateboard s nálepkami z eventov GOSko' });
-  root.append(h('header', { class: 'hero' },
+  const boardStage = h('div', { class: 'board-stage' }, canvas, deco('skate', 'd-stage-tl'), deco('burst', 'd-stage-br'), deco('arrow', 'd-stage-arrow'), h('p', { class: 'hint cond' }, 'Potiahni do strany a dosku otočíš'));
+  const hero = h('header', { class: 'hero' + (narrow ? ' compact' : '') },
     h('div', { class: 'wrap hero-grid' },
       h('div', { class: 'hero-copy' },
         h('img', { class: 'logo', src: 'img/logo.webp', alt: 'GOSko', width: 640, height: 686 }),
         h('h1', { class: 'wide' }, 'Game of S.K.A.T.E. po Slovensku'),
-        h('p', {}, 'Každý stop nechá na doske nálepku. Ťukni na nálepku a pozri, čo sa tam dialo.')),
-      h('div', { class: 'board-stage' }, canvas, deco('skate', 'd-stage-tl'), deco('burst', 'd-stage-br'), deco('arrow', 'd-stage-arrow'), h('p', { class: 'hint cond' }, 'Potiahni do strany a dosku otočíš'))),
-    bands()));
-  const cd = countdownEl(nextEvent()); if (cd) root.append(cd);
+        h('p', {}, narrow ? 'Eventy, výsledky a rebríček na jednom mieste.' : boardText)),
+      narrow ? null : boardStage),
+    narrow ? null : bands());
 
-  const top = standings('open');
-  root.append(h('section', { class: 'sec' }, h('div', { class: 'wrap' },
+  const cd = countdownEl(nextEvent());
+  const standingsSec = h('section', { class: 'sec' }, h('div', { class: 'wrap' },
     h('h2', { class: 'wide' }, `Rebríček ${SITE.season}`, deco('land', 'd-inline')),
     h('p', { class: 'lead' }, 'Kategória Open. Body zo všetkých zastávok sezóny.'),
-    standingsList(top, { limit: 3 }),
-    h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek' }, 'Celý rebríček')))));
+    standingsList(standings('open'), { limit: 3 }),
+    h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek' }, 'Celý rebríček'))));
 
   const last = EVENTS.filter(e => e.status === 'done' && e.photos?.length).at(-1);
   const tv = last && tvScene({ videoId: last.video?.youtubeId, title: `${last.name}: video`, photos: last.photos, stamp: `${last.city} ${last.season}`, onPhoto: lightbox });
-  if (tv) root.append(h('section', { class: 'sec tv-sec' }, h('div', { class: 'wrap' },
+  const lastMeta = last ? [last.place, fmtDate(last.date)].filter(Boolean).join(', ') : '';
+  const tvSec = tv && h('section', { class: 'sec tv-sec' }, h('div', { class: 'wrap' },
     h('h2', { class: 'wide' }, 'GOSko TV'),
-    h('p', { class: 'lead' }, `${last.name}${[last.place, fmtDate(last.date)].filter(Boolean).length ? ': ' + [last.place, fmtDate(last.date)].filter(Boolean).join(', ') : ''}. Telka sa zapne sama. Prepni kanál gombíkom alebo ťukni na fotku.`),
+    h('p', { class: 'lead' }, `${last.name}${lastMeta ? ': ' + lastMeta : ''}. Ťukni na telku a ukáže sa fotka, ťukni znova a pustí sa video.`),
     tv,
-    h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/event/' + last.id }, 'Výsledky a všetky fotky')))));
+    h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/event/' + last.id }, 'Výsledky a všetky fotky'))));
 
-  root.append(h('section', { class: 'cta-bands' },
+  const cta = h('section', { class: 'cta-bands' },
     h('a', { class: 'band', href: '#/parky' }, h('span', { class: 'city wide' }, 'Postav si skatepark'), h('span', { class: 'meta cond' }, 'Najlepšie parky podľa hlasov idú do top 10')),
     h('a', { class: 'band next', href: '#/partneri/zavolaj' }, h('span', { class: 'city wide' }, 'Zavolaj si GOSko'), h('span', { class: 'meta cond' }, 'Pop-up v tvojom meste alebo skateparku')),
-    h('a', { class: 'band', href: '#/mapa' }, h('span', { class: 'city wide' }, 'Mapa spotov'), h('span', { class: 'meta cond' }, 'Pošli nám svoj spot aj s fotkou'))));
-  const ps = partnersStrip(); if (ps) root.append(ps);
-  root.append(h('section', { class: 'sec light news' }, h('div', { class: 'wrap' },
+    h('a', { class: 'band', href: '#/mapa' }, h('span', { class: 'city wide' }, 'Mapa spotov'), h('span', { class: 'meta cond' }, 'Pošli nám svoj spot aj s fotkou')));
+  const ps = partnersStrip();
+  const news = h('section', { class: 'sec light news' }, h('div', { class: 'wrap' },
     h('h2', { class: 'wide red' }, 'Nezmeškaj ďalšie GOSko'),
     h('p', { class: 'lead' }, 'Keď vyhlásime dátum a miesto, pošleme ti jeden e-mail. Žiadny spam.'),
-    newsletterInline('home'))));
+    newsletterInline('home')));
+
+  const order = narrow
+    ? [hero, cd, bands(), standingsSec, news,
+       h('p', { class: 'fun-divider cond' }, 'Ďalej už len zábava'),
+       h('section', { class: 'sec board-sec' }, h('div', { class: 'wrap' }, h('h2', { class: 'wide' }, 'Doska sezóny'), h('p', { class: 'lead' }, boardText), boardStage)),
+       tvSec, cta, ps]
+    : [hero, cd, standingsSec, tvSec, cta, ps, news];
+  root.append(...order.filter(Boolean));
 
   const stop = mountBoard(canvas, { stickers: EVENTS.map(eventSticker), onSticker: go });
   return () => stop.then(f => f());
@@ -1358,6 +1371,8 @@ async function pageAdminResults(root, eventId) {
 /* =====================================================================
    ROUTER
    ===================================================================== */
+/* Polaroidy z eventov na spodku stránok: zábava ide až za hlavný obsah. */
+function funStrip() { return polaroidStrip(EVENTS.flatMap(e => e.photos || []), lightbox); }
 const ROUTES = [
   [/^#?\/?$/, pageHome, ''],
   [/^#\/rebricek$/, pageStandings, 'rebricek'],
@@ -1391,6 +1406,7 @@ async function route() {
   document.querySelectorAll('.nav a').forEach(a => a.toggleAttribute('aria-current', a.dataset.nav === nav && !!nav));
   const res = await page(main, ...args);
   if (id !== renderId) { if (typeof res === 'function') res(); return; }
+  if ([pageStandings, pageEvents, pageRiders].includes(page)) { const fs = funStrip(); if (fs) main.append(fs); }
   cleanup = typeof res === 'function' ? res : null;
   main.focus({ preventScroll: true });
 }
