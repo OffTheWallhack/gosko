@@ -35,6 +35,7 @@ export const CATEGORIES = [
 ];
 
 /* Eventy. results: poradie mien = umiestnenie (1., 2., 3., ...).
+   Voliteľne: endDate: '2026-06-28' (posledný deň viacdňového eventu), prize: '500 € + ceny' (prize pool v kalendári).
    sticker: 'band' | 'round' | 'next'. status: 'done' | 'next'. */
 export const EVENTS = [
   {

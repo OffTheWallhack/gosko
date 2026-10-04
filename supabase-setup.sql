@@ -71,7 +71,10 @@ create table public.community_events (
   link text check (char_length(link) <= 300),
   organizer text check (char_length(organizer) <= 60),
   contact text check (char_length(contact) <= 120),   -- nezverejňuje sa
-  approved boolean not null default false
+  end_date date,                                      -- posledný deň viacdňového eventu
+  prize text check (char_length(prize) <= 60),        -- prize pool, napr. '500 € + ceny'
+  approved boolean not null default false,
+  check (end_date is null or end_date >= date)
 );
 alter table public.community_events enable row level security;
 create policy "Ktokoľvek pošle event" on public.community_events for insert to anon, authenticated with check (approved = false);
@@ -79,7 +82,7 @@ create policy "Admin vidí eventy" on public.community_events for select using (
 create policy "Admin schvaľuje eventy" on public.community_events for update using (public.is_admin());
 
 create view public.community_events_public as
-  select id, created_at, name, date, city, place, country, kind, link, organizer
+  select id, created_at, name, date, city, place, country, kind, link, organizer, end_date, prize
   from public.community_events where approved;
 
 -- ---------- Formuláre ----------

@@ -128,10 +128,11 @@ function riderStickers(r) {
 }
 
 /* ---------- kalendár ---------- */
-function downloadIcs({ title, date, place, url }) {
+function downloadIcs({ title, date, end, place, url }) {
   const p = parseDate(date); if (!p) return;
   const d1 = date.replaceAll('-', '');
-  const n = new Date(Date.UTC(p.y, p.m - 1, p.d + 1));
+  const e = parseDate(end) || p;
+  const n = new Date(Date.UTC(e.y, e.m - 1, e.d + 1));
   const d2 = `${n.getUTCFullYear()}${String(n.getUTCMonth() + 1).padStart(2, '0')}${String(n.getUTCDate()).padStart(2, '0')}`;
   const esc = s => String(s || '').replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
@@ -445,39 +446,94 @@ function pageStandings(root) {
   render();
 }
 
+/* krajina -> kód vlajky (obrázky z flagcdn.com) */
+const COUNTRY_CODES = {
+  Slovensko: 'sk', Česko: 'cz', Rakúsko: 'at', Maďarsko: 'hu', Poľsko: 'pl', Nemecko: 'de', Francúzsko: 'fr', Španielsko: 'es',
+  Taliansko: 'it', Portugalsko: 'pt', Fínsko: 'fi', Švédsko: 'se', Dánsko: 'dk', Holandsko: 'nl', Belgicko: 'be', Švajčiarsko: 'ch',
+  Rumunsko: 'ro', Chorvátsko: 'hr', Slovinsko: 'si', 'Veľká Británia': 'gb', USA: 'us', Kanada: 'ca', Brazília: 'br',
+  Austrália: 'au', Japonsko: 'jp', Čína: 'cn', Paraguaj: 'py',
+};
+const EVENT_COUNTRIES = ['Slovensko', 'Česko', 'Rakúsko', 'Maďarsko', 'Poľsko', 'Nemecko', 'Francúzsko', 'Španielsko', 'Taliansko', 'Veľká Británia', 'USA', 'Iná'];
+const flag = country => {
+  const c = COUNTRY_CODES[country];
+  return c ? h('img', { class: 'flag', src: `https://flagcdn.com/${c}.svg`, alt: country, title: country, width: 24, height: 18, loading: 'lazy' })
+    : h('span', { class: 'flag globe', title: country || 'Svet', 'aria-label': country || 'Svet' }, '🌍');
+};
+const MONTHS_NOM = ['Január', 'Február', 'Marec', 'Apríl', 'Máj', 'Jún', 'Júl', 'August', 'September', 'Október', 'November', 'December'];
+const dayDiff = (a, b) => Math.round((Date.UTC(...b.split('-').map((x, i) => i === 1 ? x - 1 : +x)) - Date.UTC(...a.split('-').map((x, i) => i === 1 ? x - 1 : +x))) / 864e5);
+
 async function pageEvents(root) {
-  let filter = 'all';
+  let region = 'all', when = 'upcoming';
   const list = h('div', { class: 'event-list' });
-  const ours = EVENTS.map(e => ({ ...e, ours: true, country: 'Slovensko', title: e.name }));
+  const ours = EVENTS.map(e => ({ ...e, ours: true, country: 'Slovensko', title: e.name, end_date: e.endDate || null, prize: e.prize || null, kind: 'Game of Skate' }));
   let community = [];
-  try { community = (await store.listEvents()).map(e => ({ ...e, title: e.name, ours: false })); } catch (err) { console.error(err); }
+  const load = async () => { try { community = (await store.listEvents()).map(e => ({ ...e, title: e.name, ours: false })); } catch (err) { console.error(err); } };
+  await load();
   const today = todayStr();
+  const lastDay = e => e.end_date && e.end_date > e.date ? e.end_date : e.date;
+
+  function dateBlock(e) {
+    const p = parseDate(e.date); if (!p) return h('div', { class: 'ev-date' }, h('span', { class: 'm cond' }, 'čoskoro'));
+    const q = parseDate(lastDay(e));
+    const d = q.d !== p.d || q.m !== p.m ? (q.m === p.m ? `${p.d}–${q.d}` : `${p.d}. ${p.m}.–${q.d}. ${q.m}.`) : String(p.d);
+    return h('div', { class: 'ev-date' + (d.length > 5 ? ' long' : d.includes('–') ? ' range' : '') }, h('span', { class: 'd wide' }, d), h('span', { class: 'm cond' }, MON[p.m - 1] + (q.m !== p.m ? '–' + MON[q.m - 1] : '')));
+  }
+  function when_(e) {
+    if (!e.date) return null;
+    if (e.date <= today && lastDay(e) >= today) return h('span', { class: 'evb live' }, 'Práve prebieha');
+    if (e.date > today) { const n = dayDiff(today, e.date); return n <= 60 ? h('span', { class: 'evb soon' }, n === 1 ? 'zajtra' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`) : null; }
+    return null;
+  }
   function row(e) {
-    const p = parseDate(e.date);
-    return h('li', { class: 'ev-row' + (e.ours ? ' ours' : '') },
-      h('div', { class: 'ev-date', 'aria-hidden': 'true' }, p ? [h('span', { class: 'd wide' }, p.d), h('span', { class: 'm cond' }, MON[p.m - 1])] : h('span', { class: 'm cond' }, 'čoskoro')),
+    const days = e.date ? dayDiff(e.date, lastDay(e)) + 1 : 0;
+    return h('li', { class: 'ev-row' + (e.ours ? ' ours' : '') + (e.date && e.date <= today && lastDay(e) >= today ? ' live' : '') },
+      dateBlock(e),
       h('div', { class: 'ev-info' },
-        e.ours ? h('a', { class: 'ev-name', href: '#/event/' + e.id }, e.title) : h('span', { class: 'ev-name' }, e.title),
-        h('span', { class: 'ev-meta' }, [e.place || e.city, e.ours ? null : e.city && e.place ? e.city : null, e.country !== 'Slovensko' ? e.country : null, fmtDate(e.date) || 'Dátum doplníme', e.ours ? 'GOSko' : e.kind].filter(Boolean).join(', ')),
-        e.pending && h('span', { class: 'tag' }, 'Čaká na schválenie')),
+        h('div', { class: 'ev-title' }, flag(e.country),
+          e.ours ? h('a', { class: 'ev-name', href: '#/event/' + e.id }, e.title) : h('span', { class: 'ev-name' }, e.title)),
+        h('span', { class: 'ev-meta' }, [[e.city, e.place].filter(Boolean).join(', '), e.country !== 'Slovensko' && e.country !== 'Česko' ? e.country : null, e.organizer ? `organizuje ${e.organizer}` : null].filter(Boolean).join(' · ') || 'Miesto doplníme'),
+        h('div', { class: 'ev-badges' },
+          e.ours && h('span', { class: 'evb gosko' }, 'GOSko'),
+          e.kind && !e.ours && h('span', { class: 'evb' }, e.kind),
+          days > 1 && h('span', { class: 'evb' }, `${days} ${plural(days, 'deň', 'dni', 'dní')}`),
+          e.prize && h('span', { class: 'evb prize', title: 'Prize pool' }, '🏆 ', e.prize),
+          when_(e),
+          e.pending && h('span', { class: 'evb' }, 'Čaká na schválenie'))),
       h('div', { class: 'ev-actions' },
         !e.ours && e.link && h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Viac info'),
-        e.date && e.date >= today && h('button', { class: 'btn small', type: 'button', onclick: () => downloadIcs({ title: e.title, date: e.date, place: [e.place, e.city].filter(Boolean).join(', '), url: e.link }) }, 'Do kalendára')));
+        e.ours && h('a', { class: 'btn small', href: '#/event/' + e.id }, 'Detail'),
+        e.date && lastDay(e) >= today && h('button', { class: 'btn small', type: 'button', onclick: () => downloadIcs({ title: e.title, date: e.date, end: lastDay(e), place: [e.place, e.city].filter(Boolean).join(', '), url: e.link }) }, 'Do kalendára')));
   }
   function render() {
     const all = [...ours, ...community].filter(e =>
-      filter === 'all' || (filter === 'gosko' && e.ours) || (filter === 'sk' && e.country === 'Slovensko') || (filter === 'abroad' && e.country !== 'Slovensko'));
-    const upcoming = all.filter(e => e.status === 'next' || (!e.ours && (!e.date || e.date >= today))).sort((a, b) => (a.date || '9').localeCompare(b.date || '9'));
-    const past = all.filter(e => !upcoming.includes(e)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    list.replaceChildren(
-      h('h2', { class: 'wide sub' }, 'Najbližšie'), upcoming.length ? h('ul', { class: 'ev-list' }, upcoming.map(row)) : h('p', { class: 'empty' }, 'Zatiaľ nič. Poznáš event? Pridaj ho.'),
-      h('h2', { class: 'wide sub' }, 'Odjazdené'), past.length ? h('ul', { class: 'ev-list' }, past.map(row)) : h('p', { class: 'empty' }, 'Zatiaľ nič.'));
+      region === 'all' || (region === 'gosko' && e.ours) || (region === 'sk' && e.country === 'Slovensko') || (region === 'cz' && e.country === 'Česko') ||
+      (region === 'abroad' && e.country !== 'Slovensko' && e.country !== 'Česko'));
+    const isUp = e => (e.ours && e.status === 'next') || (e.date ? lastDay(e) >= today : !e.ours);
+    const shown = all.filter(e => when === 'upcoming' ? isUp(e) : !isUp(e))
+      .sort((a, b) => when === 'upcoming' ? (a.date || '9').localeCompare(b.date || '9') : (b.date || '').localeCompare(a.date || ''));
+    const groups = new Map();
+    for (const e of shown) { const p = parseDate(e.date); const k = p ? `${p.y}-${String(p.m).padStart(2, '0')}` : 'tbd'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+    const label = k => { if (k === 'tbd') return 'Dátum doplníme'; const [y, m] = k.split('-').map(Number); return `${MONTHS_NOM[m - 1]} ${y}`; };
+    const strip = groups.size > 1 ? h('nav', { class: 'month-strip', 'aria-label': 'Mesiace' }, [...groups].map(([k, arr]) =>
+      h('button', { type: 'button', class: 'month-chip', onclick: () => document.getElementById('m-' + k)?.scrollIntoView({ block: 'start' }) },
+        h('span', {}, k === 'tbd' ? '?' : MON[+k.slice(5) - 1]), h('small', {}, arr.length)))) : null;
+    list.replaceChildren(...[
+      h('p', { class: 'ev-count' }, shown.length ? `${shown.length} ${plural(shown.length, 'event', 'eventy', 'eventov')}` : ''),
+      strip,
+      shown.length ? [...groups].map(([k, arr]) => h('section', { class: 'month', id: 'm-' + k },
+        h('h2', { class: 'wide sub month-h' }, label(k)), h('ul', { class: 'ev-list' }, arr.map(row))))
+        : h('p', { class: 'empty' }, when === 'upcoming' ? 'Zatiaľ nič. Poznáš event? Pridaj ho.' : 'Zatiaľ nič.')].flat().filter(Boolean));
   }
-  const chips = h('div', { class: 'chips' }, [['all', 'Všetky'], ['gosko', 'GOSko'], ['sk', 'Slovensko'], ['abroad', 'Zahraničie']].map(([v, label]) =>
-    h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === filter), onclick: e => { filter = v; chips.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c === e.currentTarget))); render(); } }, label)));
-  root.append(pageHead('Eventy', 'Naše zastávky aj ďalšie skate eventy doma a v zahraničí. Poznáš event, ktorý tu chýba? Pridaj ho.',
+  const chipGroup = (label, items, get, set) => {
+    const g = h('div', { class: 'chips', role: 'group', 'aria-label': label }, items.map(([v, t]) =>
+      h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === get()), onclick: ev => { set(v); g.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c === ev.currentTarget))); render(); } }, t)));
+    return g;
+  };
+  root.append(pageHead('Eventy', 'Kalendár skate eventov: GOSko, Slovensko, Česko aj svet. Poznáš event, ktorý tu chýba? Pridaj ho.',
     h('button', { class: 'btn primary', type: 'button', onclick: addEventDialog }, 'Pridať event')),
-    h('div', { class: 'wrap page-body' }, h('div', { class: 'controls' }, chips), list));
+    h('div', { class: 'wrap page-body' }, h('div', { class: 'controls' },
+      chipGroup('Krajina', [['all', 'Všetky'], ['gosko', 'GOSko'], ['sk', 'Slovensko'], ['cz', 'Česko'], ['abroad', 'Zahraničie']], () => region, v => { region = v; }),
+      chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; })), list));
   render();
 
   function addEventDialog() {
@@ -486,19 +542,25 @@ async function pageEvents(root) {
       intro: 'Event sa zobrazí v kalendári po schválení.',
       fields: [
         { name: 'name', label: 'Názov eventu', required: true, max: 80 },
-        { name: 'date', label: 'Dátum', type: 'date', required: true },
+        { name: 'date', label: 'Dátum (prvý deň)', type: 'date', required: true },
+        { name: 'end_date', label: 'Posledný deň', type: 'date', hint: 'Len pri viacdňovom evente.' },
         { name: 'city', label: 'Mesto', required: true, max: 40 },
         { name: 'place', label: 'Miesto', max: 60, placeholder: 'nepovinné, napr. názov skateparku' },
-        { name: 'country', label: 'Krajina', type: 'select', options: ['Slovensko', 'Česko', 'Rakúsko', 'Maďarsko', 'Poľsko', 'Iná'] },
+        { name: 'country', label: 'Krajina', type: 'select', options: EVENT_COUNTRIES },
         { name: 'kind', label: 'Typ', type: 'select', options: ['Game of Skate', 'Contest', 'Jam alebo session', 'Iné'] },
+        { name: 'prize', label: 'Prize pool', max: 60, placeholder: 'nepovinné, napr. 500 € + ceny' },
         { name: 'link', label: 'Odkaz na event', type: 'url', max: 300, placeholder: 'https://…' },
         { name: 'organizer', label: 'Organizátor', max: 60 },
         { name: 'contact', label: 'Tvoj kontakt', type: 'email', max: 120, hint: 'Nezverejníme ho, len keby sme sa potrebovali niečo spýtať.' },
       ],
-      onSubmit: async v => { await store.submitEvent({ ...v, place: v.place || null, link: v.link || null, organizer: v.organizer || null, contact: v.contact || null }); pageEventsRefresh(); return 'Ďakujeme! Event sa v kalendári zobrazí po schválení.'; },
+      onSubmit: async v => {
+        if (v.end_date && v.end_date < v.date) throw new UserError('Posledný deň nemôže byť pred prvým.');
+        await store.submitEvent({ ...v, end_date: v.end_date && v.end_date !== v.date ? v.end_date : null, prize: v.prize || null, place: v.place || null, link: v.link || null, organizer: v.organizer || null, contact: v.contact || null });
+        await load(); render();
+        return 'Ďakujeme! Event sa v kalendári zobrazí po schválení.';
+      },
     });
   }
-  async function pageEventsRefresh() { try { community = (await store.listEvents()).map(e => ({ ...e, title: e.name, ours: false })); render(); } catch {} }
 }
 
 function registerDialog(ev) {
@@ -675,16 +737,37 @@ async function pageParks(root) {
   const section = h('section', { class: 'builder light' }, h('div', { class: 'wrap rel' },
     deco('oval', 'd-head'),
     h('h1', { class: 'wide red' }, 'Postav si skatepark'),
-    h('p', { class: 'lead' }, 'Vyber prekážku a ťukni na plochu. Keď je park hotový, pošli ho. Najlepšie parky podľa hlasov budú v top 10.'),
+    h('p', { class: 'lead' }, 'Vyber prekážku a ťukni na plochu, alebo ju myšou rovno potiahni. Položené prekážky chytíš a presunieš. Keď je park hotový, pošli ho. Najlepšie parky podľa hlasov budú v top 10.'),
     h('div', { class: 'viewing', hidden: true }, h('p', { class: 'viewing-text' }), h('button', { class: 'btn viewing-exit', type: 'button' }, 'Späť na môj park')),
     h('div', { class: 'builder-stage' }, h('canvas', { class: 'park-canvas', 'aria-label': 'Stavebná plocha skateparku' }),
-      h('button', { class: 'btn solid stage-btn', type: 'button', 'data-act': 'view' }, 'Otočiť pohľad')),
+      h('div', { class: 'stage-tools' },
+        h('button', { class: 'btn solid stage-btn', type: 'button', 'data-act': 'zoom-in', 'aria-label': 'Priblížiť', title: 'Priblížiť (+)' }, '+'),
+        h('button', { class: 'btn solid stage-btn', type: 'button', 'data-act': 'zoom-out', 'aria-label': 'Oddialiť', title: 'Oddialiť (−)' }, '−'),
+        h('button', { class: 'btn solid stage-btn', type: 'button', 'data-act': 'reset-view', title: 'Celá plocha (F)' }, 'Celá plocha'),
+        h('button', { class: 'btn solid stage-btn', type: 'button', 'data-act': 'view', title: 'Otočiť pohľad (Q / E)' }, 'Otočiť pohľad'))),
     tools,
+    h('div', { class: 'builder-opts' },
+      h('div', { class: 'opt' }, h('span', { class: 'opt-label cond' }, 'Farba'), h('div', { class: 'swatches', role: 'group', 'aria-label': 'Farba prekážky' })),
+      h('div', { class: 'opt' }, h('span', { class: 'opt-label cond' }, 'Plocha'), h('div', { class: 'chips sizes', role: 'group', 'aria-label': 'Veľkosť plochy' }))),
     h('div', { class: 'actions' },
-      h('button', { class: 'btn', type: 'button', 'data-act': 'rotate' }, 'Otočiť prekážku'),
-      h('button', { class: 'btn', type: 'button', 'data-act': 'delete', disabled: true }, 'Zmazať'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'undo', disabled: true, title: 'Ctrl+Z' }, 'Späť'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'redo', disabled: true, title: 'Ctrl+Y' }, 'Znova'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'rotate', title: 'R' }, 'Otočiť prekážku'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'duplicate', disabled: true, title: 'Ctrl+D' }, 'Kopírovať'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'delete', disabled: true, title: 'Delete' }, 'Zmazať'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'random' }, 'Inšpiruj ma'),
       h('button', { class: 'btn', type: 'button', 'data-act': 'clear' }, 'Vyčistiť plochu'),
       h('button', { class: 'btn primary push', type: 'button', 'data-act': 'send' }, 'Poslať park')),
+    h('details', { class: 'kbd-help', hidden: true }, h('summary', {}, 'Ovládanie myšou a klávesnicou'),
+      h('ul', {}, [
+        ['Klik', 'položí vybranú prekážku alebo vyberie položenú'],
+        ['Ťahanie prekážky', 'presun; prekážku z panela môžeš potiahnuť rovno na plochu'],
+        ['Ťahanie plochy / pravé tlačidlo', 'otáčanie pohľadu'],
+        ['Stredné tlačidlo / Shift + ťahanie', 'posun pohľadu'],
+        ['Koliesko', 'priblíženie (najprv klikni do plochy)'],
+        ['R', 'otočiť prekážku'], ['Delete', 'zmazať'], ['Ctrl+D', 'kopírovať'], ['Šípky', 'posun vybranej prekážky'],
+        ['Ctrl+Z / Ctrl+Y', 'späť / znova'], ['1 – 9', 'výber prekážky'], ['Q / E', 'otočiť pohľad'], ['+ / −', 'priblížiť / oddialiť'], ['F', 'celá plocha'], ['Esc', 'zrušiť výber'],
+      ].map(([k, t]) => h('li', {}, h('kbd', {}, k), ' ', t)))),
     h('p', { class: 'status', role: 'status', 'aria-live': 'polite' })));
   const title = h('h2', { class: 'wide' }, 'Top 10 parkov');
   const note = h('p', { class: 'note' }), ol = h('ol', { class: 'ranking' }), empty = h('p', { class: 'empty', hidden: true }, 'Zatiaľ tu nie je žiadny park. Postav prvý.');
@@ -699,8 +782,8 @@ async function pageParks(root) {
   try { builder = mountBuilder(section); } catch (err) { console.error(err); $('.status', section).textContent = 'Tvoj prehliadač nevie zobraziť 3D. Skús iný prehliadač.'; }
 
   $('[data-act=send]', section).addEventListener('click', async () => {
-    const items = builder?.items() || [];
-    if (items.length < 3) { builder?.say('Pridaj aspoň 3 prekážky, potom môžeš park poslať.'); return; }
+    const lay = builder?.layout();
+    if (!lay || lay.items.length < 3) { builder?.say('Pridaj aspoň 3 prekážky, potom môžeš park poslať.'); return; }
     if (!(await requireLogin())) return;
     formDialog({
       title: 'Poslať park', submit: 'Poslať park',
@@ -711,7 +794,7 @@ async function pageParks(root) {
         { name: 'place', label: 'Konkrétne miesto', max: 60, placeholder: 'nepovinné, napr. pod Mostom SNP' },
       ],
       onSubmit: async v => {
-        const res = await store.submitPark({ ...v, layout: slimLayout(items), thumb: renderThumb(items) });
+        const res = await store.submitPark({ ...v, layout: slimLayout(lay), thumb: renderThumb(lay) });
         refresh();
         return res.pending ? 'Ďakujeme! Park sa zobrazí v zozname po schválení.' : 'Park je v zozname. V ukážkovom režime ho vidíš len ty.';
       },
