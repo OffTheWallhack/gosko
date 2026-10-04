@@ -174,7 +174,22 @@ a.ev-name:hover{text-decoration:underline}
 .builder-stage{position:relative;aspect-ratio:1 / 1;max-height:72vh;width:100%;background:var(--plot);border:2px solid var(--black)}
 @media (min-width:720px){ .builder-stage{aspect-ratio:16 / 9;max-height:620px} }
 .park-canvas{display:block;width:100%;height:100%;touch-action:pan-y}
-.stage-btn{position:absolute;right:8px;bottom:8px;padding:8px 12px;font-size:.875rem}
+.stage-tools{position:absolute;right:8px;bottom:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:calc(100% - 16px)}
+.stage-btn{padding:8px 12px;font-size:.875rem}
+.stage-btn[data-act^=zoom]{min-width:42px;font-size:1.125rem;line-height:1}
+.park-canvas:focus{outline:none}
+.builder-opts{display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;margin:4px 0 6px}
+.builder-opts .opt{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.opt-label{font-weight:700;font-size:.875rem;text-transform:uppercase;letter-spacing:.04em}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid var(--black);background:var(--sw);cursor:pointer;padding:0}
+.swatch[aria-pressed="true"]{outline:3px solid var(--red);outline-offset:2px}
+.swatches[aria-disabled="true"],.sizes[aria-disabled="true"]{opacity:.35;pointer-events:none}
+.kbd-help{margin-top:14px;font-size:.9375rem}
+.kbd-help summary{cursor:pointer;font-weight:700}
+.kbd-help ul{list-style:none;padding:0;margin:10px 0 0;columns:2 260px;column-gap:28px}
+.kbd-help li{margin:0 0 6px;break-inside:avoid}
+.kbd-help kbd{display:inline-block;padding:1px 7px;border:2px solid var(--black);border-bottom-width:3px;font:inherit;font-weight:700;font-size:.8125rem;background:rgba(255,255,255,.4)}
 .tools{display:flex;gap:8px;overflow-x:auto;padding:12px 2px 8px;margin:0 -2px;scrollbar-width:thin}
 .tool{flex:0 0 auto;width:86px;display:grid;justify-items:center;gap:2px;padding:10px 6px 8px;background:transparent;border:2px solid var(--black);color:var(--black);cursor:pointer;font-size:.8125rem;font-weight:700;line-height:1.2}
 .tool svg{width:40px;height:24px;fill:currentColor}

@@ -29,6 +29,7 @@ icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim
+supabase-seed-events.sql  skate eventy doma a vo svete do kalendára (sezóna 2026)
 ```
 
 ## 1. Nahratie na GitHub (zadarmo)
@@ -85,6 +86,19 @@ to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
 
 V admine potom schvaľuješ parky, eventy a spoty od komunity a vidíš registrácie,
 odber noviniek, objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
+
+## Stavebnica parku
+
+Na PC: prekážku vyber klikom alebo ju myšou potiahni rovno na plochu. Položenú prekážku chytíš
+a presunieš, R otočí, Delete zmaže, Ctrl+D skopíruje, Ctrl+Z/Ctrl+Y späť/znova.
+Pravé tlačidlo otáča pohľad, koliesko približuje (najprv klikni do plochy). Na mobile sa prekážka
+chytí podržaním prsta. Plocha má tri veľkosti a prekážky sa dajú prefarbiť.
+
+## Kalendár eventov
+
+Eventy od komunity a svetové/domáce skate eventy sú v Supabase v tabuľke `community_events`
+(schválené sa ukážu v kalendári). Súbor `supabase-seed-events.sql` ich vloží znova, ak treba
+(duplicitné sa nevložia). Ďalšie pridáš cez „Pridať event“ a schváliš v admine.
 
 ## Newsletter
 
