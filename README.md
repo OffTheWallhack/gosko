@@ -99,6 +99,7 @@ chytí podržaním prsta. Plocha má tri veľkosti a prekážky sa dajú prefarb
 Eventy od komunity a svetové/domáce skate eventy sú v Supabase v tabuľke `community_events`
 (schválené sa ukážu v kalendári). Súbor `supabase-seed-events.sql` ich vloží znova, ak treba
 (duplicitné sa nevložia). Ďalšie pridáš cez „Pridať event“ a schváliš v admine.
+Pri evente môže byť aj posledný deň (`end_date`) a prize pool (`prize`). Vlajka sa ukáže podľa krajiny.
 
 ## Newsletter
 

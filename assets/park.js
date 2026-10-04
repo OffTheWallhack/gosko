@@ -16,6 +16,7 @@ const LS = {
 export const TYPES = {
   kicker:   { name: 'Kicker',     w: 1, d: 1, icon: '<path d="M4 22H36V8Z"/>' },
   rail:     { name: 'Rail',       w: 2, d: 1, icon: '<rect x="3" y="7" width="34" height="3"/><rect x="8" y="7" width="3" height="15"/><rect x="29" y="7" width="3" height="15"/>' },
+  kinkrail: { name: 'Kink rail',  w: 3, d: 1, icon: '<path d="M3 6H12L28 14H37" fill="none" stroke="currentColor" stroke-width="3"/><rect x="5" y="6" width="3" height="16"/><rect x="32" y="14" width="3" height="8"/><rect x="18" y="10" width="3" height="12"/>' },
   flatbar:  { name: 'Flatbar',    w: 2, d: 1, icon: '<rect x="3" y="13" width="34" height="3"/><rect x="8" y="13" width="3" height="9"/><rect x="29" y="13" width="3" height="9"/>' },
   ledge:    { name: 'Ledge',      w: 2, d: 1, icon: '<rect x="3" y="10" width="34" height="12"/>' },
   manual:   { name: 'Manual pad', w: 2, d: 1, icon: '<rect x="3" y="15" width="34" height="7"/>' },
@@ -86,6 +87,15 @@ function buildObstacle(type, paint) {
     case 'rail': {
       const bar = cyl(.035, .035, 1.84, MAT.red); bar.rotation.z = Math.PI / 2; bar.position.y = .4; g.add(bar);
       for (const x of [-.72, .72]) { const p = cyl(.028, .028, .4, MAT.red, 12); p.position.set(x, .2, 0); g.add(p, box(.16, .02, .16, MAT.steel, x, .01, 0)); }
+      break;
+    }
+    case 'kinkrail': {
+      const pts = [[-1.45, .45], [-.55, .45], [.55, .85], [1.45, .85]];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [[x1, y1], [x2, y2]] = [pts[i], pts[i + 1]], len = Math.hypot(x2 - x1, y2 - y1);
+        const bar = cyl(.035, .035, len, MAT.red, 12); bar.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0); bar.rotation.z = Math.atan2(y2 - y1, x2 - x1) - Math.PI / 2; g.add(bar);
+      }
+      for (const [x, y] of [[-1.3, .45], [0, .65], [1.3, .85]]) { const p = cyl(.028, .028, y, MAT.red, 12); p.position.set(x, y / 2, 0); g.add(p, box(.16, .02, .16, MAT.steel, x, .01, 0)); }
       break;
     }
     case 'flatbar': {
@@ -566,6 +576,20 @@ export function mountBuilder(root) {
     if (!B.park.items.length || !confirm('Naozaj vyčistiť celú plochu?')) return;
     remember(); B.park.items = []; B.selected = null; rebuild(); saveDraft(); say('Plocha je prázdna. Ctrl+Z ju vráti.');
   });
+  act('random', () => {
+    if (B.viewing) return;
+    const keys = Object.keys(TYPES), park = { size: B.park.size, items: [] };
+    const target = Math.round(S().w * S().d / 9);
+    for (let n = 0; n < 400 && park.items.length < target; n++) {
+      const type = keys[Math.floor(Math.random() * keys.length)], rot = Math.floor(Math.random() * 4), f = footprint({ type, rot });
+      const c = { id: uid(), type, rot, x: Math.floor(Math.random() * (S().w - f.w + 1)), z: Math.floor(Math.random() * (S().d - f.d + 1)) };
+      // nechá okolo prekážok aspoň dlaždicu voľnú, aby sa dalo jazdiť
+      const pad = { ...c, x: c.x - 1, z: c.z - 1 };
+      const free = !park.items.some(it => { const g = footprint(it); return pad.x < it.x + g.w && pad.x + f.w + 2 > it.x && pad.z < it.z + g.d && pad.z + f.d + 2 > it.z; });
+      if (free && fits(park, c)) { if (B.paint !== 'natural') c.color = B.paint; park.items.push(c); }
+    }
+    remember(); B.park = park; B.selected = null; rebuild(); saveDraft(); say('Náhodný park. Nepáči sa? Klikni znova alebo Ctrl+Z.');
+  });
   act('view', () => { B.view.angle += Math.PI / 2; aim(); });
   act('zoom-in', () => { B.view.zoom = clamp(B.view.zoom / 1.25, .3, 1.6); aim(); });
   act('zoom-out', () => { B.view.zoom = clamp(B.view.zoom * 1.25, .3, 1.6); aim(); });
@@ -610,7 +634,7 @@ export function mountBuilder(root) {
     } else { B.viewing = null; B.park = B.draft || cleanLayout([]); B.draft = null; }
     $('.viewing').hidden = !park;
     $('.tools').setAttribute('aria-disabled', String(!!park));
-    for (const a of ['rotate', 'clear', 'send', 'undo', 'redo', 'duplicate']) { const b = $(`[data-act=${a}]`); if (b) b.disabled = !!park; }
+    for (const a of ['rotate', 'clear', 'send', 'undo', 'redo', 'duplicate', 'random']) { const b = $(`[data-act=${a}]`); if (b) b.disabled = !!park; }
     for (const el of root.querySelectorAll('.sizes, .swatches')) el.setAttribute('aria-disabled', String(!!park));
     B.selected = null; B.view.panX = B.view.panZ = 0; ps.setSize(B.park.size); aim(); rebuild(); syncSizes(); syncButtons(); say('');
   }

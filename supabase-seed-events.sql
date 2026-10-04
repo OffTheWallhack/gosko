@@ -51,3 +51,45 @@ from (values
 where not exists (
   select 1 from public.community_events e where e.name = v.name and e.date = v.date::date
 );
+
+-- ---------- Dátum konca a prize pool (spusti aj na staršej databáze) ----------
+alter table public.community_events
+  add column if not exists end_date date,
+  add column if not exists prize text check (char_length(prize) <= 60);
+alter table public.community_events drop constraint if exists community_events_end_after_start;
+alter table public.community_events add constraint community_events_end_after_start check (end_date is null or end_date >= date);
+create or replace view public.community_events_public as
+  select id, created_at, name, date, city, place, country, kind, link, organizer, end_date, prize
+  from public.community_events where approved;
+grant select on public.community_events_public to anon, authenticated;
+
+update public.community_events e set end_date = v.end_date::date, prize = coalesce(v.prize, e.prize)
+from (values
+  ('Mystic Sk8 Cup 2026','2026-06-28',null),
+  ('SLS Championship Tour Sydney','2026-02-15',null),
+  ('Tampa Pro 2026','2026-04-12','25 000 $+'),
+  ('Helsinki HELride 2026','2026-07-05',null),
+  ('O Marisquiño – World Cup Skateboarding 2026','2026-08-09',null),
+  ('Red Bull Bowl Rippers 2026','2026-08-30',null),
+  ('Tony Hawk''s Vert Alert 2026','2026-08-22',null),
+  ('Damn Am San Diego 2026','2026-08-30',null),
+  ('Damn Am Louisville 2026','2026-09-20',null),
+  ('Red Bull Origin NYC 2026','2026-09-19',null),
+  ('World Skate Games: MS v park skateboardingu','2026-10-18',null),
+  ('World Skate Games: MS v street skateboardingu','2026-10-17',null),
+  ('Tampa Am 2026','2026-10-18',null),
+  ('Exposure 2026','2026-11-08',null),
+  ('WST Utsunomiya Street 2026','2026-11-23',null),
+  ('Lair King of the Groms 2026','2026-03-08',null),
+  ('Street & Park Skateboarding World Championships','2026-03-08',null),
+  ('Český skateboardový pohár Havířov','2026-08-29',null),
+  ('Bratislava Skate Cup 2026','2026-04-26',null)
+) as v(name, end_date, prize)
+where e.name = v.name;
+
+insert into public.community_events (name, date, end_date, city, place, country, kind, link, organizer, prize, approved)
+select v.*, true from (values
+  ('Cube Skate Day Vol. 3', '2026-09-19'::date, null::date, 'Sládkovičovo', 'Sketon Skatepark', 'Slovensko', 'Contest', 'https://www.slovakskate.sk/2026/09/03/cube-skate-day-vol-3-prinesie-do-sladkovicova-den-plny-skateboardingu/', 'CubeSkateshop.sk', '500 € + ceny'),
+  ('Cassovia Skate Cup 2026', '2026-06-06'::date, null::date, 'Košice', null, 'Slovensko', 'Contest', 'https://collosseum.sk/2026/05/11/cassovia-skate-cup-2026-afterparty/', null, null)
+) as v(name, date, end_date, city, place, country, kind, link, organizer, prize)
+where not exists (select 1 from public.community_events e where e.name = v.name and e.date = v.date);

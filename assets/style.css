@@ -129,6 +129,28 @@ a.ev-name:hover{text-decoration:underline}
 .ev-actions{grid-column:2;display:flex;flex-wrap:wrap;gap:8px}
 .ev-actions:empty{display:none}
 @media (min-width:720px){ .ev-row{grid-template-columns:72px 1fr auto} .ev-actions{grid-column:3} }
+.ev-date.long .d{font-size:1.05rem;white-space:nowrap}
+.ev-date.range .d{font-size:1.45rem;white-space:nowrap}
+.ev-row{grid-template-columns:76px 1fr}
+@media (min-width:720px){ .ev-row{grid-template-columns:84px 1fr auto} }
+.ev-row.live .ev-date{border-color:var(--cream);background:var(--cream);color:var(--black)}
+.ev-title{display:flex;align-items:center;gap:10px}
+.flag{flex:0 0 auto;width:24px;height:18px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+.flag.globe{display:inline-grid;place-items:center;box-shadow:none;font-size:1rem;line-height:1}
+.ev-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.ev-badges:empty{display:none}
+.evb{display:inline-flex;align-items:center;gap:2px;padding:2px 9px;border:1px solid var(--line-dark);border-radius:999px;font-size:.75rem;font-weight:700;color:var(--muted-dark);white-space:nowrap}
+.evb.gosko{background:var(--band);border-color:var(--band);color:var(--white)}
+.evb.prize{border-color:#c9a24a;color:#f0cf7d}
+.evb.live{background:var(--cream);border-color:var(--cream);color:var(--black)}
+.evb.soon{border-color:var(--muted-dark);color:var(--cream)}
+.ev-count{margin:0 0 10px;color:var(--muted-dark);font-size:.875rem}
+.month-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:6px;scrollbar-width:thin}
+.month-chip{flex:0 0 auto;display:grid;justify-items:center;min-width:52px;padding:6px 8px;border:2px solid var(--line-dark);background:transparent;color:var(--cream);cursor:pointer;font-weight:800;text-transform:uppercase;font-size:.8125rem}
+.month-chip small{font-weight:600;color:var(--muted-dark);text-transform:none}
+.month-chip:hover{border-color:var(--cream)}
+.month{scroll-margin-top:72px}
+.month-h{font-size:1.5rem;margin:26px 0 8px}
 .ev-hero{background:var(--band);padding:28px 0 26px}
 .ev-hero h1{font-size:clamp(2.2rem,8vw,4.6rem);margin:0}
 .ev-hero-meta{margin:10px 0 0;font-size:clamp(1.1rem,3.2vw,1.5rem)}
