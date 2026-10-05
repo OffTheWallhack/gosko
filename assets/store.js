@@ -44,6 +44,7 @@ function demoStore() {
     onAuth() {},
     async signedIn() { return true; },
     async email() { return ''; },
+    async login() {}, async loginPassword() {}, async verifyCode() {}, async verifyLink() {}, async setPassword() {}, async logout() {},
     async listParks() { return loadParks(); },
     async myVotes() { return new Set(LS.get(K.votes, [])); },
     async submitPark(park) {
@@ -144,7 +145,27 @@ async function liveStore(CONFIG) {
     async signedIn() { return !!(await session()); },
     async email() { return (await session())?.user?.email || ''; },
     async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } })); },
-    async verifyCode(email, token) { must(await sb.auth.verifyOtp({ email, token, type: 'email' })); },
+    async loginPassword(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    async verifyCode(email, token) {
+      token = String(token || '').replace(/\s/g, '');
+      if (!/^\d{6,8}$/.test(token)) throw new Error('code');
+      // prvé prihlásenie je technicky „signup“, ďalšie „email“; skúsime oboje
+      let r = await sb.auth.verifyOtp({ email, token, type: 'email' });
+      if (r.error) r = await sb.auth.verifyOtp({ email, token, type: 'signup' });
+      must(r);
+    },
+    /* Náhradné prihlásenie: človek vloží odkaz z e-mailu alebo adresu, kam ho odkaz hodil (napr. localhost s #access_token=…). */
+    async verifyLink(text) {
+      let u; try { u = new URL(String(text).trim()); } catch { throw new Error('link'); }
+      const hp = new URLSearchParams(u.hash.replace(/^#/, ''));
+      if (hp.get('access_token') && hp.get('refresh_token')) { must(await sb.auth.setSession({ access_token: hp.get('access_token'), refresh_token: hp.get('refresh_token') })); return; }
+      const token = u.searchParams.get('token') || u.searchParams.get('token_hash'), type = u.searchParams.get('type') || 'email';
+      if (token) { must(await sb.auth.verifyOtp({ token_hash: token, type: type === 'magiclink' ? 'email' : type })); return; }
+      const code = u.searchParams.get('code');
+      if (code) { must(await sb.auth.exchangeCodeForSession(code)); return; }
+      throw new Error('link');
+    },
+    async setPassword(password) { must(await sb.auth.updateUser({ password })); },
     async logout() { await sb.auth.signOut(); },
     async listParks() {
       const data = must(await sb.from('parks_ranked').select('*').order('votes', { ascending: false }).limit(300));

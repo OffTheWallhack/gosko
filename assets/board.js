@@ -243,6 +243,12 @@ function buildBoard(stickers, logo, renderer, look) {
   return { board, dispose };
 }
 
+/* Samotný model dosky (pre maskota a iné scény). */
+export async function makeBoardModel(renderer, { look, stickers = [] } = {}) {
+  const logo = await loadLogo();
+  return buildBoard(stickers, logo, renderer, look);
+}
+
 /* scéna: lean (sklon podľa rozloženia) > pitch (naklonenie myšou) > spin (otáčanie) > trick (triky) > face > mid > holder (doska) */
 function makeBoardScene(stickers, logo, renderer, look) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 1, .01, 20);
@@ -300,79 +306,140 @@ export const TRICK_NAMES = Object.fromEntries(Object.entries(TRICKS).map(([k, v]
 
 /* ---------- 3D scény okolo dosky ---------- */
 export const SCENES = {
-  studio: 'Štúdio',
-  roll: 'V pohybe',
   wall: 'Pri stene',
-  ramp: 'Na rampe',
-  ledge: 'Na ledgi',
+  ride: 'Jazda',
+  free: 'Voľný pohľad',
 };
+const LEGACY = { roll: 'ride', ramp: 'wall', ledge: 'wall' };
 const WHEEL_Y = .0805;   // výška stredu dosky nad zemou, keď stojí na kolieskach
-function concreteTex(seams = true) {
-  const c = document.createElement('canvas'); c.width = c.height = 512;
-  const x = c.getContext('2d');
-  x.fillStyle = '#8f8a82'; x.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 26000; i++) { const g = 110 + Math.random() * 60; x.fillStyle = `rgba(${g},${g - 4},${g - 10},.5)`; x.fillRect(Math.random() * 512, Math.random() * 512, 1.6, 1.6); }
-  for (let i = 0; i < 14; i++) { x.fillStyle = `rgba(40,36,32,${Math.random() * .08})`; x.beginPath(); x.arc(Math.random() * 512, Math.random() * 512, 30 + Math.random() * 90, 0, 7); x.fill(); }
-  if (seams) { x.strokeStyle = 'rgba(40,36,32,.55)'; x.lineWidth = 3; x.strokeRect(0, 0, 512, 512); }
+const rnd = (a, b) => a + Math.random() * (b - a);
+function concreteTex(seams = true, size = 512) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'), k = size / 512;
+  x.fillStyle = '#8c877f'; x.fillRect(0, 0, size, size);
+  for (let i = 0; i < 30000 * k * k; i++) { const g = 105 + Math.random() * 70; x.fillStyle = `rgba(${g},${g - 4},${g - 10},.45)`; x.fillRect(Math.random() * size, Math.random() * size, 1.6, 1.6); }
+  for (let i = 0; i < 16; i++) { x.fillStyle = `rgba(40,36,32,${Math.random() * .09})`; x.beginPath(); x.arc(Math.random() * size, Math.random() * size, (30 + Math.random() * 110) * k, 0, 7); x.fill(); }
+  // vlasové praskliny
+  x.strokeStyle = 'rgba(30,27,24,.35)'; x.lineWidth = 1.2;
+  for (let i = 0; i < 3; i++) { let px = Math.random() * size, py = Math.random() * size; x.beginPath(); x.moveTo(px, py); for (let j = 0; j < 9; j++) { px += rnd(-28, 28) * k; py += rnd(-28, 28) * k; x.lineTo(px, py); } x.stroke(); }
+  if (seams) { x.strokeStyle = 'rgba(32,29,26,.6)'; x.lineWidth = 3 * k; x.strokeRect(0, 0, size, size); }
   return c;
 }
+/* stena so sprejom: GOSko kúsok, duch, tagy, plagát a špina pri zemi */
 function wallTex() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const W = 2048, H = 820, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
-  x.drawImage(concreteTex(false), 0, 0, 512, 512); x.drawImage(concreteTex(false), 512, 0, 512, 512);
-  x.fillStyle = 'rgba(20,18,16,.25)'; x.fillRect(0, 0, 1024, 512);
-  // tagy sprejom
-  x.save(); x.translate(560, 250); x.rotate(-.08);
-  x.font = '400 190px "Pirata One", "Anton", serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.lineWidth = 16; x.strokeStyle = 'rgba(14,13,12,.85)'; x.strokeText('GOSko', 0, 0);
-  x.fillStyle = '#A01414'; x.fillText('GOSko', 0, 0);
+  const con = concreteTex(false, 512);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) x.drawImage(con, i * 512, j * 410, 512, 410);
+  // betónové panely
+  x.strokeStyle = 'rgba(25,22,20,.55)'; x.lineWidth = 4; for (let i = 1; i < 4; i++) { x.beginPath(); x.moveTo(i * 512, 0); x.lineTo(i * 512, H); x.stroke(); }
+  x.fillStyle = 'rgba(20,18,16,.18)'; x.fillRect(0, 0, W, H);
+  // podklad pod kúsok
+  x.save(); x.translate(1300, 545); x.rotate(-.05);
+  x.fillStyle = 'rgba(14,13,12,.82)'; x.beginPath(); x.ellipse(0, 0, 360, 125, 0, 0, 7); x.fill();
+  x.font = '400 175px "Pirata One", "Anton", serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineJoin = 'round'; x.lineWidth = 34; x.strokeStyle = '#F3EBDD'; x.strokeText('GOSko', 0, 6);
+  x.lineWidth = 14; x.strokeStyle = '#0e0d0c'; x.strokeText('GOSko', 0, 6);
+  const gr = x.createLinearGradient(0, -150, 0, 150); gr.addColorStop(0, '#d0201c'); gr.addColorStop(1, '#7a0f10');
+  x.fillStyle = gr; x.fillText('GOSko', 0, 6);
+  x.fillStyle = 'rgba(255,255,255,.5)'; for (let i = 0; i < 12; i++) x.fillRect(rnd(-240, 220), rnd(-52, 22), rnd(8, 22), 4);   // odlesky
   x.restore();
-  if (GHOST) { x.save(); x.translate(860, 360); x.rotate(.2); x.globalAlpha = .9; x.drawImage(GHOST, -70, -80, 140, 158); x.restore(); }
-  x.fillStyle = 'rgba(243,235,221,.75)'; x.font = '700 34px "IBM Plex Mono", monospace'; x.fillText('S.K.A.T.E.', 120, 430);
-  for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(160,20,20,.7)'; x.fillRect(470 + i * 55 + Math.random() * 10, 330, 3, 20 + Math.random() * 60); }   // stekance
+  // stekance farby
+  for (let i = 0; i < 12; i++) { const dx = rnd(1020, 1560), dy = rnd(600, 640), len = rnd(20, 120); x.fillStyle = 'rgba(140,16,16,.85)'; x.fillRect(dx, dy, 4, len); x.beginPath(); x.arc(dx + 2, dy + len, 4, 0, 7); x.fill(); }
+  // duch šablónou
+  if (GHOST) { x.save(); x.translate(690, 600); x.rotate(-.12); x.globalAlpha = .95; x.drawImage(GHOST, -110, -125, 220, 248); x.restore(); }
+  // plagát
+  x.save(); x.translate(330, 360); x.rotate(-.04);
+  x.fillStyle = '#efe6d6'; x.fillRect(-120, -170, 240, 330);
+  x.fillStyle = '#0e0d0c'; x.fillRect(-104, -152, 208, 150);
+  if (GHOST) x.drawImage(GHOST, -48, -140, 96, 108);
+  x.fillStyle = '#A01414'; x.fillRect(-104, 8, 208, 40);
+  x.fillStyle = '#F3EBDD'; x.font = '800 30px "Archivo", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('GAME OF SKATE', 0, 29);
+  x.fillStyle = '#0e0d0c'; x.font = '700 22px "IBM Plex Mono", monospace'; x.fillText('POP-UP · SK / CZ', 0, 82); x.fillText('COMING SOON', 0, 116);
+  x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.moveTo(120, -170); x.lineTo(70, -170); x.lineTo(120, -120); x.fill();   // odlepený roh
+  x.restore();
+  // tagy
+  x.font = '700 46px "IBM Plex Mono", monospace'; x.fillStyle = 'rgba(243,235,221,.75)'; x.save(); x.translate(1560, 360); x.rotate(-.08); x.fillText('S.K.A.T.E.', 0, 0); x.restore();
+  x.font = '400 70px "Pirata One", serif'; x.fillStyle = 'rgba(14,13,12,.8)'; x.save(); x.translate(860, 470); x.rotate(.06); x.fillText('ride or die', 0, 0); x.restore();
+  // špina a vlhkosť pri zemi
+  const g2 = x.createLinearGradient(0, H * .7, 0, H); g2.addColorStop(0, 'rgba(14,13,12,0)'); g2.addColorStop(1, 'rgba(14,13,12,.75)');
+  x.fillStyle = g2; x.fillRect(0, H * .7, W, H * .3);
+  return c;
+}
+function coneTex() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+  const x = c.getContext('2d'); x.fillStyle = '#d8431c'; x.fillRect(0, 0, 64, 256);
+  x.fillStyle = '#efe9df'; x.fillRect(0, 70, 64, 34); x.fillRect(0, 150, 64, 26);
+  return c;
+}
+function gridTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'); x.fillStyle = '#121110'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 4000; i++) { const g = 18 + Math.random() * 14; x.fillStyle = `rgb(${g},${g - 1},${g - 2})`; x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); }
+  x.strokeStyle = 'rgba(243,235,221,.16)'; x.lineWidth = 2; x.strokeRect(0, 0, 256, 256);
+  x.strokeStyle = 'rgba(243,235,221,.05)'; x.lineWidth = 1; x.beginPath(); x.moveTo(128, 0); x.lineTo(128, 256); x.moveTo(0, 128); x.lineTo(256, 128); x.stroke();
   return c;
 }
 function buildEnv(name, renderer, dispList) {
   const env = new THREE.Group();
-  const tex = (cnv, rep = 1) => { const t = new THREE.CanvasTexture(cnv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); dispList.push(t); return t; };
+  const tex = (cnv, rx = 1, ry = rx) => { const t = new THREE.CanvasTexture(cnv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); dispList.push(t); return t; };
   const mat = o => { const m = new THREE.MeshStandardMaterial(o); dispList.push(m); return m; };
-  const mesh = (g, m) => { const o = new THREE.Mesh(g, m); o.castShadow = o.receiveShadow = true; dispList.push(g); return o; };
-  const groundTex = tex(concreteTex(), 6);
-  const ground = mesh(new THREE.PlaneGeometry(12, 12), mat({ map: groundTex, roughness: .95 }));
+  const mesh = (g, m, cast = true) => { const o = new THREE.Mesh(g, m); o.castShadow = cast; o.receiveShadow = true; dispList.push(g); return o; };
+  const concrete = mat({ map: tex(concreteTex(false), 1), roughness: .9 });
+  const steel = mat({ color: 0xc9ccd0, metalness: .7, roughness: .3 });
+  const cone = () => {
+    const g = new THREE.Group(), m = mat({ map: tex(coneTex()), roughness: .6 });
+    const body = mesh(new THREE.CylinderGeometry(.018, .1, .42, 28, 1, true), m); body.position.y = .23; g.add(body);
+    const base = mesh(new THREE.BoxGeometry(.26, .025, .26), mat({ color: 0x1a1816, roughness: .8 })); base.position.y = .0125; g.add(base);
+    return g;
+  };
+  if (name === 'free') {
+    const floor = mesh(new THREE.PlaneGeometry(40, 40), mat({ map: tex(gridTex(), 40), roughness: .95 }), false);
+    floor.rotation.x = -Math.PI / 2; env.add(floor);
+    // prach vo vzduchu
+    const n = 260, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { pos[i * 3] = rnd(-4, 4); pos[i * 3 + 1] = rnd(0, 3); pos[i * 3 + 2] = rnd(-4, 4); }
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); dispList.push(pg);
+    const pm = new THREE.PointsMaterial({ color: 0xf3ebdd, size: .012, transparent: true, opacity: .55 }); dispList.push(pm);
+    const dust = new THREE.Points(pg, pm); env.add(dust); env.userData.dust = dust;
+    return env;
+  }
+  const groundTex = tex(concreteTex(), name === 'ride' ? 24 : 8, name === 'ride' ? 6 : 8);
+  const ground = mesh(new THREE.PlaneGeometry(name === 'ride' ? 32 : 12, name === 'ride' ? 8 : 12), mat({ map: groundTex, roughness: .95 }), false);
   ground.rotation.x = -Math.PI / 2; env.add(ground);
   env.userData.groundTex = groundTex;
-  const concrete = mat({ map: tex(concreteTex(false), 1), roughness: .9 });
-  const steel = mat({ color: 0xc9ccd0, metalness: .6, roughness: .35 });
   if (name === 'wall') {
-    const wall = mesh(new THREE.BoxGeometry(4, 1.6, .2), mat({ map: tex(wallTex(), 1), roughness: .9 }));
-    wall.material.map.repeat.set(1, 1); wall.position.set(0, .8, -.45); env.add(wall);
+    const wall = mesh(new THREE.BoxGeometry(6, 2.4, .25), mat({ map: tex(wallTex(), 1), roughness: .92 }));
+    wall.position.set(0, 1.2, -.575); env.add(wall);
+    const curb = mesh(new THREE.BoxGeometry(1.7, .16, .34), concrete); curb.position.set(-1.45, .08, -.27); env.add(curb);
+    const edge = mesh(new THREE.BoxGeometry(1.7, .02, .02), steel); edge.position.set(-1.45, .16, -.1); env.add(edge);
+    const c1 = cone(); c1.position.set(.9, 0, .05); c1.rotation.y = .4; env.add(c1);
+    const c2 = cone(); c2.position.set(1.2, .1, -.3); c2.rotation.set(.0, .2, Math.PI / 2 - .05); c2.position.y = .1; env.add(c2);   // zvalený kužeľ
   }
-  if (name === 'ramp') {
-    const sh = new THREE.Shape(), R = .55, W = .7, H = .6;
-    sh.moveTo(0, 0); sh.lineTo(W, 0); sh.lineTo(W, H); sh.lineTo(W - .04, H); sh.absarc(W - .04 - R, H, R, 0, -Math.PI / 2, true); sh.lineTo(0, 0);
-    const g = new THREE.ExtrudeGeometry(sh, { depth: 2.4, bevelEnabled: false, curveSegments: 28 }); g.translate(-W, 0, -1.2);
-    const ramp = mesh(g, concrete); ramp.position.x = .55; env.add(ramp);
-    const cop = mesh(new THREE.CylinderGeometry(.03, .03, 2.4, 14), steel); cop.rotation.x = Math.PI / 2; cop.position.set(.55 - .04, H, 0); env.add(cop);
-    const deck = mesh(new THREE.BoxGeometry(.8, H, 2.4), concrete); deck.position.set(.55 + .4, H / 2, 0); env.add(deck);
-  }
-  if (name === 'ledge') {
-    const ledge = mesh(new THREE.BoxGeometry(2.6, .32, .45), concrete); ledge.position.set(0, .16, 0); env.add(ledge);
-    const edge = mesh(new THREE.BoxGeometry(2.6, .03, .03), steel); edge.position.set(0, .32, .225); env.add(edge);
-  }
-  if (name === 'roll') {
-    for (const z of [-1.3, 1.3]) { const c = mesh(new THREE.BoxGeometry(12, .12, .2), concrete); c.position.set(0, .06, z); env.add(c); }
+  if (name === 'ride') {
+    // múr s grafitmi v pozadí uteká pomalšie (paralaxa)
+    const bt = tex(wallTex(), 3, 1);
+    const back = mesh(new THREE.PlaneGeometry(18, 2.2), mat({ map: bt, roughness: .95 }), false); back.position.set(0, 1.1, -2.6); env.add(back);
+    env.userData.backTex = bt;
+    const props = [];
+    for (let i = 0; i < 5; i++) {
+      const p = i % 2 ? cone() : (() => { const g = new THREE.Group(); const b = mesh(new THREE.BoxGeometry(1.2, .15, .3), concrete); b.position.y = .075; g.add(b); const e = mesh(new THREE.BoxGeometry(1.2, .02, .02), steel); e.position.set(0, .15, .15); g.add(e); return g; })();
+      p.position.set(-7 + i * 3.4, 0, i % 2 ? rnd(-1.2, -.6) : rnd(-1.6, -1.1)); env.add(p); props.push(p);
+    }
+    env.userData.props = props;
+    // vodorovná čiara na zemi
+    const line = mesh(new THREE.PlaneGeometry(32, .05), mat({ color: 0xe9e1d2, roughness: .8 }), false); line.rotation.x = -Math.PI / 2; line.position.set(0, .002, .55); env.add(line);
   }
   return env;
 }
 /* poloha dosky a kamery v scéne: pose = pozícia/otočenie dosky, cam = [yaw, pitch, dist], target */
 const POSES = {
-  roll: { pos: [0, WHEEL_Y, 0], rot: [0, 0, 0], cam: [.9, .18, 1.35], target: [0, .08, 0] },
+  ride: { pos: [0, WHEEL_Y, 0], rot: [0, 0, 0], cam: [.95, .16, 1.45], target: [0, .14, 0], sun: [-1.5, 3, 2] },
   // opretá o stenu: dĺžka skoro zvislo, spodok s nálepkami k divákovi, grip k stene
-  wall: { pos: [0, .39, -.23], lean: .3, cam: [.35, .14, 1.75], target: [0, .42, -.2] },
-  // na hornej plošine rampy, chvost nad copingom
-  ramp: { pos: [.84, .6 + WHEEL_Y, 0], rot: [0, 0, 0], cam: [.28, .22, 2.1], target: [.3, .38, 0] },
-  ledge: { pos: [.1, .32 + WHEEL_Y, .05], rot: [0, .12, .06], cam: [.8, .32, 1.55], target: [0, .32, 0] },
+  wall: { pos: [0, .39, -.25], lean: .3, cam: [.3, .08, 3], target: [.05, .44, -.3], sun: [2.4, 2.6, 2.2] },
+  free: { pos: [0, .55, 0], rot: [0, 0, 0], cam: [.75, .32, 1.9], target: [0, .5, 0], sun: [1.5, 4, 1.5] },
 };
+const PITCH = { free: [-.35, 1.45], wall: [.02, 1.1], ride: [.02, 1.1] }, DIST = { free: [.6, 5], wall: [.8, 3.2], ride: [.8, 3.2] };
 
 /* Pripojí dosku na plátno. Vráti funkciu na upratanie, na ktorej sú aj ovládacie metódy:
    flip(), trick(name), reset(), zoomBy(f), setAuto(bool), setLook(look), setStickers(list), setScene(name). */
@@ -383,6 +450,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   let curLook = lookOf(look || (deck ? { deck } : DEFAULT_LOOK)), curStickers = stickers;
   const S = makeBoardScene(stickers, logo, renderer, curLook);
   const { scene, camera, spin, pitch, trick, lean, mid, holder } = S;
@@ -391,14 +459,17 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   /* scénický svet: vlastné svetlá, zem a rekvizity; doska sa doň presunie */
   const world = new THREE.Group(); world.visible = false; scene.add(world);
   const sun = new THREE.DirectionalLight(0xfff1dc, 2.6); sun.position.set(2, 3.2, 1.6); sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: .5, far: 10 }); sun.shadow.bias = -.0005;
-  world.add(sun, new THREE.HemisphereLight(0xd8e4ff, 0x3a2f28, .9));
+  sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: .5, far: 12 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .02;
+  const spot = new THREE.SpotLight(0xfff1dc, 18, 6, .55, .6, 1.4); spot.position.set(0, 3.2, .4); spot.target.position.set(0, 0, 0); spot.castShadow = true; spot.shadow.mapSize.set(1024, 1024);
+  world.add(sun, spot, spot.target, new THREE.HemisphereLight(0xd8e4ff, 0x3a2f28, .9));
+  let nextRideTrick = 0;
   const rig = new THREE.Group(), rigTrick = new THREE.Group(); rig.add(rigTrick); world.add(rig);
   let env = null, envDisp = [], sceneName = 'studio';
   const orbit = { yaw: 0, pitch: .2, dist: 1.6, target: new THREE.Vector3() };
   const shadowsOn = on => S.boardObj().traverse(o => { if (o.isMesh) { o.castShadow = on; o.receiveShadow = on; } });
 
   function setScene(name) {
+    name = LEGACY[name] || name;
     if (!SCENES[name]) name = 'studio';
     sceneName = name;
     if (env) { world.remove(env); envDisp.forEach(d => d.dispose()); envDisp = []; env = null; }
@@ -408,6 +479,9 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     }
     env = buildEnv(name, renderer, envDisp); world.add(env);
     const P = POSES[name];
+    sun.position.set(...P.sun); sun.intensity = name === 'free' ? 1.6 : 2.6;
+    spot.visible = name === 'free'; rig.rotation.set(0, 0, 0); rigTrick.rotation.set(0, 0, 0); rigTrick.position.set(0, 0, 0); anim = null;
+    nextRideTrick = performance.now() + 3500;
     rigTrick.add(holder); holder.position.set(0, 0, 0); holder.rotation.set(0, 0, 0);
     rig.position.set(...P.pos);
     if (P.lean !== undefined) {
@@ -416,7 +490,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     } else rig.rotation.set(...P.rot);
     [orbit.yaw, orbit.pitch, orbit.dist] = P.cam; orbit.target.set(...P.target);
     lean.visible = false; world.visible = true; shadowsOn(true);
-    scene.fog = new THREE.Fog(0x0e0d0c, 3, 7.5);
+    scene.fog = name === 'free' ? new THREE.Fog(0x0e0d0c, 2.5, 9) : new THREE.Fog(0x0e0d0c, name === 'ride' ? 3.5 : 4, name === 'ride' ? 9 : 8.5);
     resize();
   }
   function placeOrbit() {
@@ -443,7 +517,8 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     const h = ray.intersectObject(holder, true)[0];
     return h && h.object.userData.link ? h.object.userData.link : null;
   };
-  const zoomTo = z => { if (sceneName === 'studio') S.setZoom(z); else { orbit.dist = Math.max(.7, Math.min(3.2, orbit.dist * z / (S._z || 1))); S._z = z; placeOrbit(); } };
+  const lim = (v, [a, b]) => Math.max(a, Math.min(b, v));
+  const zoomTo = z => { if (sceneName === 'studio') S.setZoom(z); else { orbit.dist = lim(orbit.dist * z / (S._z || 1), DIST[sceneName]); S._z = z; placeOrbit(); } };
   const getZoom = () => sceneName === 'studio' ? S.getZoom() : (S._z || 1);
   const down = e => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -461,7 +536,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
         if (drag.type === 'mouse') { pitch.rotation.x = Math.max(-1.2, Math.min(1.2, pitch.rotation.x + dy * .01)); pvel = dy * .01; }
       } else {
         orbit.yaw -= dx * .008; vel = -dx * .008;
-        if (drag.type === 'mouse') orbit.pitch = Math.max(.03, Math.min(1.2, orbit.pitch + dy * .006));
+        if (drag.type === 'mouse') orbit.pitch = lim(orbit.pitch + dy * .006, PITCH[sceneName]);
         placeOrbit();
       }
     } else if (e.pointerType === 'mouse') canvas.style.cursor = hit(e) ? 'pointer' : 'grab';
@@ -481,8 +556,8 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     const k = e.key, st = sceneName === 'studio';
     if (k === 'ArrowLeft') st ? spin.rotation.y -= .25 : (orbit.yaw += .2, placeOrbit());
     else if (k === 'ArrowRight') st ? spin.rotation.y += .25 : (orbit.yaw -= .2, placeOrbit());
-    else if (k === 'ArrowUp') st ? pitch.rotation.x = Math.max(-1.2, pitch.rotation.x - .2) : (orbit.pitch = Math.min(1.2, orbit.pitch + .1), placeOrbit());
-    else if (k === 'ArrowDown') st ? pitch.rotation.x = Math.min(1.2, pitch.rotation.x + .2) : (orbit.pitch = Math.max(.03, orbit.pitch - .1), placeOrbit());
+    else if (k === 'ArrowUp') st ? pitch.rotation.x = Math.max(-1.2, pitch.rotation.x - .2) : (orbit.pitch = lim(orbit.pitch + .1, PITCH[sceneName]), placeOrbit());
+    else if (k === 'ArrowDown') st ? pitch.rotation.x = Math.min(1.2, pitch.rotation.x + .2) : (orbit.pitch = lim(orbit.pitch - .1, PITCH[sceneName]), placeOrbit());
     else if (k === 'f' || k === 'F') api.flip(); else if (k === 'k' || k === 'K') api.trick('kickflip'); else if (k === '+' || k === '=') api.zoomBy(.85); else if (k === '-') api.zoomBy(1.18);
     else return;
     e.preventDefault(); idleAt = performance.now();
@@ -503,11 +578,13 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     const g = studio ? trick : rigTrick;
     if (anim) {
       const t = Math.min(1, (now - anim.t0) / anim.ms), e = t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+      const pop = t < .22 ? t / .22 * .42 : t < .62 ? .42 - (t - .22) / .4 * .5 : -.08 + (t - .62) / .38 * .08;   // ollie: chvost dole, predok hore, vyrovnanie
       if (studio) anim.f(e, g);
-      else if (anim.key === 'kickflip') g.rotation.x = e * Math.PI * 2;
+      else if (anim.key === 'ollie') g.rotation.z = pop;
+      else if (anim.key === 'kickflip') { g.rotation.x = e * Math.PI * 2; g.rotation.z = pop * .6; }
       else if (anim.key === 'impossible') g.rotation.z = e * Math.PI * 2;
       else { g.rotation.x = e * Math.PI * 2; g.rotation.y = e * Math.PI * 2; }
-      g.position.y = Math.sin(t * Math.PI) * (studio ? .12 : .32);
+      g.position.y = Math.sin(t * Math.PI) * (studio ? .12 : anim.key === 'ollie' ? .22 : .3);
       if (t >= 1) { g.rotation.set(0, 0, 0); g.position.y = 0; anim = null; idleAt = now; }
     }
     if (studio) {
@@ -523,13 +600,22 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
         }
       }
     } else {
-      if (sceneName === 'roll' && !reduceMotion) {
-        env.userData.groundTex.offset.x -= dt * .55;   // zem uteká pod doskou
+      if (sceneName === 'ride' && !reduceMotion) {
+        const v = 2.1;   // m/s
+        env.userData.groundTex.offset.x += dt * v * 24 / 32;   // zem uteká pod doskou
+        env.userData.backTex.offset.x += dt * v * .25 * 3 / 18;
+        for (const p of env.userData.props) { p.position.x -= dt * v; if (p.position.x < -8.5) p.position.x += 17; }
         rig.position.y = WHEEL_Y + Math.sin(now / 90) * .0015;
+        if (!anim && auto && now > nextRideTrick) { api.trick(Math.random() < .6 ? 'ollie' : 'kickflip'); nextRideTrick = now + 7000 + Math.random() * 6000; }
+      }
+      if (sceneName === 'free' && !reduceMotion) {
+        rig.position.y = POSES.free.pos[1] + Math.sin(now / 800) * .035;
+        if (auto && !drag) rig.rotation.y += dt * .35;
+        const d = env.userData.dust; if (d) d.rotation.y += dt * .02;
       }
       if (!drag) {
         if (flipTo !== null) { const d = flipTo - orbit.yaw; orbit.yaw += d * .1; if (Math.abs(d) < .002) { orbit.yaw = flipTo; flipTo = null; idleAt = now; } placeOrbit(); }
-        else { vel *= .94; const a = auto ? .0022 : 0; if (Math.abs(vel) < a && now - idleAt > 2500) vel = a; if (vel) { orbit.yaw += vel; placeOrbit(); } }
+        else { vel *= .94; const a = auto && sceneName === 'wall' ? .0016 : 0; if (Math.abs(vel) < a && now - idleAt > 2500) vel = a; if (vel) { orbit.yaw += vel; placeOrbit(); } }
       }
     }
     renderer.render(scene, camera);
@@ -542,7 +628,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   };
   Object.assign(api, {
     flip() { vel = 0; flipTo = (sceneName === 'studio' ? spin.rotation.y : orbit.yaw) + Math.PI; },
-    trick(name) { const T = TRICKS[name]; if (!T || anim || reduceMotion) return; anim = { ...T, key: name, t0: performance.now() }; },
+    trick(name) { const T = TRICKS[name] || (name === 'ollie' ? { name: 'Ollie', ms: 700 } : null); if (!T || anim || reduceMotion) return; anim = { ...T, key: name, t0: performance.now() }; if (name === 'kickflip' && sceneName !== 'studio') anim.ms = 820; },
     reset() { vel = 0; pvel = 0; flipTo = null; if (sceneName === 'studio') { spin.rotation.y = -.45; pitch.rotation.x = 0; S.setZoom(1); } else { S._z = 1; setScene(sceneName); } idleAt = performance.now(); },
     zoomBy(f) { zoomTo(getZoom() * f); },
     setAuto(on) { auto = !!on && !reduceMotion; if (!auto) vel = 0; },

@@ -41,6 +41,8 @@ export const CATEGORIES = [
 
 /* Eventy. results: poradie mien = umiestnenie (1., 2., 3., ...).
    Voliteľne: endDate: '2026-06-28' (posledný deň viacdňového eventu), prize: '500 € + ceny' (prize pool v kalendári).
+   Pre „svet eventu“: videos: ['YouTubeID', …] (ďalšie videá), socials: [{ url: 'https://www.instagram.com/p/…', label: 'Reel z finále', from: 'Instagram' }, …]
+   (príspevky ľudí zo sociálnych sietí). Články k eventu priradíš v admine pri novinke (políčko „Patrí k eventu“).
    sticker: 'band' | 'round' | 'next'. status: 'done' | 'next'. */
 export const EVENTS = [
   {
