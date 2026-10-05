@@ -101,6 +101,27 @@ Eventy od komunity a svetové/domáce skate eventy sú v Supabase v tabuľke `co
 (duplicitné sa nevložia). Ďalšie pridáš cez „Pridať event“ a schváliš v admine.
 Pri evente môže byť aj posledný deň (`end_date`) a prize pool (`prize`). Vlajka sa ukáže podľa krajiny.
 
+## Novinky a články (bez programovania)
+
+1. Otvor `#/admin` a prihlás sa e-mailom (účet musí byť admin, postup je vyššie).
+2. Klikni **+ Pridať novinku**, vyplň nadpis, pár viet, prípadne fotku a odkaz, a daj **Zverejniť**.
+3. Novinka sa hneď ukáže v časti **Novinky**, na úvodke aj v bežiacom páse. Upraviť alebo zmazať ju vieš v admine.
+
+Ďalšieho admina pridáš rovnako ako seba (SQL príkaz vyššie s jeho e-mailom).
+
+## Video na úvodke
+
+Nahraj krátky klip bez zvuku (10 – 20 s, MP4, do ~8 MB) do priečinka `video/` a v `data.js` vyplň
+`SITE.heroVideo: 'video/hero.mp4'`. Kým je prázdne, na pozadí hrá YouTube vlog (`SITE.vlog`).
+
+## Fotky k eventom v kalendári
+
+V admine v časti **Fotky k eventom v kalendári** pri evente vyber fotku. Bez fotky sa ukáže grafika s názvom mesta.
+
+## Skateparky na mape
+
+Zoznam je v `data.js` v `SKATEPARKS`. Poloha je orientačná, presné súradnice skopíruješ z Google Maps.
+
 ## Newsletter
 
 Odberatelia sa zbierajú v admine v sekcii **Odber noviniek**. Keď vyhlásiš
