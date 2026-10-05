@@ -1,5 +1,6 @@
 // Lokálny test stack: Postgres DB gosko_test + PostgREST na porte 3901.
 // Iba lokálne (socket /tmp). Na produkčný Supabase sa nikdy nepripája.
+// Súbežné behy (napr. iný worktree): GOSKO_TEST_DB a GOSKO_TEST_PORT zvolia inú DB a port.
 import { spawn, execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { readFileSync, writeFileSync, openSync, closeSync, existsSync, unlinkSync } from 'node:fs';
@@ -8,12 +9,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const DB_NAME = 'gosko_test';
-export const PORT = 3901;
+export const DB_NAME = process.env.GOSKO_TEST_DB || 'gosko_test';
+export const PORT = Number(process.env.GOSKO_TEST_PORT || 3901);
 export const REST_URL = `http://127.0.0.1:${PORT}`;
 
 const CONF = join(ROOT, 'supabase', 'test', 'postgrest.conf');
-const LOG = join(ROOT, 'supabase', 'test', 'postgrest.log');
+const LOG = join(ROOT, 'supabase', 'test', PORT === 3901 ? 'postgrest.log' : `postgrest-${PORT}.log`);
 const PIDFILE = join(tmpdir(), `gosko-postgrest-${PORT}.pid`);
 const POSTGREST = process.env.POSTGREST_BIN || '/opt/homebrew/bin/postgrest';
 const PG_ENV = {
@@ -46,10 +47,10 @@ export function jwt(role, sub, extra = {}) {
   return `${data}.${sig}`;
 }
 
-/** Zmaže a znova vytvorí gosko_test (scripts/test-db.sh). until: '001' … '006' (default všetko + seed). */
-export function resetDb({ until = '006' } = {}) {
+/** Zmaže a znova vytvorí gosko_test (scripts/test-db.sh). until: '001' … '012' (default všetko + seed). */
+export function resetDb({ until = '012' } = {}) {
   try {
-    execFileSync('bash', [join(ROOT, 'scripts', 'test-db.sh'), until], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync('bash', [join(ROOT, 'scripts', 'test-db.sh'), until], { env: { ...process.env, GOSKO_TEST_DB: DB_NAME }, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (err) {
     throw new Error(`scripts/test-db.sh failed:\n${err.stderr?.toString() || err.message}`);
   }
@@ -147,9 +148,9 @@ function logTail() {
 
 /**
  * Vytvorí čerstvú DB (ak reset) a spustí PostgREST. Počká, kým odpovedá.
- * until: posledná migrácia ('001' … '006'); '006' (default) pridá aj seed.
+ * until: posledná migrácia ('001' … '012'); od '006' pridá seed eventov, '012' (default) aj spoty.
  */
-export async function startStack({ reset = true, until = '006', timeoutMs = 20000 } = {}) {
+export async function startStack({ reset = true, until = '012', timeoutMs = 20000 } = {}) {
   if (child) await stopStack();
   killStale();
   if (await portBusy()) {
@@ -159,7 +160,10 @@ export async function startStack({ reset = true, until = '006', timeoutMs = 2000
   }
   if (reset) resetDb({ until });
   const fd = openSync(LOG, 'w');
-  child = spawn(POSTGREST, [CONF], { stdio: ['ignore', fd, fd] });
+  child = spawn(POSTGREST, [CONF], {
+    stdio: ['ignore', fd, fd],
+    env: { ...process.env, PGRST_DB_URI: `postgresql://authenticator@/${DB_NAME}?host=/tmp&port=5432`, PGRST_SERVER_PORT: String(PORT) },
+  });
   closeSync(fd);
   writeFileSync(PIDFILE, String(child.pid));
   let exited = null;

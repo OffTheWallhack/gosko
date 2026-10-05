@@ -191,3 +191,51 @@ event BatchMetadataUpdate(uint256 _fromTokenId, uint256 _toTokenId)
 - `npm run test:api-int` spúšťa `tests/integration/api/**` (API proti PostgRESTu a lokálnemu hardhat uzlu).
 - `npm run test:chain` = `cd chain && npx hardhat test nodejs`.
 - `npm run test:smoke` = `tests/smoke/**` (env `GOSKO_URL`).
+
+## 8. Hra Ghoskate: databáza (010–012)
+Plán: `~/.claude/plans/gosko-master-ghoskate.md`, Task 1. Migrácie `010_game_core.sql`, `011_game_crews.sql`, `012_game_loot.sql`, seed `supabase/seed/spots_ba.sql` (súradnice približné, `needs_verification = true`).
+
+### Identita a U16
+- `players.id = auth.users.id = auth.uid()`; `players.rider_id` je 1:1 s `riders`. Hráča zakladá iba `service_role` (Task 2, `api/game/link-rider.js`), preto má každý hráč `rider_private.birth_date`.
+- Zapisovať (check-in, klip, spot, hodnotenie, hlásenie, crew, loot) môže hráč, ktorý má dnes 16+, alebo má `players.guardian_confirmed_at`, alebo jeho jazdec má ktorúkoľvek registráciu s `guardian_confirmed_at` (súhlas rodiča platí pre všetko). Inak `NEED_GUARDIAN`. Pravidlo je v internom pohľade `game_writers` (bez grantov).
+- Súhlas rodiča pre hru: `player_guardian(player_id, guardian_name, guardian_email, token, token_expires_at)` zapisuje iba `service_role`; `confirm_player_guardian(p_token) returns jsonb` (iba `service_role`) nastaví `players.guardian_confirmed_at`, neplatný, použitý alebo prepadnutý token = PT404. Token nie je v `players`, aby si ho dieťa nevedelo prečítať.
+- Hráč mení vlastné `username, city, stance, board_config` priamo (RLS); `username` `^[A-Za-z0-9_.]{3,20}$`, unikátne bez ohľadu na veľkosť písmen.
+
+### RPC (POST `/rpc/<meno>`, rola `authenticated`)
+Chyba = HTTP 400 a `{message: KÓD, details}`. Kódy: `FORBIDDEN` (bez profilu hráča alebo bez oprávnenia), `NEED_GUARDIAN`, `TOO_FAR` (details = `{"distance_m":340,"max_m":150}`), `SPOT_NOT_FOUND`, `SPOT_LIMIT`, `NEED_CHECKIN`, `NEED_CLIP_ON_SPOT`, `CLIP_NOT_FOUND`, `CREW_FULL`, `ALREADY_IN_CREW`, `BAD_CODE`, `CREW_TAKEN`, `DROP_INACTIVE`, `DROP_EMPTY`, `BAD_INPUT`. Porušenie CHECK (napr. zlý tag, zlý stav) = 400 s kódom Postgresu.
+
+| RPC | Vstup | Výstup |
+|---|---|---|
+| `game_cfg()` (aj anon) | | `{checkin_radius_m:150, checkin_max_minutes:120, points_per_minute:1, clip_base_points:50, clip_like_bonus:0.1, clip_like_cap:20, clip_verify_hours:3, control_window_days:30, control_min_points:100, crew_max:10, spots_per_day:5, report_ttl_hours:6, guardian_age:16, video_max_seconds:60, video_max_mb:50}` |
+| `game_me()` | | `{id, username, city, stance, board_config, can_write, needs_guardian}` alebo `null` (ešte nie je hráč) |
+| `check_in` | `p_spot, p_lat, p_lng` | `{id, spot_id, started_at, distance_m}`; ukončí predchádzajúci check-in. Poloha hráča sa neukladá. |
+| `check_out` | | `{id, spot_id, minutes, points}` |
+| `add_spot` | `p_name, p_city, p_kind, p_lat, p_lng, p_description?` | `{id}`; spot je hneď na mape, max 5 za kĺzavých 24 h |
+| `rate_spot` | `p_spot, p_skulls` (1–5) | `{spot_id, skulls}`; opakované hodnotenie prepíše |
+| `report_spot` | `p_spot, p_status` (`mokre`, `plne`, `chill`, `prazdne`, `zatvorene` alebo null), `p_bust` (`low`, `medium`, `high` alebo null) | `{id}`; vyžaduje aktívny check-in na spote, platí 6 h |
+| `add_clip` | `p_spot, p_media_url` (http/https), `p_media_kind` (`video`, `photo`, `embed`), `p_trick?` | `{id, spot_id, verified, created_at}`; overený = check-in na spote v posledných 3 h |
+| `like_clip` / `unlike_clip` | `p_clip` | `{clip_id, likes}`; vlastný klip = `FORBIDDEN` |
+| `create_crew` | `p_name` (2–30), `p_tag` (2–4 A–Z0–9), `p_color` (`#rrggbb`) | `{id, name, tag, color}` |
+| `join_crew` | `p_code` | `{id, name, tag, color}` |
+| `leave_crew` | | `{crew_id}`; owner odovzdá crew najstaršiemu členovi, posledný ju zruší |
+| `kick_crew_member` | `p_player` | `{crew_id, player_id}`; iba owner, zmení pozývací kód |
+| `get_invite_code` | | `"ABCD2345"` (iba člen) |
+| `claim_loot` | `p_drop` | `{drop_id, tier, rank, label, reward, gear_id, claimed_at, reward_code}`; opakovaný claim vráti ten istý |
+| `my_loot` | | `[{drop_id, spot_id, title, partner, tier, label, reward, reward_code, rank, claimed_at}]` |
+
+### Pohľady (SELECT, bez osobných údajov)
+- `spot_summary` (anon): `id, name, city, kind, description, lat, lng, photo_url, needs_verification, skulls, ratings, people_now, status, bust, control_crew_id, control_tag, control_color, control_points, loot_active`. Iba počet ľudí, nikdy kto.
+- `players_public` (anon): `id, username, stance`; U16 bez súhlasu rodiča tu nie je.
+- `clips_public` (anon): `id, spot_id, username, media_url, media_kind, trick, verified, likes, created_at`; bez skrytých klipov.
+- `crews_public` (anon): `id, name, tag, color, members, created_at`. `crew_roster` (iba authenticated): `crew_id, username, role, joined_at` vlastnej crew.
+- `spot_crew_scores` (anon): `spot_id, crew_id, tag, color, points` za 30 dní. `spot_control`: crew s najvyšším skóre, ak má aspoň 100 a nie je remíza. `crew_leaderboard`: `crew_id, name, tag, color, members, points, spots_controlled, rank`.
+- `loot_public` (anon): `id, spot_id, title, description, partner, starts_at, ends_at, tiers (jsonb), capacity, claimed, remaining`; aktívne a pripravované dropy, bez kódov.
+- `gear` (anon, tabuľka): katalóg. Vlastné `check_ins`, `clips`, `clip_likes`, `spot_ratings`, `spot_reports`, `unlocked_gear`, `loot_claims` vidí iba autor (RLS). `loot_drop_secrets` nečíta nikto okrem `service_role`.
+
+### Body a odmeny
+- Check-in: 1 bod za minútu, najviac 120 min; otvorený check-in starší ako 120 min už nie je aktívny. Overený klip: `50 × (1 + 0,1 × min(lajky, 20))`. Okno 30 dní. Body patria crew v čase check-inu alebo klipu (`crew_id` je snímka).
+- Loot drop a tiery zakladá admin cez `service_role` (`loot_drops`, `loot_tiers(tier, label, up_to, reward, gear_id)`, `loot_drop_secrets(tier, reward_code)`). Tier pre poradie n = tier s najmenším `up_to >= n`. Podmienky claimu: aktívny check-in na spote dropu a overený klip na tom spote od `starts_at`.
+- Nálepka za event: `gear.event_id`. Trigger `grant_event_gear` ju udelí pri `registrations.status -> checked_in`, pri prepojení hráča s jazdcom a pri gear pridanom po evente.
+
+### Lokálne testy
+`GOSKO_TEST_DB` (musí začínať `gosko_test`) a `GOSKO_TEST_PORT` zvolia inú DB a port PostgRESTu pre súbežné behy; predvolené `gosko_test` a 3901. `scripts/test-db.sh [001…006|010|011|012]`, predvolené 012 so seedmi. `supabase/test/shim_game.sql` dopĺňa `auth.users.email_confirmed_at` a `auth.email()`.
