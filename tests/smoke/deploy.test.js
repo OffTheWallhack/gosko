@@ -13,6 +13,8 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const RAW_URL = process.env.GOSKO_URL;
+const { CONFIG } = await import('../../data.js');
+const SUPABASE_ORIGIN = new URL(CONFIG.SUPABASE_URL).origin;
 const SKIP = RAW_URL ? false : 'GOSKO_URL nie je nastavené (napr. GOSKO_URL=http://localhost:3000)';
 const BASE = RAW_URL ? RAW_URL.replace(/\/+$/, '') : 'http://unset.invalid';
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -109,7 +111,7 @@ describe(`smoke: nasadenie${RAW_URL ? ` ${BASE}` : ""}`, { skip: SKIP }, () => {
         assert.ok(csp.has(d), `CSP nemá ${d}`);
       }
       assert.deepEqual(csp.get('object-src'), ["'none'"]);
-      assert.ok(csp.get('connect-src').includes('https://moxscedyreyvhkbkebmv.supabase.co'));
+      assert.ok(csp.get('connect-src').includes(SUPABASE_ORIGIN));
     });
 
     test('každý inline <script> na nasadenej / má v script-src svoj sha256 hash (importmap)', () => {

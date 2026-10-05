@@ -6,11 +6,11 @@
 /* Supabase: kým je prázdne, web beží v ukážkovom režime
    (formuláre, parky a hlasy sa ukladajú len v prehliadači). Postup v README. */
 export const CONFIG = {
-  SUPABASE_URL: 'https://moxscedyreyvhkbkebmv.supabase.co',
+  SUPABASE_URL: 'https://jfqsvekdufintkyyxvrx.supabase.co',
   // Verejný (publishable) kľúč, je určený na web. Tajný kľúč (sb_secret_…) sem nikdy nepatrí.
-  SUPABASE_ANON_KEY: 'sb_publishable_xxQm6zYj66nQ32z4Qi4lJA_DyQrOY5T',
+  SUPABASE_ANON_KEY: 'sb_publishable_r28_fu2eIWR_iSP-1Spz8g_yQTjapV3',
   // Cloudflare Turnstile, verejný site key (secret je len na serveri). Prázdne = widget sa nezobrazí.
-  TURNSTILE_SITE_KEY: '',
+  TURNSTILE_SITE_KEY: '1x00000000000000000000AA', // TESTOVACÍ kľúč Cloudflare (vždy prejde), pred ostrým spustením vymeniť
   // Adresa API (Vercel Functions). Prázdne = ten istý web.
   API_BASE: '',
   // Adresa kontraktu GoskoPass na Base (verejná). Prázdne = pri výsledkoch sa nezobrazí odkaz na NFT.

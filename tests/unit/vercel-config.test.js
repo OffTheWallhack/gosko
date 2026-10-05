@@ -10,6 +10,9 @@ import { join } from 'node:path';
 import { createIgnore, matchHeaders } from '../../scripts/dev-server.js';
 
 const ROOT = join(import.meta.dirname, '..', '..');
+// CSP musí povoliť presne ten Supabase projekt, na ktorý ukazuje web (data.js CONFIG).
+const { CONFIG } = await import('../../data.js');
+const SUPABASE_ORIGIN = new URL(CONFIG.SUPABASE_URL).origin;
 const read = f => readFileSync(join(ROOT, f), 'utf8');
 const config = JSON.parse(read('vercel.json'));
 
@@ -121,8 +124,8 @@ describe('vercel.json: CSP', () => {
   });
   test('style-src', () => has('style-src', "'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'));
   test('font-src', () => has('font-src', 'https://fonts.gstatic.com'));
-  test('img-src', () => has('img-src', "'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://tile.openstreetmap.org', 'https://moxscedyreyvhkbkebmv.supabase.co'));
-  test('connect-src', () => has('connect-src', "'self'", 'https://moxscedyreyvhkbkebmv.supabase.co', 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'));
+  test('img-src', () => has('img-src', "'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://tile.openstreetmap.org', SUPABASE_ORIGIN));
+  test('connect-src', () => has('connect-src', "'self'", SUPABASE_ORIGIN, 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'));
   test('frame-src', () => has('frame-src', 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'));
   test('worker-src, manifest-src, object-src, base-uri, frame-ancestors', () => {
     has('worker-src', "'self'");
