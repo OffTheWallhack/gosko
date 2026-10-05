@@ -751,24 +751,52 @@ function pageHome(root) {
     h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-ghost', src: 'img/ghost.svg', alt: '', width: 120, height: 135 }), h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
     h('p', { class: 'vh-tag2' }, 'Game of S.K.A.T.E. po Slovensku'),
     rot.el);
+  /* video je pevné pozadie: pri scrollovaní stmavne do čiernej, cez nálepky eventov ešte presvitá,
+     od rebríčka ďalej je plné čierne pozadie a video sa zastaví */
+  const dim = h('div', { class: 'vbg-dim', 'aria-hidden': 'true' });
+  const vbg = h('div', { class: 'vbg', 'aria-hidden': 'true' }, media, dim);
+  const isVideo = media.tagName === 'VIDEO';
+  if (isVideo) {
+    Object.assign(media, { muted: true, defaultMuted: true, playsInline: true, controls: false, disablePictureInPicture: true });
+    media.setAttribute('disableremoteplayback', '');
+    media.setAttribute('webkit-playsinline', '');
+  }
+  let wantPlay = true;
+  const tryPlay = () => { if (isVideo && wantPlay && media.paused) media.play().catch(() => {}); };
+  // niektoré telefóny (úsporný režim) autoplay zablokujú: skúsime znova pri prvom dotyku alebo scrolle
+  const kick = () => tryPlay();
+  ['touchstart', 'pointerdown', 'keydown'].forEach(t => addEventListener(t, kick, { passive: true }));
+  if (isVideo) { media.addEventListener('canplay', tryPlay); media.addEventListener('pause', () => setTimeout(tryPlay, 300)); }
+  const onVis = () => { if (!document.hidden) tryPlay(); };
+  document.addEventListener('visibilitychange', onVis);
+  const shade = h('div', { class: 'vh-shade', 'aria-hidden': 'true' });
   const hero = h('header', { class: 'vh' },
-    h('div', { class: 'vh-media' }, media), h('div', { class: 'vh-shade', 'aria-hidden': 'true' }),
+    shade,
     mascotSlot, heroIn);
-  let raf = 0;
-  const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
-    raf = 0; const p = Math.min(1, scrollY / (innerHeight * .75));
-    heroIn.style.opacity = String(1 - p); heroIn.style.transform = `translateY(${-p * 50}px)`;
-    mascotSlot.style.opacity = String(1 - p); mascotSlot.style.transform = `translateY(${-p * 80}px)`;
-    media.style.opacity = String(1 - p * .85);
-    hero.classList.toggle('gone', p >= 1);
-  }); };
-  if (!reduced) addEventListener('scroll', onScroll, { passive: true });
-
   const studio = boardStudio();
   setTimeout(onboarding, 1800);
-  const after = h('div', { class: 'after-hero' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
-  root.append(hero, after);
-  return () => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); rot.stop(); stopMascot(); studio.cleanup(); };
+  const solid = h('div', { class: 'after-solid' }, skaterSection(), studio.el, eventWidget(), partnersStrip());
+  const after = h('div', { class: 'after-hero' }, h('div', { class: 'after-clear' }, stickerWall()), solid);
+  let raf = 0;
+  const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
+    raf = 0;
+    const vh = innerHeight, p = Math.min(1, scrollY / (vh * .75));
+    heroIn.style.opacity = String(1 - p); heroIn.style.transform = `translateY(${-p * 50}px)`; shade.style.opacity = String(1 - p);
+    mascotSlot.style.opacity = String(1 - p); mascotSlot.style.transform = `translateY(${-p * 80}px)`;
+    const top = solid.getBoundingClientRect().top;
+    // 0 → 0.55 počas prvej obrazovky (nálepky ešte cez video), potom do úplnej čiernej, keď prichádza rebríček
+    let d = Math.min(.55, scrollY / vh * .55);
+    if (top < vh * .7) d = Math.max(d, .55 + (1 - Math.max(0, top) / (vh * .7)) * .45);
+    dim.style.opacity = String(d);
+    const hidden = top <= 0;
+    vbg.classList.toggle('off', hidden);
+    if (hidden !== !wantPlay) { wantPlay = !hidden; if (isVideo) { if (hidden) media.pause(); else tryPlay(); } }
+  }); };
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll, { passive: true });
+  root.append(vbg, hero, after);
+  onScroll(); tryPlay();
+  return () => { wantPlay = false; removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); rot.stop(); stopMascot(); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
 }
 
 function pageBoard(root) {
