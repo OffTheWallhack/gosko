@@ -559,7 +559,7 @@ function eventRoller() {
 }
 
 /* naše eventy ako nálepky: odlepíš a vojdeš do sveta eventu */
-function stickerWall() {
+function stickerWall({ bare = false } = {}) {
   const evs = [...EVENTS].sort((a, b) => (a.status === 'next' ? -1 : 0) - (b.status === 'next' ? -1 : 0) || (b.date || '').localeCompare(a.date || ''));
   const imgs = new Map();
   const peel = (ev, e) => {
@@ -588,6 +588,7 @@ function stickerWall() {
         h('span', { class: 'sw-hint' }, isNext ? 'Registrácia a info' : 'Fotky, výsledky, videá', h('span', { 'aria-hidden': 'true' }, ' →'))));
   }));
   loadLogo().then(logo => evs.forEach(e => { imgs.get(e.id).src = stickerCanvas(eventSticker(e), logo).toDataURL(); })).catch(err => console.error(err));
+  if (bare) return wall;
   return h('section', { class: 'hs sw-sec', id: 'eventy' }, h('div', { class: 'wrap' },
     h('div', { class: 'sec-head' }, h('div', {},
       h('span', { class: 'mono hs-k' }, 'Naše eventy'), h('h2', {}, 'GOSko Game of S.K.A.T.E.'),
@@ -659,26 +660,30 @@ function boardStudio({ page = false } = {}) {
 }
 
 /* najlepší skejteri: zberateľské karty */
-function skaterSection() {
-  const top = standings('open'), R = riderMap();
-  if (!top.length) return null;
+function skaterCards(rows, label = `Open ${SITE.season}`) {
+  const R = riderMap();
   const tilt = e => { const c = e.currentTarget, r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; c.style.setProperty('--rx', `${(.5 - y) * 14}deg`); c.style.setProperty('--ry', `${(x - .5) * 18}deg`); c.style.setProperty('--mx', `${x * 100}%`); c.style.setProperty('--my', `${y * 100}%`); };
   const untilt = e => { const c = e.currentTarget; c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); };
   const stat = (n, t) => h('span', {}, h('b', {}, String(n)), h('small', {}, t));
   const card = (r, i) => {
     const rd = R.get(r.slug);
     return h('a', { class: `sk-card r${i + 1}`, href: '#/jazdec/' + r.slug, onpointermove: tilt, onpointerleave: untilt },
-      h('span', { class: 'sk-top' }, h('span', { class: 'sk-rank' }, `#${i + 1}`), h('span', { class: 'mono sk-cat' }, `Open ${SITE.season}`)),
+      h('span', { class: 'sk-top' }, h('span', { class: 'sk-rank' }, `#${i + 1}`), h('span', { class: 'mono sk-cat' }, label)),
       h('span', { class: 'sk-art' }, rd ? boardImg(rd, 'sk-bimg') : null, avatarEl(r.name, r.slug, { rank: i + 1 })),
       h('span', { class: 'sk-name' }, r.name),
       h('span', { class: 'sk-stats' }, stat(r.points, 'bodov'), stat(r.events, plural(r.events, 'event', 'eventy', 'eventov')), stat(r.wins, plural(r.wins, 'výhra', 'výhry', 'výhier'))),
       h('span', { class: 'sk-holo', 'aria-hidden': 'true' }));
   };
+  return h('div', { class: 'sk-cards' + (rows.length < 3 ? ' few' : '') }, rows.slice(0, 3).map(card));
+}
+function skaterSection() {
+  const top = standings('open');
+  if (!top.length) return null;
   const leaders = CATEGORIES.filter(c => c.id !== 'open').map(c => [c, standings(c.id)[0]]).filter(([, r]) => r);
   return h('section', { class: 'hs sk-sec' }, h('div', { class: 'wrap' },
     h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Rebríček'), h('h2', {}, `Najlepší skejteri ${SITE.season}`)),
       h('span', { class: 'actions' }, h('a', { class: 'btn small', href: '#/rebricek' }, 'Celý rebríček', h('span', { 'aria-hidden': 'true' }, '→')), h('a', { class: 'btn small ghostbtn', href: '#/sien-slavy' }, 'Sieň slávy'))),
-    h('div', { class: 'sk-cards' }, top.slice(0, 3).map(card)),
+    skaterCards(top),
     h('div', { class: 'sk-more' },
       top.length > 3 ? h('ol', { class: 'sk-rest', start: '4' }, top.slice(3, 8).map(r => h('li', {}, h('a', { href: '#/jazdec/' + r.slug }, avatarEl(r.name, r.slug), h('span', {}, r.name), h('b', {}, `${r.points} b.`))))) : null,
       leaders.length ? h('ul', { class: 'sk-kings' }, leaders.map(([c, r]) => h('li', {}, h('span', { class: 'mono' }, `Líder ${c.name}`), h('a', { href: '#/jazdec/' + r.slug }, r.name), h('b', {}, `${r.points} b.`)))) : null)));
@@ -753,7 +758,7 @@ function pageHome(root) {
 
   const studio = boardStudio();
   const after = h('div', { class: 'after-hero' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
-  root.append(eventRoller(), hero, after);
+  root.append(hero, after);
   return () => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); rot.stop(); stopMascot(); studio.cleanup(); };
 }
 
@@ -848,7 +853,7 @@ function pageStandings(root, focus) {
         chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.city + (e.date ? ` ${parseDate(e.date).d}. ${parseDate(e.date).m}.` : '')])], scope, v => { scope = v; }),
         chips(CATEGORIES.map(c => [c.id, c.name]), cat, v => { cat = v; })),
       ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])) : null,
-      rows.length ? [podiumEl(rows), standingsList(rows, { eventMode: em, from: 3 })] : standingsList(rows),
+      rows.length ? [skaterCards(rows, `${catName(cat)} ${em ? ev.city : season}`), standingsList(rows, { eventMode: em, from: 3 })] : standingsList(rows),
       scope === 'season' ? finaleEl(cat, season) : null);
   }
   const pts = h('div', { class: 'rk-points' }, h('h3', { class: 'mono' }, 'Bodovanie'),
@@ -989,11 +994,11 @@ async function pageEvents(root) {
     const pick = arr => arr.filter(e => when === 'upcoming' ? isUp(e) : !isUp(e)).sort(when === 'upcoming' ? sortUp : sortDown);
     const local = pick(community.filter(e => e.country === 'Slovensko' || e.country === 'Česko'));
     const abroad = pick(community.filter(e => e.country !== 'Slovensko' && e.country !== 'Česko'));
-    const gosko = [...ours].sort((a, b) => (a.status === 'next' ? -1 : 0) - (b.status === 'next' ? -1 : 0) || sortDown(a, b));
     list.replaceChildren(
       h('section', { class: 'ev-sec gk' },
         h('div', { class: 'sec-head' }, h('h2', {}, 'GOSko eventy'), h('span', { class: 'mono lead' }, 'Naša séria Game of S.K.A.T.E.')),
-        h('div', { class: 'gk-grid' }, gosko.map(goskoEventCard))),
+        h('p', { class: 'lead gk-lead' }, 'Odlep nálepku a vojdi do sveta eventu: fotky, výsledky, videá, články.'),
+        stickerWall({ bare: true })),
       h('div', { class: 'ev-divider' }, h('span', { class: 'mono hs-k' }, 'Skate kalendár'), h('h2', {}, 'Ďalšie eventy doma a vo svete'),
         h('p', { class: 'lead' }, 'Tieto eventy neorganizujeme. Robia ich iné crew, skateshopy a federácie a my ich zbierame na jednom mieste, aby ti nič neuteklo.')),
       h('div', { class: 'controls ev-when' }, chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; })),
@@ -2250,6 +2255,7 @@ async function route() {
   const args = re ? hash.match(re).slice(1) : [];
   const main = $('#main'); main.replaceChildren(); window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelectorAll('.nav a').forEach(a => a.toggleAttribute('aria-current', a.dataset.nav === nav && !!nav));
+  if (![pageAdmin, pageAdminResults, pageScan, pageCheckin, pageTv].includes(page)) main.append(eventRoller());
   const res = await page(main, ...args);
   if (id !== renderId) { if (typeof res === 'function') res(); return; }
   if (![pageAdmin, pageAdminResults, pageScan, pageCheckin, pageTv, pagePasses, pageProfile, pageNotFound].includes(page)) main.append(siteFeed());

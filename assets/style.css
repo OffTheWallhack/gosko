@@ -1836,3 +1836,7 @@ img.flag{object-fit:cover;font-size:0;overflow:hidden;background:rgba(243,235,22
 .er-top a{text-decoration:none;color:var(--cream);font-family:var(--f-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
 .er-top a:hover{text-decoration:underline}
 .er-top .er-label{align-self:stretch;display:flex;align-items:center}
+.sk-cards.few{grid-template-columns:repeat(auto-fit,minmax(0,300px))}
+.gk-lead{margin:-8px 0 16px}
+.rk .sk-cards,.page-body .sk-cards{margin:22px 0 26px}
+.ev-sec.gk{margin-top:32px}
