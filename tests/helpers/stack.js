@@ -46,8 +46,8 @@ export function jwt(role, sub, extra = {}) {
   return `${data}.${sig}`;
 }
 
-/** Zmaže a znova vytvorí gosko_test (scripts/test-db.sh). until: '001' | '002' | '003' (default všetko + seed). */
-export function resetDb({ until = '003' } = {}) {
+/** Zmaže a znova vytvorí gosko_test (scripts/test-db.sh). until: '001' | '002' | '003' | '004' (default všetko + seed). */
+export function resetDb({ until = '004' } = {}) {
   try {
     execFileSync('bash', [join(ROOT, 'scripts', 'test-db.sh'), until], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (err) {
@@ -147,9 +147,9 @@ function logTail() {
 
 /**
  * Vytvorí čerstvú DB (ak reset) a spustí PostgREST. Počká, kým odpovedá.
- * until: posledná migrácia ('001' | '002' | '003'); '003' pridá aj seed.
+ * until: posledná migrácia ('001' … '004'); '004' (default) pridá aj seed.
  */
-export async function startStack({ reset = true, until = '003', timeoutMs = 20000 } = {}) {
+export async function startStack({ reset = true, until = '004', timeoutMs = 20000 } = {}) {
   if (child) await stopStack();
   killStale();
   if (await portBusy()) {

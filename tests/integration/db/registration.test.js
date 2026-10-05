@@ -321,14 +321,14 @@ describe('seed and re-runnable migrations', () => {
     ]);
   });
 
-  test('migrations 001-003 and the seed can be applied again without changes', async () => {
+  test('migrations 001-004 and the seed can be applied again without changes', async () => {
     const state = () => sql(`select md5(string_agg(x, '|' order by x)) from (
       select id || status || category as x from public.registrations
       union all select id || name || status || registration_open::text from public.events
       union all select event_id || category || rider_name || place || points from public.event_results
       union all select id::text || public_name_mode from public.riders) s`);
     const before = state();
-    for (const f of ['001_hardening', '002_registration_v2', '003_results_rpc']) sqlFile(join(ROOT, 'supabase', 'migrations', `${f}.sql`));
+    for (const f of ['001_hardening', '002_registration_v2', '003_results_rpc', '004_guardian_after_checkin']) sqlFile(join(ROOT, 'supabase', 'migrations', `${f}.sql`));
     sqlFile(join(ROOT, 'supabase', 'seed', 'events_2026.sql'));
     assert.equal(state(), before);
     assert.equal(sql(`select count(*) from public.registrations_legacy`), '1');
