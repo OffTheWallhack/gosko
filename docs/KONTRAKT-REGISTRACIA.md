@@ -121,7 +121,6 @@ Každý handler: `export function createHandler(deps)` + `export default createH
 | `POST /api/pass` | `{email, event_id}` | vždy 200 `{ok:true}`; ak registrácia existuje, odíde e-mail s odkazom na pass (proti zisťovaniu e-mailov) |
 | `POST /api/admin/checkin` | hlavička `Authorization: Bearer <supabase user JWT>`; `{token}` alebo `{registration_id}`, prípadne `{event_id, rider_name}` pre ručný check-in | `{ok, registration:{id, status, public_name, category, guardian_ok}, nft:{status}}`; 401/403; idempotentné |
 | `POST /api/admin/results` | Bearer admin; `{event_id, category, rows:[{registration_id?, rider_name, place}]}` | `{ok, saved:n, nft_updates:n}` |
-| `GET /api/ranking?scope=season\|all&season=2026&category=open\|u16\|women&country=SK\|CZ\|ALL` | | `{ok, rows:[{rank, rider_id?, public_name, points, events, wins, best, results:[{event_id, place, points, token_id?, chain_id?}]}]}`, `Cache-Control: s-maxage=60` |
 | `GET /api/nft/metadata/:id` | tokenId | ERC-721 JSON (bez PII) |
 | `GET /api/nft/image/:id` | tokenId | `image/svg+xml` nálepka |
 | `GET /api/cron/nft-retry` | `Authorization: Bearer ${CRON_SECRET}` | `{ok, minted:n, results:n, failed:n}` |
@@ -136,6 +135,9 @@ Pravidlá:
 - Admin auth: `GET ${SUPABASE_AUTH_URL}/user` s JWT používateľa vráti `id`, potom sa cez service role overí riadok v `admins`. V testoch sa nahrádza (`deps.auth`).
 - `checkin`: status `checked_in`; ak `nft_consent` a je nastavené `NFT_CONTRACT_ADDRESS`, vznikne `nft_tokens(status='pending')` a skúsi sa mint (chyba mintu check-in nezhodí, ostane `failed` a dorobí ho cron).
 - `results` volá RPC `save_results`, potom pre tokeny `result_pending` skúsi `setResult`.
+
+### Rebríček
+Rebríček sa počíta na klientovi (`assets/ranking.js`) z verejných pohľadov `events_public` a `results_public`, ktoré klient číta cez supabase-js s anon kľúčom. Samostatné API na rebríček nie je. Ak Supabase nie je dostupný, ako záložný zdroj slúžia výsledky v `data.js`.
 
 ## 4. Kontrakt GoskoPass (`chain/`, Solidity 0.8.28, OZ 5, Hardhat 3 + viem)
 ```
