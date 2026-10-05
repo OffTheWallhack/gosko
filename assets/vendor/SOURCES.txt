@@ -1,0 +1,24 @@
+Knižnice tretích strán, uložené priamo na webe (nezávisí od CDN). Súbory sú bajtovo zhodné
+so súbormi z oficiálnych npm balíkov (overené cez `npm pack` + `cmp`, 2026-10-05).
+Pri aktualizácii: stiahni novú verziu, over zhodu s npm balíkom, zmeň názov súboru (verzia v názve)
+a cestu v kóde, potom zvýš VERSION v sw.js.
+
+súbor                          balík a verzia                     súbor v balíku         licencia      použitie
+supabase-2.117.2.js            @supabase/supabase-js@2.117.2      dist/umd/supabase.js   MIT           assets/store.js (window.supabase)
+qrcode-generator-1.4.4.js      qrcode-generator@1.4.4             qrcode.js              MIT (v hlavičke súboru)   assets/qr.js, QR pass
+jsqr-1.4.0.js                  jsqr@1.4.0                         dist/jsQR.js           Apache-2.0    assets/qr.js, skener bez BarcodeDetector (iOS)
+leaflet-1.9.4/leaflet.js       leaflet@1.9.4                      dist/leaflet.js        BSD-2-Clause  assets/map.js
+leaflet-1.9.4/leaflet.css      leaflet@1.9.4                      dist/leaflet.css       BSD-2-Clause  assets/map.js
+leaflet-1.9.4/images/*         leaflet@1.9.4                      dist/images/*          BSD-2-Clause  odkazy z leaflet.css
+
+SHA-384 (SRI formát):
+supabase-2.117.2.js         sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok
+qrcode-generator-1.4.4.js   sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k
+jsqr-1.4.0.js               sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx
+leaflet-1.9.4/leaflet.js    sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH
+leaflet-1.9.4/leaflet.css   sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H
+
+Na CDN ostáva len three.js (1,27 MB, načíta sa až na stránkach s 3D): import map v index.html,
+https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js s integrity
+sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ (overené proti three@0.160.0 z npm).
+Licencie: licenses/ (qrcode-generator má licenciu v hlavičke súboru).

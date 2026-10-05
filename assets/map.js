@@ -1,6 +1,6 @@
 import { loadScript, loadCss } from './qr.js';
 
-const LEAFLET = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/';
+const LEAFLET = 'assets/vendor/leaflet-1.9.4/';   // uložené na webe, pozri assets/vendor/SOURCES.txt
 export const SK_CENTER = [48.67, 19.7];
 
 export async function loadLeaflet() {

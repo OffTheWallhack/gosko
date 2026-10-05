@@ -6,8 +6,25 @@
 <title>GOSko | Game of S.K.A.T.E. na Slovensku</title>
 <meta name="description" content="GOSko je séria Game of S.K.A.T.E. súťaží po Slovensku. Rebríček, eventy, jazdci a stavebnica skateparku.">
 <meta name="theme-color" content="#111111">
+<!-- Verejná adresa webu. Sociálne siete potrebujú absolútne URL, preto je https://gosko.sk vypísaná aj nižšie;
+     pri zmene domény ju zmeň v celom bloku (a v redirect/index.html). -->
+<meta name="gosko:base-url" content="https://gosko.sk">
+<link rel="canonical" href="https://gosko.sk/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GOSko">
+<meta property="og:locale" content="sk_SK">
+<meta property="og:url" content="https://gosko.sk/">
 <meta property="og:title" content="GOSko | Game of S.K.A.T.E. na Slovensku">
-<meta property="og:image" content="img/ba-podium.webp">
+<meta property="og:description" content="Séria Game of S.K.A.T.E. súťaží po Slovensku. Rebríček, eventy, jazdci a stavebnica skateparku.">
+<meta property="og:image" content="https://gosko.sk/img/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Stupne víťazov kategórie Open na GOSko Bratislava">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GOSko | Game of S.K.A.T.E. na Slovensku">
+<meta name="twitter:description" content="Séria Game of S.K.A.T.E. súťaží po Slovensku. Rebríček, eventy, jazdci a stavebnica skateparku.">
+<meta name="twitter:image" content="https://gosko.sk/img/og-image.jpg">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -19,12 +36,18 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
 <link rel="stylesheet" href="assets/style.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<!-- three.js (1,3 MB) sa stiahne až na stránkach s 3D (dynamický import board.js / park.js). integrity = SHA-384 súboru z npm three@0.160.0. -->
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"},"integrity":{"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js":"sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ"}}</script>
+<style>
+  .skip-link{position:absolute;left:12px;top:-60px;z-index:1000;padding:10px 16px;background:#F3EBDD;color:#111;font-weight:800;text-decoration:none;border-radius:6px}
+  .skip-link:focus{top:12px}
+</style>
 </head>
 <body>
+<a class="skip-link" href="#main">Preskočiť na obsah</a>
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="#/" aria-label="GOSko, úvod"><img src="img/logo.webp" alt="" width="640" height="686"><span>GOSko</span></a>
+    <a class="brand" href="#/" aria-label="GOSko, úvod"><img src="img/logo.webp" alt="" width="239" height="256"><span>GOSko</span></a>
     <nav class="nav" aria-label="Hlavné menu">
       <a href="#/rebricek" data-nav="rebricek">Rebríček</a>
       <a href="#/eventy" data-nav="eventy">Eventy</a>
@@ -59,7 +82,7 @@
 
 <footer>
   <div class="wrap">
-    <img src="img/logo.webp" alt="" width="56" height="60">
+    <img src="img/logo.webp" alt="" width="56" height="60" loading="lazy">
     <p>GOSko robí komunita pre komunitu. Game of S.K.A.T.E. súťaže po Slovensku.</p>
     <div class="foot-links">
       <button class="btn small" id="footer-news" type="button">Odber noviniek</button>

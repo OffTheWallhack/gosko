@@ -1,15 +1,16 @@
 import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY } from '../data.js';
 import { tvScene, polaroidStrip } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
-import { mountBoard, MAX_STICKERS } from './board.js';
-import { mountBuilder, renderThumb, cleanLayout, slimLayout } from './park.js';
 import { getStore, INBOX, newToken, isEmail } from './store.js';
 import { badgesFor, badgeSvg } from './badges.js';
-import { riderCard, canvasToFile } from './card.js';
 import { qrCanvas, startScanner } from './qr.js';
 import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
+import * as RK from './ranking.js';
+import { safeUrl, csvRows, icsText, decodePasses, mergePasses, importTarget, UserError } from './util.js';
+/* 3D (three.js, 1,3 MB z CDN) sa načítava cez import() len tam, kde sa kreslí:
+   board.js (doska na úvode a u jazdca), park.js (stavebnica parkov), card.js (karta jazdca). */
 
 /* ---------- pomocníci ---------- */
 function h(tag, props, ...kids) {
@@ -27,7 +28,7 @@ function h(tag, props, ...kids) {
 const $ = (s, r = document) => r.querySelector(s);
 const put = (el, ...kids) => el.append(...kids.flat(Infinity).filter(k => k != null && k !== false));
 const go = hash => { location.hash = hash; };
-const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = RK.slug;
 const MONTHS = ['januára', 'februára', 'marca', 'apríla', 'mája', 'júna', 'júla', 'augusta', 'septembra', 'októbra', 'novembra', 'decembra'];
 const MON = ['jan', 'feb', 'mar', 'apr', 'máj', 'jún', 'júl', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const parseDate = d => { const [y, m, dd] = (d || '').split('-').map(Number); return y ? { y, m, d: dd } : null; };
@@ -35,37 +36,21 @@ const fmtDate = d => { const p = parseDate(d); return p ? `${p.d}. ${MONTHS[p.m 
 const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 const plural = (n, one, few, many) => n === 1 ? one : n >= 2 && n <= 4 ? few : many;
 const catName = id => CATEGORIES.find(c => c.id === id)?.name || id;
-const pointsFor = place => POINTS.find(p => place <= p.upTo).points;
+const pointsFor = place => RK.pointsFor(place, POINTS);
+const riderHref = x => '#/jazdec/' + RK.riderKey(x);
+const awardHref = a => riderHref({ name: a.rider, rider_id: a.rider_id });
 const igLink = handle => h('a', { href: `https://www.instagram.com/${handle}/`, target: '_blank', rel: 'noopener' }, '@' + handle);
 
 /* ---------- súkromie a výsledky (data.js + databáza) ---------- */
-class UserError extends Error {}
-function displayName(name) {
-  if (RIDER_PRIVACY[slug(name)] !== 'initial') return name;
-  const parts = String(name).trim().split(/\s+/);
-  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toLocaleUpperCase('sk')}.` : parts[0];
-}
+const displayName = name => RK.displayName(name, RIDER_PRIVACY);
 const BASE = new Map(EVENTS.map(ev => [ev.id, { status: ev.status, sticker: ev.sticker, results: ev.results || {}, awards: ev.awards || [] }]));
+/* Dáta z databázy. Riadok výsledku: { event_id, category, rider_name, place, rider_id? }.
+   Keď príde rider_id (pohľad results_public), rebríček a profil rozlíšia rovnako menovaných jazdcov. */
 let REMOTE = { results: [], awards: [], brackets: [] };
 const byPlace = (a, b) => a.place - b.place || a.name.localeCompare(b.name, 'sk');
-/* Zloží výsledky z data.js a z databázy (databáza má prednosť pri tej istej kategórii eventu). */
+/* Zloží výsledky z data.js a z databázy do EVENTS (databáza má prednosť pri tej istej kategórii eventu). */
 function applyData() {
-  for (const ev of EVENTS) {
-    const base = BASE.get(ev.id), results = {};
-    for (const [cat, list] of Object.entries(base.results)) results[cat] = list.map((x, i) => (typeof x === 'string' ? { name: x, place: i + 1 } : { ...x }));
-    const remote = REMOTE.results.filter(r => r.event_id === ev.id);
-    for (const cat of new Set(remote.map(r => r.category)))
-      results[cat] = remote.filter(r => r.category === cat).map(r => ({ name: r.rider_name, place: r.place })).sort(byPlace);
-    for (const cat of Object.keys(results)) results[cat] = results[cat].map(x => ({ ...x, name: displayName(x.name) }));
-    ev.results = results;
-    const ra = REMOTE.awards.filter(a => a.event_id === ev.id);
-    ev.rawAwards = ra.length ? ra.map(a => ({ name: a.name, rider: a.rider_name })) : base.awards.map(a => ({ ...a }));
-    ev.awards = ev.rawAwards.map(a => ({ ...a, rider: displayName(a.rider) }));
-    ev.brackets = Object.fromEntries(REMOTE.brackets.filter(x => x.event_id === ev.id).map(x => [x.category, x.data]));
-    const has = Object.values(results).some(l => l.length);
-    ev.status = base.status === 'next' && has ? 'done' : base.status;
-    ev.sticker = base.sticker === 'next' && ev.status === 'done' ? 'band' : base.sticker;
-  }
+  for (const ev of EVENTS) Object.assign(ev, RK.mergeEvent(ev.id, BASE.get(ev.id), REMOTE, RIDER_PRIVACY));
 }
 async function refreshRemote() {
   try {
@@ -75,71 +60,51 @@ async function refreshRemote() {
   applyData();
 }
 
-/* ---------- výsledky, rebríček, jazdci ---------- */
-function allResults() {
-  const rows = [];
-  for (const ev of EVENTS) for (const [cat, list] of Object.entries(ev.results || {})) for (const x of list) rows.push({ ev, cat, name: x.name, place: x.place, slug: slug(x.name) });
-  return rows;
-}
+/* ---------- výsledky, rebríček, jazdci (čisté funkcie sú v ranking.js) ---------- */
+const RCFG = { points: POINTS, rules: SEASON_RULES, season: SITE.season, catName };
+const allResults = () => RK.allResults(EVENTS);
 const seasonYears = () => [...new Set(EVENTS.map(e => e.season))].sort((a, b) => b - a);
-const bestPoints = list => {
-  const s = [...list].sort((a, b) => b - a);
-  return (SEASON_RULES.countBest ? s.slice(0, SEASON_RULES.countBest) : s).reduce((x, y) => x + y, 0);
-};
-function standings(cat, eventId, season = SITE.season) {
-  const m = new Map();
-  for (const r of allResults()) {
-    if (r.cat !== cat) continue;
-    if (eventId ? r.ev.id !== eventId : r.ev.season !== season) continue;
-    const o = m.get(r.slug) || { name: r.name, slug: r.slug, list: [], wins: 0, best: 99, events: 0 };
-    o.list.push(pointsFor(r.place)); o.wins += r.place === 1 ? 1 : 0; o.best = Math.min(o.best, r.place); o.events++;
-    m.set(r.slug, o);
-  }
-  return [...m.values()].map(o => ({ ...o, points: eventId ? o.list[0] : bestPoints(o.list) }))
-    .sort((a, b) => b.points - a.points || b.wins - a.wins || a.best - b.best || a.name.localeCompare(b.name, 'sk'));
-}
-function riders() {
-  const m = new Map();
-  const get = name => { const s = slug(name); if (!m.has(s)) m.set(s, { name, slug: s, results: [], awards: [] }); return m.get(s); };
-  for (const r of allResults()) get(r.name).results.push(r);
-  for (const ev of EVENTS) for (const a of ev.awards || []) get(a.rider).awards.push({ ...a, ev });
-  for (const r of m.values()) {
-    r.points = bestPoints(r.results.filter(x => x.ev.season === SITE.season).map(x => pointsFor(x.place)));
-    r.cats = [...new Set(r.results.map(x => x.cat))];
-    r.events = [...new Set([...r.results.map(x => x.ev), ...r.awards.map(x => x.ev)])];
-  }
-  return [...m.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, 'sk'));
-}
+const standings = (cat, eventId, season = SITE.season) => RK.standings(EVENTS, cat, eventId, season, RCFG);
+const riders = () => RK.riders(EVENTS, RCFG);
 const seasonEvents = () => EVENTS.filter(e => e.status === 'done' && e.season === SITE.season && Object.values(e.results || {}).some(l => l.length));
 const riderBadges = r => badgesFor(r, { seasonEvents: seasonEvents() });
 const LSX = {
   get(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const eventSticker = ev => ({ kind: ev.sticker, title: ev.city, sub: ev.stickerDate, link: '#/event/' + ev.id });
-function riderStickers(r) {
-  const out = [];
-  for (const ev of [...r.events].sort((a, b) => (b.date || '').localeCompare(a.date || ''))) {
-    out.push(eventSticker(ev));
-    for (const x of r.results.filter(x => x.ev === ev && x.place <= 3)) out.push({ kind: 'medal', place: x.place, title: `${catName(x.cat)} ${ev.city}`, link: '#/event/' + ev.id });
-    for (const a of r.awards.filter(x => x.ev === ev)) out.push({ kind: 'trick', title: ev.city, link: '#/event/' + ev.id });
-  }
-  return out.slice(0, MAX_STICKERS);
+const eventSticker = RK.eventSticker;
+const riderStickers = r => RK.riderStickers(r, RCFG);
+
+/* 3D doska: board.js a three.js sa stiahnu, až keď je plátno blízko obrazovky
+   (na mobile je doska až dole, takže úvod sa načíta bez 1,3 MB). Vráti upratovaciu funkciu. */
+function lazyBoard(canvas, opts) {
+  let stop = null, dead = false;
+  const fail = err => { console.error(err); const hint = canvas.parentElement?.querySelector('.hint'); if (hint) hint.textContent = 'Dosku sa nepodarilo načítať.'; return () => {}; };
+  const io = new IntersectionObserver(([en]) => {
+    if (!en.isIntersecting) return;
+    io.disconnect();
+    stop = import('./board.js').then(m => (dead ? () => {} : m.mountBoard(canvas, opts))).catch(fail);
+  }, { rootMargin: '300px' });
+  io.observe(canvas);
+  return () => { dead = true; io.disconnect(); return stop && stop.then(f => f()); };
 }
 
 /* ---------- kalendár ---------- */
+function downloadFile(text, type, name) {
+  const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
 function downloadIcs({ title, date, place, url }) {
-  const p = parseDate(date); if (!p) return;
+  const p = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && parseDate(date); if (!p) return;
   const d1 = date.replaceAll('-', '');
   const n = new Date(Date.UTC(p.y, p.m - 1, p.d + 1));
   const d2 = `${n.getUTCFullYear()}${String(n.getUTCMonth() + 1).padStart(2, '0')}${String(n.getUTCDate()).padStart(2, '0')}`;
-  const esc = s => String(s || '').replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const link = safeUrl(url);
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GOSko//SK', 'BEGIN:VEVENT', `UID:${d1}-${slug(title)}@gosko`, `DTSTAMP:${stamp}`,
-    `DTSTART;VALUE=DATE:${d1}`, `DTEND;VALUE=DATE:${d2}`, `SUMMARY:${esc(title)}`, place && `LOCATION:${esc(place)}`, url && `URL:${url}`,
+    `DTSTART;VALUE=DATE:${d1}`, `DTEND;VALUE=DATE:${d2}`, `SUMMARY:${icsText(title)}`, place && `LOCATION:${icsText(place)}`, link && `URL:${link}`,
     'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
-  const a = h('a', { href: URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })), download: `${slug(title)}.ics` });
-  document.body.append(a); a.click(); a.remove();
+  downloadFile(ics, 'text/calendar', `${slug(title) || 'gosko'}.ics`);
 }
 
 /* ---------- formulárové okno ---------- */
@@ -202,10 +167,12 @@ function loginDialog(after) {
         h('p', {}, `Poslali sme e-mail na ${v.email}. Zadaj kód z e-mailu, alebo klikni na odkaz v ňom.`),
         h('label', { class: 'field' }, 'Kód z e-mailu', code), msg,
         h('button', { class: 'btn primary', type: 'button', onclick: async e => {
-          msg.textContent = ''; e.currentTarget.disabled = true;
-          try { await store.verifyCode(v.email, code.value.trim()); wrap.replaceChildren(h('p', {}, 'Si prihlásený.')); after && after(); }
-          catch { msg.textContent = 'Kód nesedí alebo už vypršal. Skús ho zadať znova.'; }
-          finally { e.currentTarget && (e.currentTarget.disabled = false); }
+          const btn = e.currentTarget;   // po await je e.currentTarget už null
+          msg.textContent = ''; btn.disabled = true;
+          try { await store.verifyCode(v.email, code.value.trim()); }
+          catch { msg.textContent = 'Kód nesedí alebo už vypršal. Skús ho zadať znova.'; btn.disabled = false; return; }
+          wrap.replaceChildren(h('p', {}, 'Si prihlásený.'));
+          if (typeof after === 'function') after();
         } }, 'Prihlásiť'));
       return wrap;
     },
@@ -259,7 +226,6 @@ function photoGrid(photos, limit) {
     p.credit ? h('span', { class: 'credit' }, p.credit) : null,
     p.pending ? h('span', { class: 'tag pend' }, 'Čaká na schválenie') : null)));
 }
-const safeUrl = u => (/^https?:\/\//i.test(String(u || '')) ? u : null);
 const ytId = u => { const m = String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{11})/); return m ? m[1] : null; };
 
 /* ---------- partneri ---------- */
@@ -328,27 +294,14 @@ function bracketEl(b, { interactive = false, onPick, onCurrent, onClear, tv = fa
     fin.w ? h('div', { class: 'br-col br-champ' }, h('h4', { class: 'br-title wide' }, 'Víťaz'), h('div', { class: 'br-matches' }, h('div', { class: 'br-winner wide' }, name(fin.w)))) : null);
 }
 function placeList(list, { limit = 8 } = {}) {
-  const row = x => h('li', {}, h('span', { class: 'rank wide' }, x.place), h('a', { href: '#/jazdec/' + slug(x.name) }, x.name), h('span', { class: 'cond' }, `${pointsFor(x.place)} b.`));
+  const row = x => h('li', {}, h('span', { class: 'rank wide' }, x.place), h('a', { href: riderHref(x) }, x.name), h('span', { class: 'cond' }, `${pointsFor(x.place)} b.`));
   const rest = list.slice(limit);
   return h('div', {}, h('ol', {}, list.slice(0, limit).map(row)),
     rest.length ? h('details', { class: 'more-results' }, h('summary', {}, `Ďalší jazdci (${rest.length})`), h('ol', {}, rest.map(row))) : null);
 }
 
 /* ---------- cesta do finále ---------- */
-function finaleTable(cat, season) {
-  const F = SEASON_RULES.finale;
-  if (!F || season !== SITE.season) return null;
-  const st = standings(cat, null, season);
-  if (!st.length) return null;
-  const left = F.eventsLeft ?? EVENTS.filter(e => e.status === 'next' && e.season === season).length;
-  const gain = left * pointsFor(1), cut = st[F.slots - 1]?.points ?? 0;
-  const rows = st.map((r, i) => {
-    const rivals = st.filter((o, j) => j !== i && o.points + gain >= r.points).length;
-    const state = rivals < F.slots ? 'secure' : i < F.slots ? 'in' : r.points + gain >= cut ? 'alive' : 'out';
-    return { ...r, rank: i + 1, state, gap: Math.max(0, cut - r.points) };
-  });
-  return { F, rows, left };
-}
+const finaleTable = (cat, season) => RK.finaleTable(EVENTS, cat, season, RCFG);
 function finaleEl(cat, season) {
   const ft = finaleTable(cat, season);
   if (!ft) return null;
@@ -377,7 +330,7 @@ function pageHome(root) {
   const hero = h('header', { class: 'hero' + (narrow ? ' compact' : '') },
     h('div', { class: 'wrap hero-grid' },
       h('div', { class: 'hero-copy' },
-        h('img', { class: 'logo', src: 'img/logo.webp', alt: 'GOSko', width: 640, height: 686 }),
+        h('img', { class: 'logo', src: 'img/logo.webp', srcset: 'img/logo.webp 239w, img/logo-640.webp 640w', sizes: '(max-width: 719px) 76px, (min-width: 900px) 300px, 40vw', alt: 'GOSko', width: 640, height: 686 }),
         h('h1', { class: 'wide' }, 'Game of S.K.A.T.E. po Slovensku'),
         h('p', {}, narrow ? 'Eventy, výsledky a rebríček na jednom mieste.' : boardText)),
       narrow ? null : boardStage),
@@ -417,8 +370,7 @@ function pageHome(root) {
     : [hero, cd, standingsSec, tvSec, cta, ps, news];
   root.append(...order.filter(Boolean));
 
-  const stop = mountBoard(canvas, { stickers: EVENTS.map(eventSticker), onSticker: go });
-  return () => stop.then(f => f());
+  return lazyBoard(canvas, { stickers: EVENTS.map(eventSticker), onSticker: go });
 }
 
 function pageStandings(root) {
@@ -435,7 +387,7 @@ function pageStandings(root) {
         years.length > 1 ? chips(years.map(y => [y, String(y)]), season, v => { season = v; scope = 'season'; }) : null,
         chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.city + (e.date ? ` ${parseDate(e.date).d}. ${parseDate(e.date).m}.` : '')])], scope, v => { scope = v; }),
         chips(CATEGORIES.map(c => [c.id, c.name]), cat, v => { cat = v; })),
-      ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])) : null,
+      ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: awardHref(a) }, a.rider), '. '])) : null,
       standingsList(standings(cat, scope === 'season' ? null : scope, season), { eventMode: scope !== 'season' }),
       scope === 'season' ? finaleEl(cat, season) : null,
       scoringNote(),
@@ -455,13 +407,14 @@ async function pageEvents(root) {
   function row(e) {
     const p = parseDate(e.date);
     return h('li', { class: 'ev-row' + (e.ours ? ' ours' : '') },
-      h('div', { class: 'ev-date', 'aria-hidden': 'true' }, p ? [h('span', { class: 'd wide' }, p.d), h('span', { class: 'm cond' }, MON[p.m - 1])] : h('span', { class: 'm cond' }, 'čoskoro')),
+      h('div', { class: 'ev-date', 'aria-hidden': 'true' }, p ? [h('span', { class: 'd wide' }, p.d), h('span', { class: 'm cond' }, MON[p.m - 1])]
+        : h('span', { class: 'm cond' }, e.status === 'done' ? String(e.season || '') : 'čoskoro')),
       h('div', { class: 'ev-info' },
         e.ours ? h('a', { class: 'ev-name', href: '#/event/' + e.id }, e.title) : h('span', { class: 'ev-name' }, e.title),
-        h('span', { class: 'ev-meta' }, [e.place || e.city, e.ours ? null : e.city && e.place ? e.city : null, e.country !== 'Slovensko' ? e.country : null, fmtDate(e.date) || 'Dátum doplníme', e.ours ? 'GOSko' : e.kind].filter(Boolean).join(', ')),
+        h('span', { class: 'ev-meta' }, [e.place || e.city, e.ours ? null : e.city && e.place ? e.city : null, e.country !== 'Slovensko' ? e.country : null, fmtDate(e.date) || (e.status === 'done' ? null : 'Dátum doplníme'), e.ours ? 'GOSko' : e.kind].filter(Boolean).join(', ')),
         e.pending && h('span', { class: 'tag' }, 'Čaká na schválenie')),
       h('div', { class: 'ev-actions' },
-        !e.ours && e.link && h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Viac info'),
+        !e.ours && safeUrl(e.link) && h('a', { class: 'btn small', href: safeUrl(e.link), target: '_blank', rel: 'noopener noreferrer' }, 'Viac info'),
         e.date && e.date >= today && h('button', { class: 'btn small', type: 'button', onclick: () => downloadIcs({ title: e.title, date: e.date, place: [e.place, e.city].filter(Boolean).join(', '), url: e.link }) }, 'Do kalendára')));
   }
   function render() {
@@ -501,6 +454,10 @@ async function pageEvents(root) {
   async function pageEventsRefresh() { try { community = (await store.listEvents()).map(e => ({ ...e, title: e.name, ours: false })); render(); } catch {} }
 }
 
+/* Registrácia na event (v1: zápis do tabuľky registrations a QR pass v localStorage).
+   Volá sa z countdownEl a pageEvent. Pass vznikne len po úspešnom zápise; v režime offline
+   store.send hodí UserError a formulár ukáže chybu. Registrácia v2 (assets/register.js, /api/register)
+   nahradí telo tejto funkcie a pridá routu #/registracia/:eventId do ROUTES. */
 function registerDialog(ev) {
   formDialog({
     title: 'Chcem jazdiť', submit: 'Zaregistrovať sa',
@@ -601,7 +558,7 @@ async function pageEvent(root, id) {
     if (!cats.length) put(body, h('p', { class: 'empty' }, 'Výsledky doplníme.'));
     else put(body, h('div', { class: 'podiums' }, cats.map(c => h('div', { class: 'podium' },
       h('h3', {}, c.name, c.note && h('span', { class: 'cond' }, ` ${c.note}`)), placeList(ev.results[c.id])))));
-    if (ev.awards?.length) put(body, h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])));
+    if (ev.awards?.length) put(body, h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: awardHref(a) }, a.rider), '. '])));
   }
   const withBracket = CATEGORIES.filter(c => ev.brackets?.[c.id]);
   if (withBracket.length) put(body, h('h2', { class: 'wide sub' }, 'Pavúk'),
@@ -653,7 +610,9 @@ function pageRider(root, s) {
     h('div', {},
       h('a', { class: 'back', href: '#/jazdci' }, 'Všetci jazdci'),
       h('h1', { class: 'wide' }, r.name),
-      h('p', { class: 'cond big-meta' }, `${r.points} bodov v sezóne ${SITE.season}`),
+      h('p', { class: 'cond big-meta' }, Object.keys(r.pointsByCat).length > 1
+        ? `Sezóna ${SITE.season}: ` + Object.entries(r.pointsByCat).map(([c, p]) => `${catName(c)} ${p} b.`).join(', ')
+        : `${r.points} bodov v sezóne ${SITE.season}`),
       rankIn.length ? h('p', {}, rankIn.join(', ') + '.') : null,
       h('h2', { class: 'sub' }, 'Výsledky'),
       h('ul', { class: 'r-results' },
@@ -666,8 +625,7 @@ function pageRider(root, s) {
       h('p', { class: 'note' }, 'Si to ty? Napíš nám na Instagram a doplníme tvoj profil. ',
         h('button', { class: 'linklike', type: 'button', onclick: () => privacyDialog({ target: r.name }) }, r.cats.includes('u16') ? 'Súkromie a odstránenie údajov (U16)' : 'Súkromie a odstránenie údajov'))),
     h('div', { class: 'board-stage' }, canvas, deco('land', 'd-stage-tl'), h('p', { class: 'hint cond' }, 'Ťukni na nálepku a otvorí sa event')))));
-  const stop = mountBoard(canvas, { stickers: riderStickers(r), onSticker: go });
-  return () => stop.then(f => f());
+  return lazyBoard(canvas, { stickers: riderStickers(r), onSticker: go });
 }
 
 async function pageParks(root) {
@@ -695,8 +653,9 @@ async function pageParks(root) {
     h('div', { class: 'controls' }, chipRow('Zoradenie', 'sort', [['top', 'Top 10'], ['new', 'Najnovšie']]), chipRow('Lokalita', 'loc', [['all', 'Všetky'], ['Bratislava', 'Bratislava'], ['Slovensko', 'Slovensko'], ['Česko', 'Česko']])),
     note, ol, empty)));
 
-  let builder;
-  try { builder = mountBuilder(section); } catch (err) { console.error(err); $('.status', section).textContent = 'Tvoj prehliadač nevie zobraziť 3D. Skús iný prehliadač.'; }
+  let builder, P = null;
+  try { P = await import('./park.js'); builder = P.mountBuilder(section); }
+  catch (err) { console.error(err); $('.status', section).textContent = P ? 'Tvoj prehliadač nevie zobraziť 3D. Skús iný prehliadač.' : 'Stavebnicu sa nepodarilo načítať. Skontroluj pripojenie a obnov stránku.'; }
 
   $('[data-act=send]', section).addEventListener('click', async () => {
     const items = builder?.items() || [];
@@ -711,7 +670,7 @@ async function pageParks(root) {
         { name: 'place', label: 'Konkrétne miesto', max: 60, placeholder: 'nepovinné, napr. pod Mostom SNP' },
       ],
       onSubmit: async v => {
-        const res = await store.submitPark({ ...v, layout: slimLayout(items), thumb: renderThumb(items) });
+        const res = await store.submitPark({ ...v, layout: P.slimLayout(items), thumb: P.renderThumb(items) });
         refresh();
         return res.pending ? 'Ďakujeme! Park sa zobrazí v zozname po schválení.' : 'Park je v zozname. V ukážkovom režime ho vidíš len ty.';
       },
@@ -726,6 +685,7 @@ async function pageParks(root) {
   async function renderNote() {
     note.replaceChildren();
     if (store.mode === 'demo') { note.textContent = 'Ukážkový režim: parky a hlasy sa zatiaľ ukladajú len v tomto prehliadači.'; return; }
+    if (store.mode === 'offline') { note.textContent = store.message; return; }
     const email = await store.email();
     if (email) note.append(`Prihlásený ako ${email}. `, h('button', { type: 'button', class: 'linklike', onclick: async () => { await store.logout(); refresh(); } }, 'Odhlásiť'));
     else note.textContent = 'Na hlasovanie sa prihlás e-mailom. Jeden človek, jeden hlas na park.';
@@ -736,7 +696,7 @@ async function pageParks(root) {
     title.textContent = L.sort === 'top' ? 'Top 10 parkov' : 'Najnovšie parky';
     empty.hidden = arr.length > 0;
     ol.replaceChildren(...arr.map((p, i) => {
-      let src = p.thumb; if (!src) { try { src = renderThumb(cleanLayout(p.layout), p.id); } catch { src = ''; } }
+      let src = p.thumb; if (!src && P) { try { src = P.renderThumb(P.cleanLayout(p.layout), p.id); } catch { src = ''; } }
       const on = L.voted.has(p.id);
       return h('li', { class: 'park' },
         h('span', { class: 'rank wide', 'aria-hidden': 'true' }, L.sort === 'top' ? i + 1 : ''),
@@ -835,35 +795,38 @@ function bookDialog() {
 async function pageAdmin(root) {
   root.append(pageHead('Admin', store.mode === 'demo' ? 'Ukážkový režim: vidíš len to, čo sa uložilo v tomto prehliadači.' : 'Schvaľovanie a doručené formuláre.'));
   const body = h('div', { class: 'wrap page-body' }); root.append(body);
-  if (store.mode === 'live' && !(await store.signedIn())) { put(body, h('button', { class: 'btn primary', type: 'button', onclick: loginDialog }, 'Prihlásiť sa')); return; }
-  if (!(await store.isAdmin())) { put(body, h('p', {}, 'Tento účet nemá prístup do adminu.')); return; }
+  if (!(await adminGate(body, 'Tento účet nemá prístup do adminu.'))) return;
   const section = (t, ...kids) => h('section', { class: 'admin-sec' }, h('h2', { class: 'wide sub' }, t), kids);
   const [parks, events, spots, photos] = await Promise.all([store.pendingParks().catch(() => []), store.pendingEvents().catch(() => []), store.pendingSpots().catch(() => []), store.pendingEventPhotos().catch(() => [])]);
   put(body, h('div', { class: 'actions' },
     h('a', { class: 'btn primary', href: '#/admin/vysledky' }, 'Zapisovať výsledky'),
     h('a', { class: 'btn primary', href: '#/admin/scan' }, 'Check-in (skener)')));
+  /* li a tlačidlá sa berú pred await: po ňom je e.currentTarget už null */
+  const moderate = (fn, ask) => async e => {
+    const li = e.currentTarget.closest('li'), btns = [...li.querySelectorAll('button')];
+    if (ask && !confirm(ask)) return;
+    li.querySelector('.form-msg')?.remove(); btns.forEach(b => { b.disabled = true; });
+    try { await fn(); li.remove(); }
+    catch (err) { console.error(err); btns.forEach(b => { b.disabled = false; }); li.append(h('span', { class: 'form-msg', role: 'alert' }, 'Nepodarilo sa uložiť. Skús znova.')); }
+  };
   const modBtns = (kind, id) => [
-    h('button', { class: 'btn small', type: 'button', onclick: async e => { await store.approve(kind, id); e.currentTarget.closest('li').remove(); } }, 'Schváliť'),
-    h('button', { class: 'btn small', type: 'button', onclick: async e => { if (!confirm('Naozaj zamietnuť a zmazať?')) return; await store.reject(kind, id); e.currentTarget.closest('li').remove(); } }, 'Zamietnuť')];
+    h('button', { class: 'btn small', type: 'button', onclick: moderate(() => store.approve(kind, id)) }, 'Schváliť'),
+    h('button', { class: 'btn small', type: 'button', onclick: moderate(() => store.reject(kind, id), 'Naozaj zamietnuť a zmazať?') }, 'Zamietnuť')];
   const none = () => h('p', { class: 'empty' }, 'Nič nečaká.');
   put(body, section('Fotky a klipy na schválenie', photos.length ? h('ul', { class: 'admin-list' }, photos.map(x => h('li', {},
     x.photo_url && h('img', { class: 'thumb', src: x.photo_url, alt: '' }), h('span', {}, `${x.author}${x.caption ? ': ' + x.caption : ''}`),
-    safeUrl(x.clip_url) && h('a', { href: x.clip_url, target: '_blank', rel: 'noopener' }, 'klip'), modBtns('photos', x.id)))) : none()));
+    safeUrl(x.clip_url) && h('a', { href: safeUrl(x.clip_url), target: '_blank', rel: 'noopener noreferrer' }, 'klip'), modBtns('photos', x.id)))) : none()));
   put(body, section('Spoty na schválenie', spots.length ? h('ul', { class: 'admin-list' }, spots.map(s => h('li', {},
     s.photo_url && h('img', { class: 'thumb', src: s.photo_url, alt: '' }), h('span', {}, `${s.name}, ${s.city}`), h('a', { href: navLink(s.lat, s.lng), target: '_blank', rel: 'noopener' }, 'na mape'), modBtns('spots', s.id)))) : none()));
   put(body, section('Parky na schválenie', parks.length ? h('ul', { class: 'admin-list' }, parks.map(p => h('li', {},
     p.thumb && h('img', { class: 'thumb', src: p.thumb, alt: '' }), h('span', {}, `${p.name}, od ${p.author}, ${p.location}`), modBtns('parks', p.id)))) : none()));
   put(body, section('Eventy na schválenie', events.length ? h('ul', { class: 'admin-list' }, events.map(e => h('li', {},
-    h('span', {}, `${e.name}, ${fmtDate(e.date)}, ${e.city}, ${e.country}`), safeUrl(e.link) && h('a', { href: e.link, target: '_blank', rel: 'noopener' }, 'odkaz'), modBtns('events', e.id)))) : none()));
+    h('span', {}, `${e.name}, ${fmtDate(e.date)}, ${e.city}, ${e.country}`), safeUrl(e.link) && h('a', { href: safeUrl(e.link), target: '_blank', rel: 'noopener noreferrer' }, 'odkaz'), modBtns('events', e.id)))) : none()));
   for (const [table, label] of Object.entries(INBOX)) {
     const rows = await store.inbox(table).catch(() => []);
     const keys = rows.length ? Object.keys(rows[0]).filter(k => !['id', 'created'].includes(k)) : [];
     const extra = table === 'registrations' && rows.length ? h('p', { class: 'note' }, `Na evente zapísaných: ${rows.filter(r => r.checked_in_at).length} z ${rows.length}.`) : null;
-    const csv = () => {
-      const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const text = [keys.join(';'), ...rows.map(r => keys.map(k => q(r[k])).join(';'))].join('\n');
-      const a = h('a', { href: URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/csv' })), download: `${table}.csv` }); document.body.append(a); a.click(); a.remove();
-    };
+    const csv = () => downloadFile(csvRows(keys, rows), 'text/csv;charset=utf-8', `${table}.csv`);   // csvRows escapuje vzorce (= + - @)
     put(body, section(`${label} (${rows.length})`, rows.length ? [extra,
       h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, keys.map(k => h('th', {}, k)))), h('tbody', {}, rows.map(r => h('tr', {}, keys.map(k => h('td', {}, String(r[k] ?? '')))))))),
       h('button', { class: 'btn small', type: 'button', onclick: csv }, 'Stiahnuť CSV')] : h('p', { class: 'empty' }, 'Zatiaľ nič.')));
@@ -928,6 +891,7 @@ async function shareCardDialog(r, rankIn) {
   dlg.addEventListener('close', () => dlg.remove());
   document.body.append(dlg); dlg.showModal();
   try {
+    const { riderCard, canvasToFile } = await import('./card.js');
     const canvas = await riderCard({
       name: r.name, points: r.points, season: SITE.season, stickers: riderStickers(r), badges: riderBadges(r),
       ranks: rankIn.map(s => s.toLocaleUpperCase('sk')),
@@ -1060,9 +1024,10 @@ async function checkinView(token, box) {
   } }, 'Potvrdiť príchod');
   box.replaceChildren(h('div', { class: 'ci' }, info, confirm));
 }
-async function adminGate(body) {
+async function adminGate(body, denied = 'Tento účet nemá prístup. Check-in robí len crew.') {
+  if (store.mode === 'offline') { put(body, h('p', { class: 'form-msg', role: 'alert' }, store.message)); return false; }
   if (store.mode === 'live' && !(await store.signedIn())) { put(body, h('button', { class: 'btn primary', type: 'button', onclick: () => loginDialog(() => route()) }, 'Prihlásiť sa')); return false; }
-  if (!(await store.isAdmin())) { put(body, h('p', {}, 'Tento účet nemá prístup. Check-in robí len crew.')); return false; }
+  if (!(await store.isAdmin())) { put(body, h('p', {}, denied)); return false; }
   return true;
 }
 async function pageCheckin(root, token) {
@@ -1147,8 +1112,8 @@ function pageHall(root) {
       put(body, h('div', { class: 'hof-card' },
         h('h3', { class: 'wide' }, h('a', { href: '#/event/' + ev.id }, ev.name)),
         h('p', { class: 'cond' }, [ev.place, fmtDate(ev.date)].filter(Boolean).join(', ')),
-        h('ul', {}, wins.map(([c, l]) => h('li', {}, `${c.name}: `, l.map(x => h('a', { href: '#/jazdec/' + slug(x.name) }, x.name)))),
-          ev.awards.map(a => h('li', {}, `${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider))))));
+        h('ul', {}, wins.map(([c, l]) => h('li', {}, `${c.name}: `, l.map(x => h('a', { href: riderHref(x) }, x.name)))),
+          ev.awards.map(a => h('li', {}, `${a.name}: `, h('a', { href: awardHref(a) }, a.rider))))));
     }
   }
   put(body, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek' }, 'Rebríček')));
@@ -1217,7 +1182,7 @@ async function pageTv(root, eventId, pinCat) {
     else stage.append(standingsList(standings(s.cat.id), { limit: 8 }));
   }
   render();
-  const poll = setInterval(async () => { await refreshRemote(); render(); }, 5000);
+  const poll = setInterval(async () => { await refreshRemote(); render(); }, 30000);   // databázu čítame raz za 30 s
   const rot = setInterval(() => { if (!cats().some(c => ev.brackets?.[c.id]?.current)) { idx++; render(); } }, 20000);
   let lock = null;
   const acquire = async () => { try { lock = await navigator.wakeLock?.request('screen'); } catch {} };
@@ -1240,7 +1205,7 @@ async function pageAdminResults(root, eventId) {
   await refreshRemote();
   if (!ev) {
     put(body, h('ul', { class: 'cards' }, EVENTS.map(e => h('li', { class: 'card' }, h('div', { class: 'card-body' },
-      h('h2', { class: 'card-title' }, e.name), h('p', {}, [fmtDate(e.date) || 'dátum čoskoro', e.status === 'next' ? 'pripravovaný' : 'odjazdený'].join(', ')),
+      h('h2', { class: 'card-title' }, e.name), h('p', {}, [fmtDate(e.date) || (e.status === 'next' ? 'dátum čoskoro' : 'dátum doplníme'), e.status === 'next' ? 'pripravovaný' : 'odjazdený'].join(', ')),
       h('a', { class: 'btn primary', href: '#/admin/vysledky/' + e.id }, 'Zapisovať'))))));
     put(body, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/admin' }, 'Späť do adminu')));
     return;
@@ -1368,11 +1333,21 @@ async function pageAdminResults(root, eventId) {
   loadBracket(); render();
 }
 
+/* ---------- prenos passov zo starej adresy ----------
+   redirect/index.html na GitHub Pages pošle passy z localStorage ako #/import-passes/<base64url>?to=<pôvodný hash>.
+   Uložia sa k passom na tejto doméne (podľa tokenu) a stránka pokračuje na pôvodnú adresu, inak na úvod. */
+function pageImportPasses(root, data, to) {
+  const incoming = decodePasses(data);
+  if (incoming.length) { LSX.set('gosko:passes', mergePasses(LSX.get('gosko:passes', []), incoming)); updateMenu(); }
+  location.replace(importTarget(to));
+}
+
 /* =====================================================================
    ROUTER
    ===================================================================== */
 /* Polaroidy z eventov na spodku stránok: zábava ide až za hlavný obsah. */
 function funStrip() { return polaroidStrip(EVENTS.flatMap(e => e.photos || []), lightbox); }
+/* [regex hashu, stránka(root, ...skupiny z regexu), aktívna položka menu]. Nové stránky pridaj sem. */
 const ROUTES = [
   [/^#?\/?$/, pageHome, ''],
   [/^#\/rebricek$/, pageStandings, 'rebricek'],
@@ -1386,6 +1361,7 @@ const ROUTES = [
   [/^#\/mapa$/, pageMap, 'mapa'],
   [/^#\/pass$/, pagePasses, ''],
   [/^#\/checkin\/([\w-]+)$/, pageCheckin, ''],
+  [/^#\/import-passes\/([\w-]+)(?:\?to=(.*))?$/, pageImportPasses, ''],
   [/^#\/admin\/scan$/, pageScan, ''],
   [/^#\/admin\/vysledky(?:\/([\w-]+))?$/, pageAdminResults, ''],
   [/^#\/pravidla$/, pageRules, 'pravidla'],
@@ -1415,6 +1391,7 @@ async function route() {
   $('footer .wrap').prepend(h('div', { class: 'bomb' }, deco('round'), deco('oval'), deco('burst'), deco('skate'), deco('sk')));
   initPwa();
   $('#footer-news').addEventListener('click', () => newsletterDialog('footer'));
+  $('.skip-link')?.addEventListener('click', e => { e.preventDefault(); $('#main').focus(); });   // #main by inak zmenil hash routu
   updateMenu();
   const menu = $('#menu');
   $('#menu-open').addEventListener('click', () => menu.showModal());

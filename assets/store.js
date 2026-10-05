@@ -1,3 +1,9 @@
+import { UserError } from './util.js';
+import { loadScript } from './qr.js';
+
+/* @supabase/supabase-js 2.117.2 (UMD, globál window.supabase), uložené na webe: assets/vendor/SOURCES.txt */
+const SUPABASE_JS = 'assets/vendor/supabase-2.117.2.js';
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 export const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
 const LS = {
@@ -115,7 +121,8 @@ function demoStore() {
 }
 
 async function liveStore(CONFIG) {
-  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  await loadScript(SUPABASE_JS);
+  const { createClient } = window.supabase;
   const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'gosko-auth' },
   });
@@ -225,10 +232,28 @@ async function liveStore(CONFIG) {
   };
 }
 
+/* Databáza je nastavená, ale knižnica alebo spojenie zlyhali. Nič sa neuloží len do prehliadača:
+   žiadny QR pass, ktorý by nebol v databáze, a žiadny admin. Čítanie aj zápis hodia UserError s textom pre človeka. */
+const OFFLINE_MSG = 'Nepodarilo sa spojiť so serverom GOSko. Skontroluj pripojenie, obnov stránku a skús to znova.';
+function offlineStore() {
+  const down = async () => { throw new UserError(OFFLINE_MSG); };
+  const store = { mode: 'offline', message: OFFLINE_MSG, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
+    async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {} };
+  for (const k of ['login', 'verifyCode', 'listParks', 'submitPark', 'vote', 'listEvents', 'submitEvent', 'listSpots', 'submitSpot', 'send', 'subscribe',
+    'findRegistration', 'checkIn', 'pendingParks', 'pendingEvents', 'pendingSpots', 'pendingEventPhotos', 'approve', 'reject', 'inbox',
+    'listResults', 'listAwards', 'listBrackets', 'saveBracket', 'deleteBracket', 'saveResults', 'deleteResults', 'saveAwards', 'listEventPhotos', 'submitEventPhoto'])
+    store[k] = down;
+  return store;
+}
+
 export { isEmail };
-export async function getStore(CONFIG) {
-  if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
-    try { return await liveStore(CONFIG); } catch (err) { console.error(err); }
-  }
-  return demoStore();
+/* mode: 'live' = Supabase; 'demo' = CONFIG je prázdny (výslovne lokálna ukážka, ukladá sa do prehliadača);
+   'offline' = CONFIG je vyplnený, ale Supabase sa nenačítal (formuláre ukážu chybu, nič nepredstierajú). */
+export async function getStore(CONFIG, { timeout = 10000, connect = liveStore } = {}) {
+  if (!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY)) return demoStore();
+  let timer;
+  try {
+    return await Promise.race([connect(CONFIG), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('Supabase sa nenačítal včas.')), timeout); })]);
+  } catch (err) { console.error(err); return offlineStore(); }
+  finally { clearTimeout(timer); }
 }

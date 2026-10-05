@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 
 const FONT = '"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* matchMedia až pri vykreslení (nie pri importe modulu), aby sa board.js dal načítať aj mimo prehliadača a lenivo */
+const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let logoPromise = null;
 export function loadLogo() {
@@ -110,7 +111,7 @@ const SLOTS = [
   { x: -.135, z: -.036, r: .12 }, { x: .1, z: -.042, r: .08 }, { x: -.02, z: .045, r: -.18 },
   { x: .15, z: -.01, r: .25 }, { x: -.06, z: -.005, r: -.22 },
 ];
-export const MAX_STICKERS = SLOTS.length;
+export const MAX_STICKERS = SLOTS.length;   // ranking.js MAX_STICKERS musí sedieť (test v tests/unit/ranking.test.js)
 
 function buildBoard(stickers, logo, renderer) {
   const L = .8, W = .21, T = .013, NOSE = L / 2 - W / 2 * .95, FLAT = .26, N = 160, M = 14;
@@ -230,6 +231,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker } = {}) {
   const ro = new ResizeObserver(resize); ro.observe(canvas); resize();
 
   let vel = 0, drag = null, idleAt = 0, alive = true, visible = true;
+  const still = reduceMotion();
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   const hit = e => {
     const r = canvas.getBoundingClientRect();
@@ -259,7 +261,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker } = {}) {
     if (!visible) return;
     if (!drag) {
       vel *= .95;
-      const auto = reduceMotion ? 0 : .0035;
+      const auto = still ? 0 : .0035;
       if (Math.abs(vel) < auto && now - idleAt > 2500) vel = auto;
       spin.rotation.y += vel;
     }
