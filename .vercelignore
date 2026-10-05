@@ -1,0 +1,23 @@
+# Súbory, ktoré sa nenahrajú na Vercel (a teda nie sú verejné na webe).
+# Syntax ako .gitignore. Vercel CLI má vlastný zoznam vždy ignorovaných vecí
+# (.git, .vercel, node_modules, .env.local), tu je to, čo treba doplniť.
+# POZOR: s .vercelignore sa .gitignore pri nahrávaní nepoužíva, preto sú tu aj .env*.
+
+# dokumentácia a zdrojáky databázy
+/README.md
+/docs/
+/supabase/
+/supabase-setup.sql
+
+# testy, skripty a smart kontrakt (nie sú súčasť webu)
+/tests/
+/chain/
+/scripts/
+
+# pracovné súbory
+/.workflow/
+/redirect/
+/.nojekyll
+.env*
+.DS_Store
+*.log

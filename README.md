@@ -29,20 +29,157 @@ icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim
+vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
+.vercelignore         čo sa nenahrá na Vercel (a teda nie je verejné)
+api/                  Vercel funkcie (registrácia, passy, admin, NFT, cron)
+scripts/dev-server.js lokálny server s rovnakými hlavičkami a routovaním /api ako na Verceli
+tests/                unit, api, integračné a smoke testy
 ```
 
-## 1. Nahratie na GitHub (zadarmo)
+## 1. Nasadenie na Vercel
 
-1. Na github.com vytvor repozitár, napr. `gosko`.
-2. **Add file → Upload files** a pretiahni tam celý obsah priečinka
-   (aj priečinky `assets` a `img`).
-3. **Settings → Pages → Branch: main, / (root) → Save.**
-4. O minútu-dve beží web na `https://tvojemeno.github.io/gosko/`.
+Web je statický (bez buildu) a k nemu patria Vercel funkcie v `api/`. Nasadzuje sa
+z príkazového riadku, takže na to netreba prístup do GitHub repozitára.
 
-Web treba otvárať cez túto adresu. Ak otvoríš `index.html` priamo z počítača
-dvojklikom, prehliadač moduly nenačíta.
+### Prvé nasadenie (preview)
 
-## 2. Bežná údržba: `data.js`
+1. Raz: `npm i -g vercel` a `vercel login`.
+2. V koreni projektu spusti `vercel`. Pri prvom spustení sa opýta na účet (scope),
+   názov projektu (`gosko`) a priečinok (`./`). Nastavenia buildu nemeň: `vercel.json`
+   už hovorí, že framework nie je, build nie je a výstup je koreň (`.`).
+3. Vypíše sa adresa preview nasadenia. Preview je predvolene za Vercel Authentication,
+   takže ho uvidíš prihlásený do Vercelu.
+4. Over ho smoke testom (viď nižšie).
+
+Do produkcie ide `vercel --prod`.
+
+### Premenné prostredia
+
+Zoznam je v `.env.example`. Na Vercel sa pridávajú v **Project Settings → Environment Variables**
+alebo príkazom `vercel env add NAZOV production` (opýta sa na hodnotu, takže tajné
+hodnoty nejdú do histórie shellu). To isté pre `preview`, ak ich majú mať aj preview nasadenia.
+Po zmene premenných treba nasadiť znova, inak ich bežiaca verzia nevidí.
+
+| Skupina | Premenné | Poznámka |
+|---|---|---|
+| Databáza | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_AUTH_URL` | service role kľúč je TAJNÝ, v dashboarde ho označ ako Sensitive |
+| Registrácia | `TURNSTILE_SECRET_KEY`, `RESEND_API_KEY`, `MAIL_FROM`, `PUBLIC_BASE_URL`, `CONSENT_VERSION`, `RATE_LIMIT_PER_10MIN` | `TURNSTILE_SECRET_KEY` a `RESEND_API_KEY` sú TAJNÉ; v produkcii musia byť nastavené |
+| NFT | `CHAIN_ID`, `RPC_URL`, `NFT_CONTRACT_ADDRESS`, `NFT_CUSTODY_ADDRESS`, `MINTER_PRIVATE_KEY` | `MINTER_PRIVATE_KEY` je TAJNÝ; kým je `NFT_CONTRACT_ADDRESS` prázdna, NFT je vypnuté a registrácia funguje ďalej |
+| Cron | `CRON_SECRET` | TAJNÝ; Vercel ho posiela cronu automaticky ako `Authorization: Bearer ...` |
+
+`PUBLIC_BASE_URL` je adresa bez lomky na konci (`https://gosko.sk`). Preview nasadenia majú inú
+adresu, takže odkazy v e-mailoch testuj radšej na produkcii alebo tam nastav `PUBLIC_BASE_URL`
+na adresu preview.
+
+Verejné hodnoty webu (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TURNSTILE_SITE_KEY`, `API_BASE`) nie sú
+v prostredí, sú v `CONFIG` v `data.js`.
+
+Verzia Node pre funkcie sa berie z `engines.node` v `package.json` (Node 22).
+
+### Doména gosko.sk
+
+1. Doménu kúp u registrátora (vlastník projektu).
+2. Vo Vercele: **Project → Settings → Domains → Add** `gosko.sk`, alebo `vercel domains add gosko.sk`.
+3. Vercel ukáže, aké DNS záznamy nastaviť. Zvyčajne `A` záznam pre `gosko.sk` a `CNAME`
+   pre `www`; presné hodnoty vždy preber z dashboardu. Dá sa aj presunúť nameservery na Vercel.
+4. Presmeruj `www.gosko.sk` na `gosko.sk` (v Domains pri `www`) a nastav `PUBLIC_BASE_URL=https://gosko.sk`.
+5. Certifikát vystaví Vercel sám.
+
+### Supabase Auth: adresy pre novú doménu
+
+V Supabase: **Authentication → URL Configuration**.
+
+- **Site URL:** `https://gosko.sk`
+- **Redirect URLs:** `https://gosko.sk/**`, `https://www.gosko.sk/**`, pre lokálny vývoj
+  `http://localhost:3000/**` a podľa potreby vzor pre preview nasadenia (`https://*-tvoj-tim.vercel.app/**`).
+  Staré adresy z GitHub Pages ponechaj, kým nie je hotové presmerovanie.
+
+Prihlasovacie e-maily (magic link) idú na Site URL, takže ju prepni ešte pred ostrým spustením.
+
+### Hlavičky a CSP
+
+`vercel.json` nastavuje cache (`/sw.js` bez cache, `assets/*`, `data.js` a `index.html` s
+`max-age=0, must-revalidate`; názvy súborov nemajú hash, preto nikdy `immutable`), bezpečnostné
+hlavičky a Content Security Policy. CSP beží zatiaľ ako **Report-Only**: nič nezablokuje, len
+vypíše porušenia do konzoly prehliadača. Vynucuje sa iba `frame-ancestors 'none'`.
+Ak je konzola na všetkých routách čistá, prepni CSP na vynucovanie: v `vercel.json` premenuj kľúč
+`Content-Security-Policy-Report-Only` na `Content-Security-Policy`, predtým zmaž samostatný riadok
+`Content-Security-Policy` s `frame-ancestors` (plná CSP ho už obsahuje, inak by bol kľúč dvakrát)
+a uprav test v `tests/unit/vercel-config.test.js`.
+
+**CSP hash importmapy.** Inline `<script type="importmap">` v `index.html` povoľuje v `script-src`
+hash `'sha256-...'`. Po akejkoľvek zmene importmapy (aj medzery) sa hash zmení a treba ho
+prepočítať:
+
+```bash
+node --input-type=module -e "import {readFileSync} from 'node:fs'; import {createHash} from 'node:crypto'; for (const m of readFileSync('index.html','utf8').matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) console.log(\"'sha256-\" + createHash('sha256').update(m[1]).digest('base64') + \"'\")"
+```
+
+Vypísaný hash vlož do `script-src` vo `vercel.json`. Stráži to `npm test` (nesedí hash, test spadne a vypíše
+očakávaný) aj smoke test proti živej adrese.
+
+### Cron: opakovanie NFT mintu
+
+Funkcia `api/cron/nft-retry` dorobí mint a zápis výsledkov, ktoré pri check-ine nevyšli. Vo `vercel.json`
+(`crons`) beží predvolene **raz denne** (`0 6 * * *`, čas je UTC) a pre plán Hobby to je jediná možnosť:
+cron častejší ako raz denne tam zlyhá už pri nasadení a Hobby ho spustí kedykoľvek v danej hodine.
+
+| Plán | `schedule` | Poznámka |
+|---|---|---|
+| Hobby | `0 6 * * *` | raz denne; neúspešný mint sa dorobí do 24 hodín |
+| Pro | `*/10 * * * *` | každých 10 minút |
+
+Zmeň `crons[0].schedule` vo `vercel.json` a nasaď znova. Cron beží len na produkčnom nasadení.
+Okamžité spustenie rukou:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://gosko.sk/api/cron/nft-retry
+```
+
+### Smoke test nasadenia
+
+```bash
+GOSKO_URL=https://gosko-xyz.vercel.app npm run test:smoke
+```
+
+Skontroluje, že `/`, `/sw.js`, manifest, `data.js` a všetky `assets/*.js` vrátia 200, že sedia hlavičky
+a hash CSP, a že nič z `.vercelignore` (`/supabase-setup.sql`, `/README.md`, `/chain/`, `/.env.example`)
+nie je verejné. Preview za Vercel Authentication potrebuje navyše `VERCEL_AUTOMATION_BYPASS_SECRET`
+(Project Settings → Deployment Protection → Protection Bypass for Automation).
+
+## 2. Lokálny vývoj
+
+Potrebuješ Node 22 alebo novší. Raz `npm install` (jediná závislosť je `viem` pre API).
+
+```bash
+cp .env.example .env.local      # doplň hodnoty; .env.local sa necommituje
+node scripts/dev-server.js      # http://localhost:3000
+```
+
+Dev server nemá závislosti a správa sa ako Vercel: servíruje súbory z koreňa, pridáva hlavičky
+z `vercel.json`, neservíruje nič z `.vercelignore` (takže `/README.md` dá 404 ako na produkcii)
+a `/api/*` smeruje na súbory v `api/`, vrátane dynamických `[id]` (`api/nft/metadata/[id].js` je
+`/api/nft/metadata/7`). Port a adresu zmeníš cez `PORT` a `HOST` (`PORT=3001 node scripts/dev-server.js`).
+Premenné z `.env.local` sa načítajú do prostredia funkcií.
+
+Web treba otvárať cez server, nie dvojklikom na `index.html`, inak prehliadač moduly nenačíta.
+Service worker na `localhost` cachuje súbory, takže po zmene zvýš `VERSION` v `sw.js` alebo ho v DevTools
+(Application) odregistruj.
+
+Testy:
+
+| Príkaz | Čo robí |
+|---|---|
+| `npm test` | unit a api testy, bez siete a bez databázy |
+| `npm run test:db` | testy databázy, treba lokálny Postgres a PostgREST (postup v `docs/KONTRAKT-REGISTRACIA.md`, časť Lokálny test stack) |
+| `npm run test:api-int` | API proti PostgREST a lokálnemu Hardhat uzlu |
+| `npm run test:chain` | testy kontraktu (Hardhat, priečinok `chain/`) |
+| `npm run test:smoke` | smoke test nasadenia, treba `GOSKO_URL` (bez neho sa preskočí) |
+
+Smoke test sa dá pustiť aj proti lokálnemu serveru: v jednom termináli `node scripts/dev-server.js`,
+v druhom `GOSKO_URL=http://localhost:3000 npm run test:smoke`.
+
+## 3. Bežná údržba: `data.js`
 
 - **Nový event:** skopíruj blok v `EVENTS` a uprav ho. Dostane nálepku na doske.
 - **Výsledky:** do `results` zapíš mená v poradí umiestnenia. Rebríček,
@@ -58,13 +195,13 @@ dvojklikom, prehliadač moduly nenačíta.
 
 Na jednej doske je miesto na 8 nálepiek, jazdec vidí tie najnovšie.
 
-## 3. Ukážkový vs. ostrý režim
+## 4. Ukážkový vs. ostrý režim
 
 Kým je `CONFIG` v `data.js` prázdny, všetko funguje, ale formuláre, parky
 a hlasy sa ukladajú len v prehliadači toho, kto ich poslal. Na ukážku partnerom
 to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
 
-## 4. Ostrý režim cez Supabase (free plán)
+## 5. Ostrý režim cez Supabase (free plán)
 
 1. Na supabase.com založ projekt.
 2. **SQL Editor → New query**, vlož celý `supabase-setup.sql` a daj **Run**.

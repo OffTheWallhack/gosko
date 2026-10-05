@@ -2,14 +2,16 @@
   "name": "gosko-web",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "test": "node --test \"tests/unit/**/*.test.js\" \"tests/api/**/*.test.js\"",
     "test:db": "node --test --test-concurrency=1 \"tests/integration/db/**/*.test.js\"",
     "test:api-int": "node --test --test-concurrency=1 \"tests/integration/api/**/*.test.js\"",
     "test:chain": "cd chain && npx hardhat test nodejs",
     "test:smoke": "node --test \"tests/smoke/**/*.test.js\"",
-    "dev": "vercel dev --listen 3000"
+    "dev": "node scripts/dev-server.js"
   },
   "dependencies": {
     "viem": "^2.21.0"
