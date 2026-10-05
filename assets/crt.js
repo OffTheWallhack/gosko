@@ -24,7 +24,7 @@ const ANTENNA = `<svg viewBox="0 0 240 90" preserveAspectRatio="xMidYMax meet" f
 const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const YT = 'https://www.youtube-nocookie.com';
 
-export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = '' }) {
+export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = '', controls = true }) {
   const hasVideo = !!videoId, hasPhotos = photos.length > 0;
   if (!hasVideo && !hasPhotos) return null;
 
@@ -146,7 +146,16 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
     }
     label();
   }
-  hit.addEventListener('click', () => { if (state === 'off') boot(); else toggle(); });
+  hit.addEventListener('click', () => {
+    if (state === 'off') return boot();
+    if (controls) return toggle();
+    // bez ovládacieho pásu: ťuknutie zapne/vypne zvuk videa, pri fotkách ukáže ďalšiu
+    if (state === 'video') setSound(vol || 100, !muted);
+    else if (state === 'photo') { blip(); showPhoto(); }
+    else toggle();
+  });
+  // bez ovládania telka žije sama: fotky sa striedajú, ak nie je video
+  if (!controls && !hasVideo && hasPhotos && !reduced()) { const iv = setInterval(() => { if (!root.isConnected && started) return clearInterval(iv); if (state === 'photo' && inView) { blip(); showPhoto(); } }, 5000); }
   knobTune.addEventListener('click', () => { turn(knobTune); if (state === 'off') boot(); else toggle(); });
   knobVol.addEventListener('click', () => { turn(knobVol); if (!hasVideo) return; if (state === 'off') boot(); setSound(muted ? 40 : vol >= 100 ? 0 : vol + 20, false); });
   bVideo.addEventListener('click', () => { if (state === 'off') boot(); if (state === 'photo' || state === 'poster') toggle(); });
@@ -199,8 +208,8 @@ export function polaroidStrip(photos, onPhoto, { count = 8 } = {}) {
 }
 
 /* Celá scéna: telka na ledgi + polaroidy (na mobile ako pás pod ňou). */
-export function tvScene({ videoId, title, photos = [], stamp = '', polaroids = true, onPhoto }) {
-  const unit = crtTv({ videoId, title, photos, stamp });
+export function tvScene({ videoId, title, photos = [], stamp = '', polaroids = true, onPhoto, controls: withControls = true }) {
+  const unit = crtTv({ videoId, title, photos, stamp, controls: withControls });
   if (!unit) return null;
   const [tv, controls] = unit.children;
   const pols = photos.slice(0, 8);
@@ -209,6 +218,6 @@ export function tvScene({ videoId, title, photos = [], stamp = '', polaroids = t
     polaroids ? el('div', { class: 'pol-wall pol-left' }, pols.slice(0, 3).map((p, i) => polaroid(p, i, photos, onPhoto, `p${i + 1}`))) : null,
     el('div', { class: 'crt-wrap' }, tv, ledge),
     polaroids ? el('div', { class: 'pol-wall pol-right' }, pols.slice(3, 6).map((p, i) => polaroid(p, i + 3, photos, onPhoto, `p${i + 4}`))) : null);
-  return el('div', { class: 'tv-scene' + (polaroids ? '' : ' plain') }, stage, controls,
+  return el('div', { class: 'tv-scene' + (polaroids ? '' : ' plain') + (withControls ? '' : ' auto') }, stage, withControls ? controls : null,
     polaroids && pols.length ? el('div', { class: 'pol-strip', role: 'list' }, pols.map((p, i) => polaroid(p, i, photos, onPhoto))) : null);
 }

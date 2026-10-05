@@ -166,3 +166,25 @@ jeden hlas). Registrácie, eventy a formuláre idú bez prihlásenia.
 - `SEASONS`: po skončení sezóny `finished: true`, šampióni sa ukážu v Sieni slávy.
 
 Ak máš Supabase už nastavený zo staršej verzie, spusti v SQL Editore len časť súboru `supabase-setup.sql` od riadku „Výsledky, pavúky, ocenenia“ po „Prístupy“, a potom nové riadky `grant` na konci.
+
+## Prihlasovanie (Supabase Auth) – raz nastav v Supabase
+
+Aby odkaz v prihlasovacom e-maile viedol späť na web (a nie na `localhost:3000`):
+
+1. Supabase → **Authentication → URL Configuration**
+   - **Site URL:** `https://offthewallhack.github.io/gosko/`
+   - **Redirect URLs:** pridaj `https://offthewallhack.github.io/gosko/**`
+2. (Voliteľné) **Authentication → Emails → Magic Link** a **Confirm signup**: do textu pridaj `{{ .Token }}`, potom príde v e-maile aj 6-miestny kód.
+
+Po prvom prihlásení si v **Môj profil** (`#/profil`) nastav heslo, ďalej sa prihlasuješ e-mailom a heslom bez čakania na e-mail.
+Kým Site URL nie je nastavená, v prihlasovacom okne je náhradná možnosť: skopírovať adresu, kam ťa odkaz hodil, a vložiť ju.
+
+**Admin:** nový admin = jeho e-mail do tabuľky `admin_invites` (SQL: `insert into public.admin_invites (email) values ('meno@example.com');`).
+Pri prvom prihlásení dostane admin práva automaticky. Ak už účet má, pridaj ho aj priamo:
+`insert into public.admins (user_id) select id from auth.users where email = 'meno@example.com';`
+
+## Event hub (`hub/`)
+
+Samostatná stránka so skate a board eventmi doma aj vo svete: `https://offthewallhack.github.io/gosko/hub/`.
+Číta rovnaké dáta ako kalendár na webe (tabuľka `community_events`) plus GOSko eventy z `data.js`.
+Názov je pracovný: zmeníš ho v `hub/hub.js` (`BRAND.name`) a v `hub/index.html` (`<title>`).

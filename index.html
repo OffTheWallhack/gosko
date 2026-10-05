@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;600&family=Pirata+One&display=swap">
 <link rel="stylesheet" href="assets/style.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
 <header class="topbar">
@@ -35,7 +35,10 @@
       <a href="#/partneri" data-nav="partneri">Pre partnerov</a>
       <a href="#/pravidla" data-nav="pravidla" data-rules-link hidden>Pravidlá</a>
     </nav>
-    <button class="menu-btn" id="menu-open" type="button" aria-haspopup="dialog">Menu</button>
+    <div class="top-right">
+      <a class="acct" id="acct" href="#/profil"><img src="img/ghost.svg" alt="" width="20" height="22"><span>Prihlásiť</span></a>
+      <button class="menu-btn" id="menu-open" type="button" aria-haspopup="dialog">Menu</button>
+    </div>
   </div>
 </header>
 
@@ -51,6 +54,7 @@
     <a href="#/shop">Shop</a>
     <a href="#/partneri">Pre partnerov</a>
     <a href="#/o-nas">Kto sme</a>
+    <a href="#/profil">Môj profil</a>
     <a href="#/pravidla" data-rules-link hidden>Pravidlá</a>
     <a href="#/pass" data-pass-link hidden>Môj pass</a>
   </nav>
@@ -65,6 +69,7 @@
     <div class="foot-links">
       <button class="btn small" id="footer-news" type="button">Odber noviniek</button>
       <a href="#/o-nas">Kto sme</a>
+    <a href="#/profil">Môj profil</a>
       <a href="#/sien-slavy">Sieň slávy</a>
       <a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a>
     </div>
