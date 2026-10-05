@@ -45,3 +45,23 @@ describe('getStore', () => {
     assert.equal(await getStore({ SUPABASE_URL: 'u', SUPABASE_ANON_KEY: 'k' }, { connect: async () => live }), live);
   });
 });
+
+import { mapPublicResults } from '../../assets/store.js';
+describe('mapPublicResults (results_public + riders_public)', () => {
+  test('riadok výsledku pre ranking.js: public_name ako rider_name, rider_id, krajina z riders_public, NFT', () => {
+    const rows = [
+      { event_id: 'e1', category: 'open', place: 1, points: 100, rider_id: 'r1', public_name: 'Marek K.', chain_id: 8453, token_id: '12', nft_status: 'result_set' },
+      { event_id: 'e1', category: 'u16', place: 2, points: 80, rider_id: null, public_name: 'Starý Jazdec', chain_id: null, token_id: null, nft_status: null },
+    ];
+    const riders = [{ id: 'r1', public_name: 'Marek K.', country: 'CZ', city: null, is_founder: true }];
+    assert.deepEqual(mapPublicResults(rows, riders), [
+      { event_id: 'e1', category: 'open', rider_name: 'Marek K.', place: 1, rider_id: 'r1', country: 'CZ', nft: { chain_id: 8453, token_id: '12', status: 'result_set' } },
+      { event_id: 'e1', category: 'u16', rider_name: 'Starý Jazdec', place: 2, rider_id: null },
+    ]);
+  });
+  test('jazdec bez riadku v riders_public nemá krajinu (dopočíta sa z eventu)', () => {
+    const [r] = mapPublicResults([{ event_id: 'e', category: 'open', place: 3, rider_id: 'rx', public_name: 'GOSko jazdec' }], []);
+    assert.equal(r.country, undefined);
+    assert.equal(r.rider_id, 'rx');
+  });
+});

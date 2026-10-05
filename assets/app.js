@@ -1,14 +1,17 @@
 import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY } from '../data.js';
 import { tvScene, polaroidStrip } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
-import { getStore, INBOX, newToken, isEmail } from './store.js';
+import { getStore, INBOX, isEmail } from './store.js';
 import { badgesFor, badgeSvg } from './badges.js';
-import { qrCanvas, startScanner } from './qr.js';
+import { qrCanvas, startScanner, loadScript } from './qr.js';
 import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
 import * as RK from './ranking.js';
 import { safeUrl, csvRows, icsText, decodePasses, mergePasses, importTarget, UserError } from './util.js';
+import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPayload, completeRegistration, fetchPass, upsertPass } from './register.js';
+import { apiRequest, browserFetch } from './api.js';
+import { pointsTable, rankingRules, PRIVACY } from './pages.js';
 /* 3D (three.js, 1,3 MB z CDN) sa načítava cez import() len tam, kde sa kreslí:
    board.js (doska na úvode a u jazdca), park.js (stavebnica parkov), card.js (karta jazdca). */
 
@@ -52,11 +55,18 @@ const byPlace = (a, b) => a.place - b.place || a.name.localeCompare(b.name, 'sk'
 function applyData() {
   for (const ev of EVENTS) Object.assign(ev, RK.mergeEvent(ev.id, BASE.get(ev.id), REMOTE, RIDER_PRIVACY));
 }
+/* Eventy z databázy (events_public): chýbajúce sa pridajú, pri známych databáza určí krajinu a otvorenú registráciu. */
+function applyOfficial(rows) {
+  const { added, updates } = RK.officialEvents(EVENTS, rows);
+  for (const ev of added) { EVENTS.push(ev); BASE.set(ev.id, { status: ev.status, sticker: ev.sticker, results: {}, awards: [] }); }
+  for (const ev of EVENTS) if (updates[ev.id]) Object.assign(ev, updates[ev.id]);
+}
 async function refreshRemote() {
-  try {
-    const [results, awards, brackets] = await Promise.all([store.listResults(), store.listAwards(), store.listBrackets()]);
-    REMOTE = { results, awards, brackets };
-  } catch (err) { console.error(err); }
+  /* každý zdroj zvlášť: výpadok jedného (napr. pohľad ešte nie je v databáze) nezhodí ostatné */
+  const got = await Promise.allSettled([store.listResults(), store.listAwards(), store.listBrackets(), store.listOfficialEvents()]);
+  const [results, awards, brackets, official] = got.map((r, i) => (r.status === 'fulfilled' ? r.value : (console.error(r.reason), [REMOTE.results, REMOTE.awards, REMOTE.brackets, null][i])));
+  REMOTE = { results, awards, brackets };
+  if (official) applyOfficial(official);
   applyData();
 }
 
@@ -64,7 +74,11 @@ async function refreshRemote() {
 const RCFG = { points: POINTS, rules: SEASON_RULES, season: SITE.season, catName };
 const allResults = () => RK.allResults(EVENTS);
 const seasonYears = () => [...new Set(EVENTS.map(e => e.season))].sort((a, b) => b - a);
-const standings = (cat, eventId, season = SITE.season) => RK.standings(EVENTS, cat, eventId, season, RCFG);
+/* season = rok, null = všetky časy; opts.country = 'SK' | 'CZ' (prázdne = celkový rebríček) */
+const standings = (cat, eventId, season = SITE.season, opts) => RK.standings(EVENTS, cat, eventId, season, RCFG, opts);
+const nftLink = x => { const u = RK.explorerUrl(x.nft, CONFIG.NFT_CONTRACT_ADDRESS); return u ? h('a', { class: 'nft-link', href: u, target: '_blank', rel: 'noopener noreferrer' }, 'NFT') : null; };
+const API = CONFIG.API_BASE || '';
+const eventDate = id => EVENTS.find(e => e.id === id)?.date || '';
 const riders = () => RK.riders(EVENTS, RCFG);
 const seasonEvents = () => EVENTS.filter(e => e.status === 'done' && e.season === SITE.season && Object.values(e.results || {}).some(l => l.length));
 const riderBadges = r => badgesFor(r, { seasonEvents: seasonEvents() });
@@ -216,9 +230,10 @@ function standingsList(rows, { limit, eventMode } = {}) {
       h('span', { class: 'st-pts cond' }, `${r.points} b.`))));
 }
 const scoringNote = () => h('p', { class: 'note' },
-  `Body: 1. miesto ${pointsFor(1)}, 2. miesto ${pointsFor(2)}, 3. až 4. miesto ${pointsFor(3)}, 5. až 8. ${pointsFor(5)}, 9. až 16. ${pointsFor(9)}, účasť ${pointsFor(99)}. `,
+  `Body: ${pointsTable(POINTS).map(r => `${r.label} ${r.points}`).join(', ')}. `,
   SEASON_RULES.countBest ? `Do rebríčka sa rátajú ${SEASON_RULES.countBest} najlepšie výsledky jazdca. ` : '',
-  'Z prvých eventov poznáme len top 3, od ďalšieho zapisujeme celý pavúk. Best Trick je ocenenie, nie body.');
+  'Z prvých eventov poznáme len top 3, od ďalšieho zapisujeme celý pavúk. Best Trick je ocenenie, nie body. ',
+  h('a', { href: '#/rebricek/pravidla' }, 'Rebríčkový poriadok'), '.');
 function photoGrid(photos, limit) {
   const list = limit ? photos.slice(0, limit) : photos;
   return h('div', { class: 'gallery' }, list.map((p, i) => h('button', { type: 'button', class: 'ph', onclick: () => lightbox(photos, i), 'aria-label': 'Zväčšiť: ' + p.alt },
@@ -294,7 +309,7 @@ function bracketEl(b, { interactive = false, onPick, onCurrent, onClear, tv = fa
     fin.w ? h('div', { class: 'br-col br-champ' }, h('h4', { class: 'br-title wide' }, 'Víťaz'), h('div', { class: 'br-matches' }, h('div', { class: 'br-winner wide' }, name(fin.w)))) : null);
 }
 function placeList(list, { limit = 8 } = {}) {
-  const row = x => h('li', {}, h('span', { class: 'rank wide' }, x.place), h('a', { href: riderHref(x) }, x.name), h('span', { class: 'cond' }, `${pointsFor(x.place)} b.`));
+  const row = x => h('li', {}, h('span', { class: 'rank wide' }, x.place), h('a', { href: riderHref(x) }, x.name), h('span', { class: 'cond' }, `${pointsFor(x.place)} b.`, nftLink(x) && [' ', nftLink(x)]));
   const rest = list.slice(limit);
   return h('div', {}, h('ol', {}, list.slice(0, limit).map(row)),
     rest.length ? h('details', { class: 'more-results' }, h('summary', {}, `Ďalší jazdci (${rest.length})`), h('ol', {}, rest.map(row))) : null);
@@ -373,27 +388,32 @@ function pageHome(root) {
   return lazyBoard(canvas, { stickers: EVENTS.map(eventSticker), onSticker: go });
 }
 
+const COUNTRY_CHIPS = [['', 'Celkový'], ['SK', 'Slovensko'], ['CZ', 'Česko']];
 function pageStandings(root) {
-  let season = SITE.season, scope = 'season', cat = 'open';
+  /* season = rok alebo 'all' (všetky časy); scope = 'season' alebo id eventu; country = '' (celkový), 'SK', 'CZ' */
+  let season = SITE.season, scope = 'season', cat = 'open', country = '';
   const years = seasonYears();
   const body = h('div');
-  const chips = (items, current, set) => h('div', { class: 'chips' }, items.map(([v, label]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === current), onclick: () => { set(v); render(); } }, label)));
+  const chips = (label, items, current, set) => h('div', { class: 'chips', role: 'group', 'aria-label': label }, items.map(([v, text]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === current), onclick: () => { set(v); render(); } }, text)));
   function render() {
-    const doneEvents = EVENTS.filter(e => e.status === 'done' && e.season === season);
+    const all = season === 'all';
+    const doneEvents = all ? [] : EVENTS.filter(e => e.status === 'done' && e.season === season);
     if (scope !== 'season' && !doneEvents.some(e => e.id === scope)) scope = 'season';
     const ev = EVENTS.find(e => e.id === scope);
+    const rows = standings(cat, scope === 'season' ? null : scope, all ? null : season, { country });
     body.replaceChildren(); put(body,
       h('div', { class: 'controls' },
-        years.length > 1 ? chips(years.map(y => [y, String(y)]), season, v => { season = v; scope = 'season'; }) : null,
-        chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.city + (e.date ? ` ${parseDate(e.date).d}. ${parseDate(e.date).m}.` : '')])], scope, v => { scope = v; }),
-        chips(CATEGORIES.map(c => [c.id, c.name]), cat, v => { cat = v; })),
+        chips('Sezóna', [...years.map(y => [y, String(y)]), ['all', 'Všetky časy']], season, v => { season = v; scope = 'season'; }),
+        all ? null : chips('Event', [['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.city + (e.date ? ` ${parseDate(e.date).d}. ${parseDate(e.date).m}.` : '')])], scope, v => { scope = v; }),
+        chips('Kategória', CATEGORIES.map(c => [c.id, c.name]), cat, v => { cat = v; }),
+        chips('Krajina', COUNTRY_CHIPS, country, v => { country = v; })),
       ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: awardHref(a) }, a.rider), '. '])) : null,
-      standingsList(standings(cat, scope === 'season' ? null : scope, season), { eventMode: scope !== 'season' }),
-      scope === 'season' ? finaleEl(cat, season) : null,
+      standingsList(rows, { eventMode: scope !== 'season' }),
+      scope === 'season' && !all && !country ? finaleEl(cat, season) : null,
       scoringNote(),
-      h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/sien-slavy' }, 'Sieň slávy')));
+      h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek/pravidla' }, 'Pravidlá rebríčka'), ' ', h('a', { class: 'btn', href: '#/sien-slavy' }, 'Sieň slávy')));
   }
-  root.append(pageHead('Rebríček', 'Celá sezóna alebo jeden event. Vyber kategóriu.'), h('div', { class: 'wrap page-body' }, body));
+  root.append(pageHead('GOSko Ranking', 'Sezóna alebo všetky časy, jeden event, kategória a krajina jazdca.'), h('div', { class: 'wrap page-body' }, body));
   render();
 }
 
@@ -454,35 +474,67 @@ async function pageEvents(root) {
   async function pageEventsRefresh() { try { community = (await store.listEvents()).map(e => ({ ...e, title: e.name, ours: false })); render(); } catch {} }
 }
 
-/* Registrácia na event (v1: zápis do tabuľky registrations a QR pass v localStorage).
-   Volá sa z countdownEl a pageEvent. Pass vznikne len po úspešnom zápise; v režime offline
-   store.send hodí UserError a formulár ukáže chybu. Registrácia v2 (assets/register.js, /api/register)
-   nahradí telo tejto funkcie a pridá routu #/registracia/:eventId do ROUTES. */
+/* Registrácia na event v2 (assets/register.js, POST /api/register). Volá sa z countdownEl, pageEvent a #/registracia/:eventId.
+   Pass vzniká LEN z odpovede servera; pri chybe API formulár ukáže hlášku a žiadny pass sa neuloží.
+   Vek (U16) sa ráta z dátumu narodenia k dátumu eventu, polia rodiča sa ukážu samé. */
+const TURNSTILE_JS = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+function captchaField() {
+  let token = '', id = null;
+  const el = h('div', { class: 'captcha' }, h('span', { class: 'empty' }, 'Načítavam overenie…'));
+  loadScript(TURNSTILE_JS).then(() => {
+    el.replaceChildren();
+    id = window.turnstile.render(el, { sitekey: CONFIG.TURNSTILE_SITE_KEY, language: 'sk', callback: t => { token = t; }, 'expired-callback': () => { token = ''; }, 'error-callback': () => { token = ''; } });
+  }).catch(() => el.replaceChildren(h('p', { class: 'form-msg' }, 'Overenie sa nenačítalo. Obnov stránku.')));
+  return { el, value: () => token, reset: () => { token = ''; if (id != null) window.turnstile?.reset(id); }, destroy: () => { if (id != null) window.turnstile?.remove(id); } };
+}
+const linkTo = (href, text) => h('a', { href, target: '_blank', rel: 'noopener' }, text);
 function registerDialog(ev) {
+  const minor = v => isMinor(v.birth_date, ev.date, todayIn());
+  let captcha = null;
   formDialog({
     title: 'Chcem jazdiť', submit: 'Zaregistrovať sa',
-    intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Keď zverejníme dátum a miesto, ozveme sa ti.`,
+    intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Po registrácii dostaneš QR pass na vstup.`,
     fields: [
-      { name: 'name', label: 'Meno alebo prezývka', required: true, max: 40, autocomplete: 'name' },
-      { name: 'instagram', label: 'Instagram', max: 40, placeholder: '@tvojmeno' },
-      { name: 'city', label: 'Mesto', max: 40 },
-      { name: 'category', label: 'Kategória', type: 'select', options: CATEGORIES.map(c => ({ value: c.id, label: c.name + (c.note ? ` (${c.note})` : '') })) },
-      { name: 'contact', label: 'E-mail alebo telefón', required: true, max: 120 },
-      { name: 'parent_consent', label: 'Mám súhlas rodiča s účasťou a so zverejnením výsledkov.', type: 'checkbox', showIf: v => v.category === 'u16', requiredIfShown: true },
+      { name: 'legal_name', label: 'Meno a priezvisko', required: true, max: 60, autocomplete: 'name' },
+      { name: 'birth_date', label: 'Dátum narodenia', type: 'date', required: true, hint: 'Podľa veku v deň eventu ťa zaradíme do kategórie. Pod 16 rokov treba súhlas rodiča.' },
+      { name: 'email', label: 'E-mail', type: 'email', required: true, max: 254, autocomplete: 'email', hint: 'Pošleme naň potvrdenie a pass.' },
+      { name: 'country', label: 'Krajina', type: 'select', options: COUNTRIES },
+      { name: 'city', label: 'Mesto', max: 60, placeholder: 'nepovinné' },
+      { name: 'instagram', label: 'Instagram', max: 31, placeholder: '@tvojmeno, nepovinné' },
+      { name: 'public_name_mode', label: 'Ako sa má tvoje meno zobraziť vo výsledkoch', type: 'select', options: NAME_MODES },
+      { name: 'nickname', label: 'Prezývka', max: 30, placeholder: 'nepovinné', hint: 'Povinná, ak chceš byť vo výsledkoch pod prezývkou.' },
+      { name: 'women', label: 'Chcem jazdiť v Babskej kategórii (jazdkyne od 16 rokov).', type: 'checkbox', showIf: v => !minor(v) },
+      { name: 'guardian_name', label: 'Meno rodiča alebo zákonného zástupcu', max: 60, showIf: minor, requiredIfShown: true },
+      { name: 'guardian_email', label: 'E-mail rodiča', type: 'email', max: 254, showIf: minor, requiredIfShown: true, hint: 'Jazdec do 16 rokov: rodičovi pošleme odkaz na potvrdenie súhlasu. Registrácia platí až po ňom.' },
+      { name: 'rules', label: ['Súhlasím s ', linkTo('#/pravidla', 'pravidlami súťaže'), ' a ', linkTo('#/rebricek/pravidla', 'rebríčkovým poriadkom'), '.'], type: 'checkbox', required: true },
+      { name: 'privacy', label: ['Beriem na vedomie ', linkTo('#/sukromie', 'zásady ochrany osobných údajov'), ' a súhlasím so spracúvaním údajov na registráciu a zverejnenie výsledkov.'], type: 'checkbox', required: true },
+      { name: 'photo', label: 'Súhlasím so zverejnením fotiek a videí z eventu, na ktorých som (nepovinné).', type: 'checkbox' },
+      { name: 'nft', label: 'Chcem záznam o účasti a výsledku aj ako neprenosné NFT na blockchaine Base. Neobsahuje žiadne osobné údaje (nepovinné).', type: 'checkbox' },
       { name: 'newsletter', label: 'Pošlite mi e-mail aj o ďalších GOSko eventoch.', type: 'checkbox' },
-      { name: 'gdpr', label: 'Súhlasím, že GOSko použije moje údaje na organizáciu eventu.', type: 'checkbox', required: true },
-    ],
+      CONFIG.TURNSTILE_SITE_KEY ? { name: 'captcha', label: 'Overenie', type: 'custom', render: () => (captcha = captchaField()), validate: () => (captcha.value() ? '' : 'Potvrď, že nie si robot.') } : null,
+    ].filter(Boolean),
     onSubmit: async v => {
-      const token = newToken();
-      await store.send('registrations', { event_id: ev.id, token, name: v.name, instagram: v.instagram, city: v.city, category: v.category, contact: v.contact, parent_consent: !!v.parent_consent });
-      if (v.newsletter && isEmail(v.contact)) store.subscribe(v.contact, 'registracia').catch(() => {});
-      const pass = { token, eventId: ev.id, event: ev.name, date: ev.date, name: v.name, category: v.category, created: Date.now() };
-      LSX.set('gosko:passes', [pass, ...LSX.get('gosko:passes', []).filter(p => p.token !== token)]);
+      const check = validateRegistration(v, { eventDate: ev.date, today: todayIn(), captchaRequired: !!CONFIG.TURNSTILE_SITE_KEY });
+      if (!check.ok) throw new UserError(Object.values(check.errors)[0]);
+      /* polia rodiča a babská kategória sa posielajú len tam, kde platia */
+      const data = check.minor ? { ...v, women: false } : { ...v, guardian_name: '', guardian_email: '' };
+      let r;
+      try {
+        r = await completeRegistration({ fetch: browserFetch, apiBase: API, ev, payload: buildPayload(data, ev.id, v.captcha),
+          save: p => LSX.set('gosko:passes', upsertPass(LSX.get('gosko:passes', []), p)) });
+      } catch (err) {
+        captcha?.reset();   // token Turnstile je jednorazový
+        const detail = err.data?.errors && Object.values(err.data.errors)[0];
+        throw detail ? new UserError(`${err.message} ${detail}`) : err;
+      }
+      if (v.newsletter) store.subscribe(v.email.trim().toLowerCase(), 'registracia').catch(() => {});
       updateMenu();
       return h('div', { class: 'pass-done' },
-        h('p', {}, 'Si zaregistrovaný. Toto je tvoj vstupný QR kód. Na evente ho ukážeš crew pri príchode.'),
-        passCard(pass),
-        h('p', { class: 'note dark' }, 'Nájdeš ho kedykoľvek v menu pod „Môj pass“. Pre istotu si sprav screenshot.'));
+        h('p', {}, r.status === 'pending_guardian'
+          ? 'Registrácia čaká na súhlas rodiča. Poslali sme mu e-mail s odkazom na potvrdenie. Pass platí až po potvrdení, ukáž ho crew pri príchode.'
+          : 'Si zaregistrovaný. Toto je tvoj vstupný QR kód. Na evente ho ukážeš crew pri príchode.'),
+        passCard(r.pass),
+        h('p', { class: 'note dark' }, 'Pass nájdeš v menu pod „Môj pass“ a poslali sme ti ho aj e-mailom. Pre istotu si sprav screenshot.'));
     },
   });
 }
@@ -616,7 +668,7 @@ function pageRider(root, s) {
       rankIn.length ? h('p', {}, rankIn.join(', ') + '.') : null,
       h('h2', { class: 'sub' }, 'Výsledky'),
       h('ul', { class: 'r-results' },
-        r.results.map(x => h('li', {}, h('a', { href: '#/event/' + x.ev.id }, x.ev.name), ` ${x.place}. miesto, ${catName(x.cat)}, ${pointsFor(x.place)} b.`)),
+        r.results.map(x => h('li', {}, h('a', { href: '#/event/' + x.ev.id }, x.ev.name), ` ${x.place}. miesto, ${catName(x.cat)}, ${pointsFor(x.place)} b.`, nftLink(x) && [' ', nftLink(x)])),
         r.awards.map(a => h('li', {}, h('a', { href: '#/event/' + a.ev.id }, a.ev.name), ` ${a.name}`))),
       h('h2', { class: 'sub' }, 'Odznaky'),
       h('ul', { class: 'badges' }, riderBadges(r).map(b => h('li', { class: 'badge' }, h('span', { class: 'b-ico', html: badgeSvg(b, 22) }),
@@ -801,6 +853,18 @@ async function pageAdmin(root) {
   put(body, h('div', { class: 'actions' },
     h('a', { class: 'btn primary', href: '#/admin/vysledky' }, 'Zapisovať výsledky'),
     h('a', { class: 'btn primary', href: '#/admin/scan' }, 'Check-in (skener)')));
+  /* registrácie v2 na najbližšie eventy (mená z riders, len pre admina) s check-inom cez API */
+  for (const ev of registrationEvents()) {
+    const regs = await store.eventRegistrations(ev.id).then(r => r, err => { console.error(err); return null; });
+    const box = h('div', { class: 'scan-result' });
+    const row = r => h('tr', {}, h('td', {}, r.name), h('td', {}, catName(r.category)), h('td', {}, PASS_STATUS[r.status] || r.status),
+      h('td', {}, r.status === 'checked_in' ? '' : h('button', { class: 'btn small', type: 'button', onclick: async e => { const b = e.currentTarget; b.disabled = true; if (await doCheckin({ registration_id: r.id }, box)) b.replaceWith('zapísaný'); else b.disabled = false; } }, 'Check-in')));
+    put(body, h('section', { class: 'admin-sec' }, h('h2', { class: 'wide sub' }, `Registrácie: ${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}`),
+      regs === null ? h('p', { class: 'form-msg' }, 'Registrácie sa nepodarilo načítať.')
+        : regs.length ? [h('p', { class: 'note' }, `Na evente zapísaných: ${regs.filter(r => r.status === 'checked_in').length} z ${regs.length}.`),
+          h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Jazdec', 'Kategória', 'Stav', ''].map(k => h('th', {}, k)))), h('tbody', {}, regs.map(row)))), box]
+          : h('p', { class: 'empty' }, 'Zatiaľ nikto.')));
+  }
   /* li a tlačidlá sa berú pred await: po ňom je e.currentTarget už null */
   const moderate = (fn, ask) => async e => {
     const li = e.currentTarget.closest('li'), btns = [...li.querySelectorAll('button')];
@@ -825,7 +889,7 @@ async function pageAdmin(root) {
   for (const [table, label] of Object.entries(INBOX)) {
     const rows = await store.inbox(table).catch(() => []);
     const keys = rows.length ? Object.keys(rows[0]).filter(k => !['id', 'created'].includes(k)) : [];
-    const extra = table === 'registrations' && rows.length ? h('p', { class: 'note' }, `Na evente zapísaných: ${rows.filter(r => r.checked_in_at).length} z ${rows.length}.`) : null;
+    const extra = table === 'registrations_legacy' && rows.length ? h('p', { class: 'note' }, `Na evente zapísaných: ${rows.filter(r => r.checked_in_at).length} z ${rows.length}.`) : null;
     const csv = () => downloadFile(csvRows(keys, rows), 'text/csv;charset=utf-8', `${table}.csv`);   // csvRows escapuje vzorce (= + - @)
     put(body, section(`${label} (${rows.length})`, rows.length ? [extra,
       h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, keys.map(k => h('th', {}, k)))), h('tbody', {}, rows.map(r => h('tr', {}, keys.map(k => h('td', {}, String(r[k] ?? '')))))))),
@@ -994,13 +1058,69 @@ function passCard(p) {
     .catch(() => holder.replaceChildren(h('p', {}, 'QR sa nepodarilo načítať. Kód vstupenky: ', h('code', {}, p.token.slice(0, 8)))));
   return h('div', { class: 'pass' },
     h('div', { class: 'pass-head' }, h('span', { class: 'wide' }, p.event), h('span', { class: 'cond' }, [catName(p.category), p.date ? fmtDate(p.date) : 'dátum čoskoro'].join(', '))),
-    holder, h('p', { class: 'pass-name wide' }, p.name), h('p', { class: 'pass-code cond' }, 'Kód: ' + p.token.slice(0, 8).toUpperCase()));
+    holder, h('p', { class: 'pass-name wide' }, p.name), h('p', { class: 'pass-code cond' }, 'Kód: ' + p.token.slice(0, 8).toUpperCase()),
+    PASS_STATUS[p.status] ? h('p', { class: 'pass-status' + (p.status === 'pending_guardian' || p.status === 'cancelled' ? ' warn' : '') }, PASS_STATUS[p.status]) : null);
+}
+const PASS_STATUS = { pending_guardian: 'Čaká na potvrdenie rodiča', confirmed: 'Potvrdená registrácia', checked_in: 'Zapísaný na evente', no_show: 'Neprišiel', cancelled: 'Registrácia je zrušená' };
+const registrationEvents = () => EVENTS.filter(e => e.status === 'next');
+function passResendDialog() {
+  const evs = registrationEvents();
+  formDialog({
+    title: 'Poslať pass znova', submit: 'Poslať',
+    intro: 'Ak sme tvoju registráciu našli, pošleme pass na e-mail, ktorý si zadal pri registrácii.',
+    fields: [
+      { name: 'email', label: 'E-mail z registrácie', type: 'email', required: true, autocomplete: 'email' },
+      evs.length > 1 ? { name: 'event_id', label: 'Event', type: 'select', options: evs.map(e => ({ value: e.id, label: `${e.name}${e.date ? ', ' + fmtDate(e.date) : ''}` })) } : null,
+    ].filter(Boolean),
+    onSubmit: async v => {
+      if (!isEmail(v.email)) throw new UserError('Skontroluj e-mail.');
+      await apiRequest(browserFetch, `${API}/api/pass`, { method: 'POST', body: { email: v.email.toLowerCase(), event_id: v.event_id || evs[0]?.id || '' } });
+      return 'Ak registrácia s týmto e-mailom existuje, pass je na ceste. Pozri aj spam.';
+    },
+  });
 }
 function pagePasses(root) {
   const passes = LSX.get('gosko:passes', []);
   root.append(pageHead('Môj pass', 'Vstupné QR kódy na eventy, na ktoré si sa zaregistroval v tomto telefóne.'),
     h('div', { class: 'wrap page-body' }, passes.length ? h('div', { class: 'passes' }, passes.map(passCard))
-      : h('p', { class: 'empty' }, 'Zatiaľ tu nič nie je. Zaregistruj sa na ', h('a', { href: '#/eventy' }, 'najbližší event'), '.')));
+      : h('p', { class: 'empty' }, 'Zatiaľ tu nič nie je. Zaregistruj sa na ', h('a', { href: '#/eventy' }, 'najbližší event'), '.'),
+      registrationEvents().length ? h('p', { class: 'note' }, 'Registroval si sa v inom telefóne? ', h('button', { class: 'linklike', type: 'button', onclick: passResendDialog }, 'Pošleme ti pass znova e-mailom'), '.') : null));
+}
+/* #/pass/<token>: odkaz z e-mailu. Pass sa načíta zo servera a uloží do tohto telefónu (cache). */
+async function pagePass(root, token) {
+  root.append(pageHead('Môj pass', null));
+  const body = h('div', { class: 'wrap page-body' }, h('p', {}, 'Načítavam pass…')); root.append(body);
+  try {
+    const p = await fetchPass(browserFetch, token, { apiBase: API, eventDate });
+    LSX.set('gosko:passes', upsertPass(LSX.get('gosko:passes', []), p)); updateMenu();
+    body.replaceChildren(h('div', { class: 'passes' }, passCard(p)), h('p', { class: 'note' }, 'Pass je uložený v tomto telefóne v menu pod „Môj pass“.'));
+  } catch (err) {
+    if (!(err instanceof UserError)) console.error(err);
+    body.replaceChildren(h('p', { class: 'form-msg', role: 'alert' }, err instanceof UserError ? err.message : 'Pass sa nepodarilo načítať.'),
+      h('p', {}, h('a', { class: 'btn', href: '#/pass' }, 'Moje passy')));
+  }
+}
+
+/* ---------- registrácia: stránky z odkazov ---------- */
+function pageRegister(root, id) {
+  const ev = EVENTS.find(e => e.id === id);
+  if (!ev) return pageNotFound(root);
+  root.append(pageHead('Registrácia', `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}${ev.place ? ', ' + ev.place : ''}`));
+  const open = ev.status === 'next' && ev.registration;
+  root.append(h('div', { class: 'wrap page-body' },
+    open ? h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, 'Chcem jazdiť'))
+      : h('p', { class: 'empty' }, 'Registrácia na tento event nie je otvorená.'),
+    h('p', { class: 'note' }, 'Pred registráciou si prečítaj ', h('a', { href: '#/pravidla' }, 'pravidlá'), ' a ', h('a', { href: '#/sukromie' }, 'zásady ochrany osobných údajov'), '.'),
+    h('p', {}, h('a', { class: 'btn', href: '#/event/' + ev.id }, 'Detail eventu'))));
+  if (open) registerDialog(ev);
+}
+function pageRegisterDone(root) {
+  root.append(pageHead('Súhlas potvrdený', 'Ďakujeme. Registrácia jazdca je potvrdená a pass platí.'),
+    h('div', { class: 'wrap page-body' }, h('p', {}, 'Jazdcovi sme poslali e-mail s passom. Uvidíme sa na evente.'), h('a', { class: 'btn', href: '#/eventy' }, 'Eventy')));
+}
+function pageRegisterBadLink(root) {
+  root.append(pageHead('Odkaz neplatí', 'Odkaz na potvrdenie už bol použitý alebo je neplatný.'),
+    h('div', { class: 'wrap page-body' }, h('p', {}, 'Ak si súhlas už potvrdil, netreba robiť nič. Inak nám napíš na Instagram ', igLink(SITE.instagram), '.')));
 }
 function updateMenu() {
   const has = LSX.get('gosko:passes', []).length > 0;
@@ -1008,21 +1128,63 @@ function updateMenu() {
   const rules = RULES.length > 0 || FAQ.length > 0;
   document.querySelectorAll('[data-rules-link]').forEach(a => { a.hidden = !rules; });
 }
+const NFT_STATUS = { no_consent: 'NFT: jazdec nesúhlasil', guardian_pending: 'NFT: čaká na súhlas rodiča', pending: 'NFT: vydáva sa', minted: 'NFT: vydané',
+  result_pending: 'NFT: vydané', result_set: 'NFT: vydané', failed: 'NFT: zatiaľ sa nepodarilo, server to skúsi znova' };
+/* Check-in cez POST /api/admin/checkin (Supabase JWT admina). body = {token} | {registration_id} | {event_id, rider_name}. */
+async function doCheckin(body, box) {
+  try {
+    const r = await store.adminCheckin(body), g = r.registration;
+    box.replaceChildren(h('div', { class: 'ci ci-good' }, h('p', { class: 'wide' }, 'Zapísané'), h('p', { class: 'ci-name wide' }, g.public_name), h('p', {}, catName(g.category)),
+      g.guardian_ok ? null : h('p', { class: 'ci-warn' }, 'POZOR: rodič ešte nepotvrdil súhlas'),
+      NFT_STATUS[r.nft?.status] ? h('p', { class: 'cond' }, NFT_STATUS[r.nft.status]) : null));
+    return true;
+  } catch (err) {
+    if (!(err instanceof UserError)) console.error(err);
+    if (err.code === 'ambiguous' && err.data?.candidates?.length) {
+      box.replaceChildren(h('p', { class: 'form-msg', role: 'alert' }, err.message), h('ul', { class: 'admin-list' }, err.data.candidates.map(c => h('li', {},
+        h('span', {}, `${c.public_name}, ${catName(c.category)}, ${PASS_STATUS[c.status] || c.status}`),
+        h('button', { class: 'btn small', type: 'button', onclick: () => doCheckin({ registration_id: c.id }, box) }, 'Zapísať tohto')))));
+      return false;
+    }
+    box.append(h('p', { class: 'form-msg', role: 'alert' }, err instanceof UserError ? err.message : 'Nepodarilo sa zapísať. Skús znova.'));
+    return false;
+  }
+}
 async function checkinView(token, box) {
   box.replaceChildren(h('p', {}, 'Hľadám registráciu…'));
-  let r = null;
-  try { r = await store.findRegistration(token); } catch (err) { console.error(err); }
-  if (!r) { box.replaceChildren(h('div', { class: 'ci ci-bad' }, h('p', { class: 'wide' }, 'Neplatný kód'), h('p', {}, 'Takú registráciu nemáme.'))); return; }
-  const ev = EVENTS.find(e => e.id === r.event_id);
-  const info = [h('p', { class: 'ci-name wide' }, r.name), h('p', {}, [catName(r.category), r.instagram, r.city].filter(Boolean).join(', ')), h('p', { class: 'cond' }, ev ? ev.name : r.event_id)];
-  if (r.category === 'u16') info.push(h('p', { class: r.parent_consent ? 'ci-ok-txt' : 'ci-warn' }, r.parent_consent ? 'Súhlas rodiča: áno' : 'POZOR: chýba súhlas rodiča'));
-  if (r.checked_in_at) { box.replaceChildren(h('div', { class: 'ci ci-warn-box' }, h('p', { class: 'wide' }, 'Už zapísaný'), info, h('p', {}, 'Prišiel o ' + new Date(r.checked_in_at).toLocaleTimeString('sk', { hour: '2-digit', minute: '2-digit' })))); return; }
+  let p;
+  try { p = await fetchPass(browserFetch, token, { apiBase: API, eventDate }); }
+  catch (err) {
+    if (!(err instanceof UserError)) console.error(err);
+    box.replaceChildren(h('div', { class: 'ci ci-bad' }, h('p', { class: 'wide' }, err.status === 404 ? 'Neplatný kód' : 'Chyba'), h('p', {}, err.status === 404 ? 'Takú registráciu nemáme.' : err.message)));
+    return;
+  }
+  const info = [h('p', { class: 'ci-name wide' }, p.name), h('p', {}, catName(p.category)), h('p', { class: 'cond' }, p.event)];
+  if (p.status === 'pending_guardian') info.push(h('p', { class: 'ci-warn' }, 'POZOR: rodič ešte nepotvrdil súhlas'));
+  if (p.status === 'checked_in') { box.replaceChildren(h('div', { class: 'ci ci-warn-box' }, h('p', { class: 'wide' }, 'Už zapísaný'), info)); return; }
+  if (p.status === 'cancelled') { box.replaceChildren(h('div', { class: 'ci ci-bad' }, h('p', { class: 'wide' }, 'Zrušená registrácia'), info)); return; }
   const confirm = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
     confirm.disabled = true;
-    try { await store.checkIn(token); box.replaceChildren(h('div', { class: 'ci ci-good' }, h('p', { class: 'wide' }, 'Zapísané'), info)); }
-    catch (err) { console.error(err); confirm.disabled = false; box.append(h('p', { class: 'form-msg' }, 'Nepodarilo sa zapísať. Skús znova.')); }
+    if (!(await doCheckin({ token }, box))) confirm.disabled = false;
   } }, 'Potvrdiť príchod');
   box.replaceChildren(h('div', { class: 'ci' }, info, confirm));
+}
+/* Ručný check-in podľa mena (jazdec bez telefónu). Pri rovnakom mene ponúkne konkrétne registrácie. */
+function manualCheckin() {
+  const evs = registrationEvents().length ? registrationEvents() : EVENTS;
+  const sel = h('select', { 'aria-label': 'Event' }, evs.map(e => h('option', { value: e.id }, `${e.name}${e.date ? ', ' + fmtDate(e.date) : ''}`)));
+  const name = h('input', { type: 'text', maxlength: 60, placeholder: 'Meno jazdca', 'aria-label': 'Meno jazdca', autocomplete: 'off' });
+  const box = h('div', { class: 'scan-result' });
+  const btn = h('button', { class: 'btn small', type: 'button', onclick: async () => {
+    const n = name.value.replace(/\s+/g, ' ').trim();
+    if (n.length < 2) { box.replaceChildren(h('p', { class: 'form-msg' }, 'Napíš meno jazdca.')); return; }
+    btn.disabled = true; box.replaceChildren(h('p', {}, 'Hľadám…'));
+    await doCheckin({ event_id: sel.value, rider_name: n }, box);
+    btn.disabled = false;
+  } }, 'Zapísať príchod');
+  name.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); btn.click(); } });
+  return h('section', { class: 'admin-sec' }, h('h2', { class: 'wide sub' }, 'Ručný check-in'),
+    h('p', { class: 'note' }, 'Keď jazdec nemá pass, zapíš ho podľa mena z registrácie.'), h('div', { class: 'res-add' }, sel, name, btn), box);
 }
 async function adminGate(body, denied = 'Tento účet nemá prístup. Check-in robí len crew.') {
   if (store.mode === 'offline') { put(body, h('p', { class: 'form-msg', role: 'alert' }, store.message)); return false; }
@@ -1034,7 +1196,7 @@ async function pageCheckin(root, token) {
   root.append(pageHead('Check-in', 'Pre crew na evente.'));
   const body = h('div', { class: 'wrap page-body' }); root.append(body);
   if (!(await adminGate(body))) return;
-  const box = h('div'); put(body, box, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/admin/scan' }, 'Skenovať ďalšieho')));
+  const box = h('div'); put(body, box, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/admin/scan' }, 'Skenovať ďalšieho')), manualCheckin());
   checkinView(token, box);
 }
 async function pageScan(root) {
@@ -1043,7 +1205,7 @@ async function pageScan(root) {
   if (!(await adminGate(body))) return;
   const video = h('video', { class: 'scan-video', muted: true, playsinline: true });
   const box = h('div', { class: 'scan-result' }, h('p', { class: 'empty' }, 'Čakám na QR kód…'));
-  put(body, h('div', { class: 'scan-wrap' }, video, h('span', { class: 'scan-frame', 'aria-hidden': 'true' })), box);
+  put(body, h('div', { class: 'scan-wrap' }, video, h('span', { class: 'scan-frame', 'aria-hidden': 'true' })), box, manualCheckin());
   let stop = null;
   try {
     stop = await startScanner(video, text => {
@@ -1120,15 +1282,36 @@ function pageHall(root) {
   root.append(body);
 }
 
+const draftTag = () => h('span', { class: 'tag' }, 'Návrh, na kontrolu');
 function pageRules(root) {
   const any = RULES.length > 0 || FAQ.length > 0;
-  root.append(pageHead('Pravidlá', any ? 'Ako sa hrá GOSko a čo treba vedieť.' : 'Pravidlá a odpovede na časté otázky dopĺňame.'));
+  root.append(pageHead('Pravidlá', any ? 'Súťažný poriadok GOSko: ako sa hrá a čo treba vedieť.' : 'Pravidlá a odpovede na časté otázky dopĺňame.'));
   const body = h('div', { class: 'wrap page-body' });
   const paras = txt => String(txt).split(/\n\s*\n/).map(x => h('p', {}, x));
-  for (const r of RULES) put(body, h('section', { class: 'rule' }, h('h2', { class: 'wide sub' }, r.title), paras(r.text)));
+  for (const r of RULES) put(body, h('section', { class: 'rule' }, h('h2', { class: 'wide sub' }, r.title, r.draft ? [' ', draftTag()] : null), paras(r.text)));
   if (FAQ.length) put(body, h('h2', { class: 'wide sub' }, 'Časté otázky'), FAQ.map(f => h('details', { class: 'faq' }, h('summary', {}, f.q), h('div', {}, paras(f.a)))));
-  put(body, h('p', { class: 'note' }, 'Nenašiel si odpoveď? Napíš nám na Instagram ', igLink(SITE.instagram), '.'));
+  put(body, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek/pravidla' }, 'Rebríčkový poriadok'), ' ', h('a', { class: 'btn', href: '#/sukromie' }, 'Ochrana osobných údajov')),
+    h('p', { class: 'note' }, 'Nenašiel si odpoveď? Napíš nám na Instagram ', igLink(SITE.instagram), '.'));
   root.append(body);
+}
+/* Stránka zo sekcií assets/pages.js: { title, paras, items, table, draft } */
+function docSections(sections) {
+  return sections.map(s => h('section', { class: 'rule' },
+    h('h2', { class: 'wide sub' }, s.title, s.draft ? [' ', draftTag()] : null),
+    (s.paras || []).map(p => h('p', {}, p)),
+    s.items?.length ? h('ul', { class: 'doc-list' }, s.items.map(i => h('li', {}, i))) : null,
+    s.table ? h('div', { class: 'table-wrap' }, h('table', { class: 'points-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Umiestnenie'), h('th', {}, 'Body'))),
+      h('tbody', {}, s.table.map(r => h('tr', {}, h('td', {}, r.label), h('td', {}, String(r.points))))))) : null));
+}
+function pageRankingRules(root) {
+  root.append(pageHead('Rebríčkový poriadok', 'Ako sa počíta GOSko Ranking: body, kategórie, krajiny a rovnosť bodov.'),
+    h('div', { class: 'wrap page-body' }, docSections(rankingRules({ points: POINTS, rules: SEASON_RULES, categories: CATEGORIES })),
+      h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/rebricek' }, 'GOSko Ranking'), ' ', h('a', { class: 'btn', href: '#/pravidla' }, 'Súťažný poriadok'))));
+}
+function pagePrivacy(root) {
+  root.append(pageHead('Ochrana osobných údajov', 'Aké údaje GOSko zbiera, prečo a aké máš práva.'),
+    h('div', { class: 'wrap page-body' }, docSections(PRIVACY),
+      h('p', { class: 'more' }, h('button', { class: 'btn primary', type: 'button', onclick: () => privacyDialog() }, 'Súkromie a odstránenie údajov'))));
 }
 
 function pagePartner(root, id) {
@@ -1215,7 +1398,15 @@ async function pageAdminResults(root, eventId) {
   const clone = o => JSON.parse(JSON.stringify(o));
   const loadBracket = () => { bracket = ev.brackets?.[cat] ? clone(ev.brackets[cat]) : null; };
   const say = m => { note = m; const el = view.querySelector('.res-note'); if (el) el.textContent = m; };
-  const failed = err => { console.error(err); say('Nepodarilo sa uložiť. Skús znova.'); };
+  const failed = err => { if (!(err instanceof UserError)) console.error(err); say(err instanceof UserError ? err.message : 'Nepodarilo sa uložiť. Skús znova.'); };
+  /* Výsledky sa spárujú s registráciami podľa mena (len jednoznačná zhoda), aby mali rider_id a NFT. */
+  const withRegistrations = async rows => {
+    let regs = [];
+    try { regs = (await store.eventRegistrations(ev.id)).filter(r => r.category === cat && r.name); } catch (err) { console.error(err); }
+    const by = new Map();
+    for (const r of regs) by.set(same(r.name), by.has(same(r.name)) ? null : r.id);
+    return rows.map(x => (by.get(same(x.name)) ? { ...x, registration_id: by.get(same(x.name)) } : x));
+  };
   const same = s => s.toLocaleLowerCase('sk');
   const savedRaw = () => REMOTE.results.filter(r => r.event_id === ev.id && r.category === cat).map(r => ({ name: r.rider_name, place: r.place })).sort(byPlace);
   async function persist() {
@@ -1238,8 +1429,8 @@ async function pageAdminResults(root, eventId) {
       note = added ? `Pridaných ${added}.` : 'Nič nové na pridanie.'; render();
     };
     const importRegs = async () => {
-      let rows = []; try { rows = await store.inbox('registrations'); } catch (err) { console.error(err); }
-      rows = rows.filter(r => r.event_id === ev.id && r.category === cat);
+      let rows = []; try { rows = await store.eventRegistrations(ev.id); } catch (err) { failed(err); return; }
+      rows = rows.filter(r => r.category === cat);
       const arrived = rows.filter(r => r.checked_in_at), use = arrived.length ? arrived : rows;
       if (!use.length) { say('Pre túto kategóriu nie sú žiadne registrácie.'); return; }
       let added = 0;
@@ -1254,7 +1445,7 @@ async function pageAdminResults(root, eventId) {
     const saveManual = async () => {
       let names; try { names = cleanNames(manual.value.split('\n')); } catch (err) { say(err.message); return; }
       if (!names.length) { say('Napíš aspoň jedno meno.'); return; }
-      try { await store.saveResults(ev.id, cat, names.map((name, i) => ({ name, place: i + 1 }))); await refreshRemote(); note = `Uložené: ${names.length} jazdcov v poradí.`; render(); } catch (err) { failed(err); }
+      try { await store.saveResults(ev.id, cat, await withRegistrations(names.map((name, i) => ({ name, place: i + 1 })))); await refreshRemote(); note = `Uložené: ${names.length} jazdcov v poradí.`; render(); } catch (err) { failed(err); }
     };
     return h('section', { class: 'admin-sec' },
       h('h2', { class: 'wide sub' }, 'Pavúk'),
@@ -1278,7 +1469,7 @@ async function pageAdminResults(root, eventId) {
       onClear: (r, m) => mutate(b => clearWinner(b, r, m)) });
     const pl = done ? placements(bracket) : [];
     const saved = done && JSON.stringify(pl.map(x => [x.name, x.place]).sort()) === JSON.stringify(savedRaw().map(x => [x.name, x.place]).sort());
-    const saveRes = async () => { try { await store.saveResults(ev.id, cat, pl); await refreshRemote(); note = 'Výsledky sú v rebríčku.'; render(); } catch (err) { failed(err); } };
+    const saveRes = async () => { try { await store.saveResults(ev.id, cat, await withRegistrations(pl)); await refreshRemote(); note = 'Výsledky sú v rebríčku.'; render(); } catch (err) { failed(err); } };
     const del = async () => {
       if (!confirm('Zmazať pavúk? Uložené výsledky ostanú.')) return;
       try { await store.deleteBracket(ev.id, cat); bracket = null; const nb = { ...ev.brackets }; delete nb[cat]; ev.brackets = nb; note = 'Pavúk zmazaný.'; render(); } catch (err) { failed(err); }
@@ -1351,6 +1542,12 @@ function funStrip() { return polaroidStrip(EVENTS.flatMap(e => e.photos || []), 
 const ROUTES = [
   [/^#?\/?$/, pageHome, ''],
   [/^#\/rebricek$/, pageStandings, 'rebricek'],
+  [/^#\/rebricek\/pravidla$/, pageRankingRules, 'rebricek'],
+  [/^#\/sukromie$/, pagePrivacy, ''],
+  [/^#\/registracia\/potvrdene$/, pageRegisterDone, 'eventy'],
+  [/^#\/registracia\/neplatny-odkaz$/, pageRegisterBadLink, 'eventy'],
+  [/^#\/registracia\/([\w-]+)$/, pageRegister, 'eventy'],
+  [/^#\/pass\/([\w-]+)$/, pagePass, ''],
   [/^#\/eventy$/, pageEvents, 'eventy'],
   [/^#\/event\/([\w-]+)$/, pageEvent, 'eventy'],
   [/^#\/jazdci$/, pageRiders, 'jazdci'],

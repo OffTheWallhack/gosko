@@ -66,7 +66,8 @@ export function mergeEvent(id, base, remote = {}, privacy = {}) {
   for (const [cat, list] of Object.entries(base.results || {})) results[cat] = list.map((x, i) => (typeof x === 'string' ? { name: x, place: i + 1 } : { ...x }));
   const rr = (remote.results || []).filter(r => r.event_id === id);
   for (const cat of new Set(rr.map(r => r.category)))
-    results[cat] = rr.filter(r => r.category === cat).map(r => ({ name: r.rider_name, place: r.place, ...(r.rider_id ? { rider_id: r.rider_id } : {}) })).sort(byPlace);
+    results[cat] = rr.filter(r => r.category === cat).map(r => ({ name: r.rider_name, place: r.place, ...(r.rider_id ? { rider_id: r.rider_id } : {}),
+      ...(r.country ? { country: r.country } : {}), ...(r.nft ? { nft: r.nft } : {}) })).sort(byPlace);
   for (const cat of Object.keys(results)) results[cat] = results[cat].map(show);
   const ra = (remote.awards || []).filter(a => a.event_id === id);
   const rawAwards = ra.length ? ra.map(a => ({ name: a.name, rider: a.rider_name, ...(a.rider_id ? { rider_id: a.rider_id } : {}) })) : (base.awards || []).map(a => ({ ...a }));
@@ -82,24 +83,34 @@ export function mergeEvent(id, base, remote = {}, privacy = {}) {
 export function allResults(events) {
   const rows = [];
   for (const ev of events) for (const [cat, list] of Object.entries(ev.results || {})) for (const x of list)
-    rows.push({ ev, cat, name: x.name, place: x.place, slug: riderKey(x), rider_id: x.rider_id ?? null });
+    rows.push({ ev, cat, name: x.name, place: x.place, slug: riderKey(x), rider_id: x.rider_id ?? null, country: x.country || ev.country || 'SK', nft: x.nft ?? null });
   return rows;
 }
 
 const byStanding = (a, b) => b.points - a.points || b.wins - a.wins || a.best - b.best || a.name.localeCompare(b.name, 'sk');
 
-/* Rebríček kategórie: celá sezóna (eventId = null) alebo jeden event.
+/* Body jazdca: countBest platí v každej sezóne zvlášť, sezóny sa potom sčítajú (rebríček všetkých čias). */
+function seasonSum(list, countBest) {
+  const by = new Map();
+  for (const x of list) by.set(x.season, [...(by.get(x.season) || []), x.points]);
+  return [...by.values()].reduce((s, l) => s + bestPoints(l, countBest), 0);
+}
+
+/* Rebríček kategórie: sezóna (season = rok), všetky časy (season = null) alebo jeden event (eventId).
+   opts.country = 'SK' | 'CZ' | … obmedzí rebríček na jazdcov z krajiny (null = celkový).
+   Krajina jazdca je z riders_public, pri starších výsledkoch bez jazdca krajina eventu, inak SK.
    Pri rovnosti bodov rozhodujú výhry, potom najlepšie umiestnenie, potom abeceda. */
-export function standings(events, cat, eventId, season, cfg) {
+export function standings(events, cat, eventId, season, cfg, opts = {}) {
   const m = new Map();
   for (const r of allResults(events)) {
     if (r.cat !== cat) continue;
-    if (eventId ? r.ev.id !== eventId : r.ev.season !== season) continue;
-    const o = m.get(r.slug) || { name: r.name, slug: r.slug, rider_id: r.rider_id, list: [], wins: 0, best: 99, events: 0 };
-    o.list.push(pointsFor(r.place, cfg.points)); o.wins += r.place === 1 ? 1 : 0; o.best = Math.min(o.best, r.place); o.events++;
+    if (eventId ? r.ev.id !== eventId : season != null && r.ev.season !== season) continue;
+    if (opts.country && r.country !== opts.country) continue;
+    const o = m.get(r.slug) || { name: r.name, slug: r.slug, rider_id: r.rider_id, country: r.country, list: [], wins: 0, best: 99, events: 0 };
+    o.list.push({ season: r.ev.season, points: pointsFor(r.place, cfg.points) }); o.wins += r.place === 1 ? 1 : 0; o.best = Math.min(o.best, r.place); o.events++;
     m.set(r.slug, o);
   }
-  return [...m.values()].map(o => ({ ...o, points: eventId ? o.list[0] : bestPoints(o.list, cfg.rules?.countBest) })).sort(byStanding);
+  return [...m.values()].map(o => ({ ...o, list: o.list.map(x => x.points), points: eventId ? o.list[0].points : seasonSum(o.list, cfg.rules?.countBest) })).sort(byStanding);
 }
 
 /* Jazdci so všetkými výsledkami a oceneniami.
@@ -107,7 +118,7 @@ export function standings(events, cat, eventId, season, cfg) {
    pointsByCat = body v sezóne po kategóriách. Body z rôznych kategórií sa nesčítavajú. */
 export function riders(events, cfg) {
   const m = new Map();
-  const get = x => { const s = riderKey(x); if (!m.has(s)) m.set(s, { name: x.name, slug: s, rider_id: x.rider_id ?? null, results: [], awards: [] }); return m.get(s); };
+  const get = x => { const s = riderKey(x); if (!m.has(s)) m.set(s, { name: x.name, slug: s, rider_id: x.rider_id ?? null, country: x.country || null, results: [], awards: [] }); return m.get(s); };
   for (const r of allResults(events)) get(r).results.push(r);
   for (const ev of events) for (const a of ev.awards || []) get({ name: a.rider, rider_id: a.rider_id }).awards.push({ ...a, ev });
   for (const r of m.values()) {
@@ -116,6 +127,7 @@ export function riders(events, cfg) {
     for (const cat of new Set(season.map(x => x.cat)))
       r.pointsByCat[cat] = bestPoints(season.filter(x => x.cat === cat).map(x => pointsFor(x.place, cfg.points)), cfg.rules?.countBest);
     r.points = Math.max(0, ...Object.values(r.pointsByCat));
+    r.country = r.country || r.results[0]?.country || 'SK';
     r.cats = [...new Set(r.results.map(x => x.cat))];
     r.events = [...new Set([...r.results.map(x => x.ev), ...r.awards.map(x => x.ev)])];
   }
@@ -149,4 +161,37 @@ export function finaleTable(events, cat, season, cfg) {
     return { ...r, rank: i + 1, state, gap: Math.max(0, cut - r.points) };
   });
   return { F, rows, left };
+}
+
+/* Odkaz na NFT výsledku v block exploreri. null, ak token ešte nie je vydaný, je odvolaný,
+   chýba adresa kontraktu (CONFIG.NFT_CONTRACT_ADDRESS) alebo chain nepoznáme. */
+const EXPLORERS = { 8453: 'https://basescan.org', 84532: 'https://sepolia.basescan.org' };
+const LIVE_NFT = ['minted', 'result_pending', 'result_set'];
+export function explorerUrl(nft, contract) {
+  if (!nft || !LIVE_NFT.includes(nft.status) || !/^0x[0-9a-fA-F]{40}$/.test(contract || '')) return null;
+  const base = EXPLORERS[Number(nft.chain_id)], id = String(nft.token_id ?? '');
+  return base && /^\d+$/.test(id) ? `${base}/nft/${contract}/${id}` : null;
+}
+
+/* Eventy z databázy (events_public) oproti data.js. Databáza je systém záznamu pre registráciu:
+   added = eventy, ktoré v data.js chýbajú (zrušené sa nepridávajú),
+   updates = { id: { country, registration, date? } } pre eventy z data.js (dátum len ak v data.js chýba). */
+const ddmmyyyy = d => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.split('-').reverse().join('.') : '');
+export function officialEvents(events, rows) {
+  const have = new Map(events.map(e => [e.id, e]));
+  const added = [], updates = {};
+  for (const r of rows || []) {
+    if (!r || !r.id || r.status === 'cancelled') continue;
+    const open = !!r.registration_open && r.status !== 'done';
+    const known = have.get(r.id);
+    if (known) {
+      updates[r.id] = { country: r.country || 'SK', registration: open, ...(!known.date && r.date ? { date: r.date } : {}) };
+      continue;
+    }
+    const done = r.status === 'done';
+    added.push({ id: r.id, name: r.name || r.id, city: r.city || '', country: r.country || 'SK', date: r.date || '', place: '',
+      season: r.season ?? (r.date ? Number(r.date.slice(0, 4)) : null), status: done ? 'done' : 'next', sticker: done ? 'band' : 'next',
+      stickerDate: ddmmyyyy(r.date), about: '', registration: open, results: {}, awards: [], partners: [], photos: [], lat: null, lng: null });
+  }
+  return { added, updates };
 }

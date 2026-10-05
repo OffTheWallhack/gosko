@@ -9,6 +9,12 @@ export const CONFIG = {
   SUPABASE_URL: 'https://moxscedyreyvhkbkebmv.supabase.co',
   // Verejný (publishable) kľúč, je určený na web. Tajný kľúč (sb_secret_…) sem nikdy nepatrí.
   SUPABASE_ANON_KEY: 'sb_publishable_xxQm6zYj66nQ32z4Qi4lJA_DyQrOY5T',
+  // Cloudflare Turnstile, verejný site key (secret je len na serveri). Prázdne = widget sa nezobrazí.
+  TURNSTILE_SITE_KEY: '',
+  // Adresa API (Vercel Functions). Prázdne = ten istý web.
+  API_BASE: '',
+  // Adresa kontraktu GoskoPass na Base (verejná). Prázdne = pri výsledkoch sa nezobrazí odkaz na NFT.
+  NFT_CONTRACT_ADDRESS: '',
 };
 
 export const SITE = {
@@ -169,10 +175,32 @@ export const SEASON_RULES = {
 };
 
 /* Pravidlá a FAQ. Kým sú prázdne, stránka Pravidlá sa v menu nezobrazuje.
-   RULES: [{ title: 'Ako sa hrá', text: 'Text. Prázdny riadok = nový odstavec.' }]
+   RULES: [{ title: 'Ako sa hrá', text: 'Text. Prázdny riadok = nový odstavec.', draft?: true }]
    FAQ:   [{ q: 'Otázka?', a: 'Odpoveď.' }]
-   Pošli mi ich a doplním ich presne tak, ako ich napíšeš. */
-export const RULES = [];
+   draft: true = návrh, ktorý ešte nikto neschválil (na stránke má štítok „Návrh, na kontrolu“).
+   Súťažný poriadok je z dokumentu PRAVIDLÁ GOSKO (Bratislavské kolo), sekcie s draft sú doplnené. */
+export const RULES = [
+  { title: 'Hrá sa na rovine',
+    text: 'GOSko je súboj Game of S.K.A.T.E. na zemi, na rovnej ploche, teda flatground. Nie všetky triky na zemi sú však povolené.\n\n' +
+      'Žiadne dotyky zeme rukami ani nohami. To znamená žiadne triky s nohou položenou na zemi, žiadne opieranie sa o ruku, žiadne skákanie bez dosky a žiadne chytanie dosky rukami.\n\n' +
+      'Žiadne manuály.\n\n' +
+      'Žiadne šúchanie ani šmýkanie trikov po zemi, ak tvoj súper urobil čistý pop.' },
+  { title: 'Priebeh súboja',
+    text: 'Jeden skater zadá trik, druhý ho musí zopakovať. Kto trik nezopakuje, dostane písmeno. Kto prvý poskladá celé slovo S.K.A.T.E., prehráva.\n\n' +
+      'Skater s posledným písmenom má na splnenie triku dva pokusy.\n\n' +
+      'Pri útočnom dotyku nohy o zem máš jeden opravný pokus.\n\n' +
+      'Pri obrannom dotyku nohy o zem má skater väčšiu toleranciu na chybu. O všetkom rozhoduje rozhodca.\n\n' +
+      'Držme sa čestného súboja a čistého štýlu. Žiadne výhovorky, žiadne zbytočné drámy. Na konci môže byť len jeden víťaz.' },
+  { title: 'Bonusová kategória: Mimo zem',
+    text: 'Po semifinále hlavného programu otvárame dobrovoľný prekážkový súboj pre všetkých, ktorí chcú ukázať, čo vedia na prekážkach. Prihlásiť sa môžeš priamo na mieste u organizátorov.\n\n' +
+      'V tejto kategórii sú povolené všetky triky. Organizátori vyberú päť rôznych prekážok a diváci hlasovaním vyberú dve, na ktorých sa súťaží. Skater si každé kolo vyberie, na ktorej z nich zadá trik.\n\n' +
+      'Platí rovnaký princíp súboja: jeden skater navrhne trik, druhý ho musí úspešne zopakovať. Po troch neúspešných pokusoch sa dá prekážka vymeniť, novú opäť vyberajú diváci.\n\n' +
+      'Najlepšie triky postupujú a na konci sa vyberie best trick na prekážke. Prekážkový súboj je ocenenie, do rebríčka sa za neho body nerátajú.' },
+  { title: 'Kategórie a registrácia', draft: true,
+    text: 'Súťaží sa v kategóriách Open (od 16 rokov), U16 (do 16 rokov) a Babská kategória (jazdkyne od 16 rokov). O kategórii U16 rozhoduje vek v deň eventu.\n\n' +
+      'Na event sa registruješ na webe. Po registrácii dostaneš QR pass, ktorý ukážeš crew pri príchode. Jazdca do 16 rokov musí potvrdiť rodič cez odkaz v e-maile.\n\n' +
+      'Poradie súbojov určí pavúk. Ako sa z umiestnení počítajú body, nájdeš v Rebríčkovom poriadku.' },
+];
 export const FAQ = [];
 
 /* Súkromie jazdcov. Predvolene sa mená ukazujú celé (rovnako ako na Instagrame).

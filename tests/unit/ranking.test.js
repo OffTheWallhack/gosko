@@ -274,3 +274,98 @@ describe('mergeEvent', () => {
     assert.deepEqual(base, copy);
   });
 });
+
+/* ---------- GOSko Ranking v2: sezóna, všetky časy, krajiny, databázové eventy, NFT ---------- */
+describe('GOSko Ranking v2', () => {
+  test('rebríček sezóny ráta len eventy tej sezóny', () => {
+    const evs = [ev({ season: 2025, results: { open: res('A', 'B') } }), ev({ season: 2026, results: { open: res('B') } })];
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg()).map(r => [r.name, r.points]), [['B', 100]]);
+    assert.deepEqual(R.standings(evs, 'open', null, 2025, cfg()).map(r => [r.name, r.points]), [['A', 100], ['B', 80]]);
+  });
+  test('rebríček všetkých čias (season = null) sčíta všetky sezóny', () => {
+    const evs = [ev({ season: 2025, results: { open: res('A', 'B') } }), ev({ season: 2026, results: { open: res('B', 'A') } })];
+    const st = R.standings(evs, 'open', null, null, cfg());
+    assert.deepEqual(st.map(r => [r.name, r.points, r.events]), [['A', 180, 2], ['B', 180, 2]]);
+  });
+  test('všetky časy: countBest platí v každej sezóne zvlášť, sezóny sa potom sčítajú', () => {
+    const evs = [
+      ev({ season: 2025, results: { open: res('A') } }), ev({ season: 2025, results: { open: res('A') } }), ev({ season: 2025, results: { open: res('A') } }),
+      ev({ season: 2026, results: { open: res('A') } }),
+    ];
+    assert.equal(R.standings(evs, 'open', null, null, cfg({ countBest: 2 }))[0].points, 300);
+  });
+  test('dvaja rovnako menovaní jazdci (rôzne rider_id) sú dva riadky aj v rebríčku všetkých čias', () => {
+    const evs = [ev({ results: { open: [{ name: 'Jan Novak', place: 1, rider_id: 'r1' }, { name: 'Jan Novak', place: 2, rider_id: 'r2' }] } })];
+    assert.equal(R.standings(evs, 'open', null, null, cfg()).length, 2);
+  });
+  test('jazdec z CZ je v rebríčku CZ aj v celkovom; v SK nie je', () => {
+    const evs = [ev({ results: { open: [{ name: 'Petr Dvořák', place: 1, rider_id: 'cz1', country: 'CZ' }, { name: 'Ján Malý', place: 2, rider_id: 'sk1', country: 'SK' }] } })];
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg(), { country: 'CZ' }).map(r => r.name), ['Petr Dvořák']);
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg(), { country: 'SK' }).map(r => r.name), ['Ján Malý']);
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg()).map(r => r.name), ['Petr Dvořák', 'Ján Malý']);
+    assert.equal(R.standings(evs, 'open', null, 2026, cfg())[0].country, 'CZ');
+  });
+  test('výsledok bez krajiny jazdca (staršie výsledky podľa mena) má krajinu eventu, inak SK', () => {
+    const evs = [ev({ country: 'CZ', results: { open: res('A') } }), ev({ results: { open: res('B') } })];
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg(), { country: 'CZ' }).map(r => r.name), ['A']);
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg(), { country: 'SK' }).map(r => r.name), ['B']);
+  });
+  test('pravidlá pri rovnosti platia aj v rebríčku krajiny', () => {
+    const evs = [ev({ results: { open: [{ name: 'Bea', place: 3, country: 'CZ' }, { name: 'Ali', place: 3, country: 'CZ' }, { name: 'Cyril', place: 1, country: 'SK' }] } })];
+    assert.deepEqual(R.standings(evs, 'open', null, 2026, cfg(), { country: 'CZ' }).map(r => r.name), ['Ali', 'Bea']);
+  });
+  test('mergeEvent prenesie krajinu a NFT z databázy, len keď ich riadok má', () => {
+    const m = R.mergeEvent('e', { results: {}, awards: [] }, { results: [
+      { event_id: 'e', category: 'open', rider_name: 'A', place: 1, rider_id: 'r1', country: 'CZ', nft: { chain_id: 8453, token_id: '12', status: 'result_set' } },
+      { event_id: 'e', category: 'open', rider_name: 'B', place: 2 }] });
+    assert.deepEqual(m.results.open, [
+      { name: 'A', place: 1, rider_id: 'r1', country: 'CZ', nft: { chain_id: 8453, token_id: '12', status: 'result_set' } },
+      { name: 'B', place: 2 }]);
+  });
+  test('riders: profil podľa rider_id má výsledky s NFT a krajinou', () => {
+    const evs = [ev({ results: { open: [{ name: 'A', place: 1, rider_id: 'r1', country: 'CZ', nft: { chain_id: 8453, token_id: '3', status: 'minted' } }] } })];
+    const r = R.riders(evs, cfg()).find(x => x.slug === 'r1');
+    assert.equal(r.country, 'CZ');
+    assert.equal(r.results[0].nft.token_id, '3');
+  });
+});
+
+describe('explorerUrl', () => {
+  const C = '0x1234567890abcdef1234567890abcdef12345678';
+  test('Base a Base Sepolia', () => {
+    assert.equal(R.explorerUrl({ chain_id: 8453, token_id: '12', status: 'result_set' }, C), `https://basescan.org/nft/${C}/12`);
+    assert.equal(R.explorerUrl({ chain_id: 84532, token_id: 7, status: 'minted' }, C), `https://sepolia.basescan.org/nft/${C}/7`);
+  });
+  test('bez tokenu, bez adresy kontraktu, neznámy chain alebo token nevydaný/odvolaný: nič', () => {
+    assert.equal(R.explorerUrl(null, C), null);
+    assert.equal(R.explorerUrl({ chain_id: 8453, token_id: null, status: 'pending' }, C), null);
+    assert.equal(R.explorerUrl({ chain_id: 8453, token_id: '1', status: 'minted' }, ''), null);
+    assert.equal(R.explorerUrl({ chain_id: 31337, token_id: '1', status: 'minted' }, C), null);
+    assert.equal(R.explorerUrl({ chain_id: 8453, token_id: '1', status: 'revoked' }, C), null);
+    assert.equal(R.explorerUrl({ chain_id: 8453, token_id: '1', status: 'minted' }, 'javascript:alert(1)'), null);
+    assert.equal(R.explorerUrl({ chain_id: 8453, token_id: '1x', status: 'minted' }, C), null);
+  });
+});
+
+describe('officialEvents (events_public)', () => {
+  const base = [ev({ id: 'bratislava-2026-05', city: 'Bratislava', status: 'done' }), ev({ id: 'bratislava-2', status: 'next', registration: true })];
+  test('nový event z databázy sa pridá ako zastávka; zrušený sa nepridá', () => {
+    const out = R.officialEvents(base, [
+      { id: 'brno-2027', name: 'GOSko Brno', city: 'Brno', country: 'CZ', date: '2027-04-10', season: 2027, status: 'open', registration_open: true },
+      { id: 'kosice-x', name: 'GOSko Košice', city: 'Košice', country: 'SK', date: null, season: 2026, status: 'cancelled', registration_open: false },
+    ]);
+    assert.equal(out.added.length, 1);
+    const b = out.added[0];
+    assert.deepEqual([b.id, b.name, b.city, b.country, b.date, b.season, b.status, b.sticker, b.registration, b.stickerDate], ['brno-2027', 'GOSko Brno', 'Brno', 'CZ', '2027-04-10', 2027, 'next', 'next', true, '10.04.2027']);
+    assert.deepEqual([b.results, b.awards, b.photos, b.partners], [{}, [], [], []]);
+  });
+  test('existujúci event: databáza určí krajinu a či je registrácia otvorená', () => {
+    const out = R.officialEvents(base, [{ id: 'bratislava-2', name: 'x', city: 'x', country: 'SK', date: '2026-11-14', season: 2026, status: 'open', registration_open: false }]);
+    assert.deepEqual(out.updates, { 'bratislava-2': { country: 'SK', registration: false, date: '2026-11-14' } });
+    assert.equal(out.added.length, 0);
+  });
+  test('dátum z data.js má prednosť; databáza ho doplní len keď chýba', () => {
+    const out = R.officialEvents([ev({ id: 'a', date: '2026-05-31' })], [{ id: 'a', country: 'SK', date: '2026-06-01', status: 'done', registration_open: false }]);
+    assert.equal(out.updates.a.date, undefined);
+  });
+});

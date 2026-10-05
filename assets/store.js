@@ -1,5 +1,6 @@
 import { UserError } from './util.js';
 import { loadScript } from './qr.js';
+import { apiRequest, browserFetch } from './api.js';
 
 /* @supabase/supabase-js 2.117.2 (UMD, globál window.supabase), uložené na webe: assets/vendor/SOURCES.txt */
 const SUPABASE_JS = 'assets/vendor/supabase-2.117.2.js';
@@ -22,7 +23,7 @@ const SEEDS = [
 
 /* doručené formuláre, ktoré admin vidí a exportuje */
 export const INBOX = {
-  registrations: 'Registrácie na eventy',
+  registrations_legacy: 'Registrácie na eventy (stará verzia formulára)',
   newsletter_subscribers: 'Odber noviniek',
   bookings: 'Objednávky pop-upov',
   shop_interest: 'Záujem o shop',
@@ -30,6 +31,20 @@ export const INBOX = {
 };
 
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
+
+/* Riadky pohľadu results_public (+ krajina z riders_public) do tvaru, ktorý berie ranking.js (mergeEvent):
+   { event_id, category, rider_name, place, rider_id, country?, nft? }. Staršie výsledky bez registrácie majú rider_id null. */
+export function mapPublicResults(rows, riders = []) {
+  const country = new Map(riders.map(r => [r.id, r.country]));
+  return rows.map(r => {
+    const out = { event_id: r.event_id, category: r.category, rider_name: r.public_name, place: r.place, rider_id: r.rider_id ?? null };
+    if (r.rider_id && country.get(r.rider_id)) out.country = country.get(r.rider_id);
+    if (r.token_id != null && r.token_id !== '') out.nft = { chain_id: r.chain_id, token_id: String(r.token_id), status: r.nft_status };
+    return out;
+  });
+}
+
+const DEMO_API = 'V ukážkovom režime (bez databázy) to nefunguje.';
 
 function demoStore() {
   const K = { parks: 'gosko:parks', votes: 'gosko:votes', events: 'gosko:community-events', spots: 'gosko:spots',
@@ -94,6 +109,10 @@ function demoStore() {
 
     /* výsledky, pavúky, ocenenia */
     async listResults() { return LS.get(K.results, []); },
+    async listOfficialEvents() { return []; },
+    async accessToken() { return ''; },
+    async adminCheckin() { throw new UserError(DEMO_API); },
+    async eventRegistrations() { return []; },
     async listAwards() { return LS.get(K.awards, []); },
     async listBrackets() { return Object.values(LS.get(K.brackets, {})); },
     async saveBracket(event_id, category, data) {
@@ -129,6 +148,11 @@ async function liveStore(CONFIG) {
   const session = async () => (await sb.auth.getSession()).data.session;
   const must = ({ data, error }) => { if (error) throw error; return data; };
   const created = r => ({ ...r, created: Date.parse(r.created_at) });
+  const api = async (path, body) => {
+    const token = (await session())?.access_token;
+    if (!token) throw new UserError('Prihlásenie vypršalo. Prihlás sa znova.');
+    return apiRequest(browserFetch, (CONFIG.API_BASE || '') + path, { method: 'POST', body, token });
+  };
   return {
     mode: 'live',
     onAuth(fn) { sb.auth.onAuthStateChange(() => fn()); },
@@ -198,18 +222,34 @@ async function liveStore(CONFIG) {
     },
 
     /* výsledky, pavúky, ocenenia */
-    async listResults() { return must(await sb.from('event_results').select('event_id,category,rider_name,place').limit(5000)); },
+    /* GOSko Ranking v2: verejné pohľady bez osobných údajov (kontrakt §2, §3 Rebríček) */
+    async listResults() {
+      const [rows, riders] = await Promise.all([
+        sb.from('results_public').select('event_id,category,place,points,rider_id,public_name,chain_id,token_id,nft_status').limit(5000).then(must),
+        sb.from('riders_public').select('id,country').limit(5000).then(must),
+      ]);
+      return mapPublicResults(rows, riders);
+    },
+    async listOfficialEvents() { return must(await sb.from('events_public').select('id,name,city,country,date,season,status,registration_open').limit(500)); },
+    async accessToken() { return (await session())?.access_token || ''; },
+    /* Admin zápisy idú cez Vercel API so Supabase JWT (kontrakt §3). */
+    async adminCheckin(body) { return api('/api/admin/checkin', body); },
+    /* Registrácie eventu pre zápis výsledkov a ručný check-in (admin má SELECT na registrations a riders). */
+    async eventRegistrations(event_id) {
+      const data = must(await sb.from('registrations').select('id,category,status,checked_in_at,riders(display_name)').eq('event_id', event_id).neq('status', 'cancelled').limit(2000));
+      return data.map(r => ({ id: r.id, category: r.category, status: r.status, checked_in_at: r.checked_in_at, name: r.riders?.display_name || '' }));
+    },
     async listAwards() { return must(await sb.from('event_awards').select('event_id,name,rider_name').limit(1000)); },
     async listBrackets() { return must(await sb.from('brackets').select('event_id,category,data,updated_at').limit(500)); },
     async saveBracket(event_id, category, data) {
       must(await sb.from('brackets').upsert({ event_id, category, data, updated_at: new Date().toISOString() }, { onConflict: 'event_id,category' }));
     },
     async deleteBracket(event_id, category) { must(await sb.from('brackets').delete().eq('event_id', event_id).eq('category', category)); },
+    /* rows = [{ name, place, registration_id? }]; jedna transakcia na serveri (save_results), prázdny zoznam kategóriu zmaže */
     async saveResults(event_id, category, rows) {
-      must(await sb.from('event_results').delete().eq('event_id', event_id).eq('category', category));
-      if (rows.length) must(await sb.from('event_results').insert(rows.map(r => ({ event_id, category, rider_name: r.name, place: r.place }))));
+      return api('/api/admin/results', { event_id, category, rows: rows.map(r => ({ rider_name: r.name, place: r.place, ...(r.registration_id ? { registration_id: r.registration_id } : {}) })) });
     },
-    async deleteResults(event_id, category) { must(await sb.from('event_results').delete().eq('event_id', event_id).eq('category', category)); },
+    async deleteResults(event_id, category) { return api('/api/admin/results', { event_id, category, rows: [] }); },
     async saveAwards(event_id, list) {
       must(await sb.from('event_awards').delete().eq('event_id', event_id));
       if (list.length) must(await sb.from('event_awards').insert(list.map(a => ({ event_id, name: a.name, rider_name: a.rider_name }))));
@@ -238,10 +278,10 @@ const OFFLINE_MSG = 'Nepodarilo sa spojiť so serverom GOSko. Skontroluj pripoje
 function offlineStore() {
   const down = async () => { throw new UserError(OFFLINE_MSG); };
   const store = { mode: 'offline', message: OFFLINE_MSG, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
-    async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {} };
+    async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; } };
   for (const k of ['login', 'verifyCode', 'listParks', 'submitPark', 'vote', 'listEvents', 'submitEvent', 'listSpots', 'submitSpot', 'send', 'subscribe',
     'findRegistration', 'checkIn', 'pendingParks', 'pendingEvents', 'pendingSpots', 'pendingEventPhotos', 'approve', 'reject', 'inbox',
-    'listResults', 'listAwards', 'listBrackets', 'saveBracket', 'deleteBracket', 'saveResults', 'deleteResults', 'saveAwards', 'listEventPhotos', 'submitEventPhoto'])
+    'listResults', 'listOfficialEvents', 'adminCheckin', 'eventRegistrations', 'listAwards', 'listBrackets', 'saveBracket', 'deleteBracket', 'saveResults', 'deleteResults', 'saveAwards', 'listEventPhotos', 'submitEventPhoto'])
     store[k] = down;
   return store;
 }

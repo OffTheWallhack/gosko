@@ -783,3 +783,13 @@ h2 .tag{margin-left:8px;vertical-align:middle;font-stretch:100%;font-size:.7rem;
 .hero.compact .hero-copy p{margin-top:10px}
 .hero.compact + .countdown{margin-top:14px}
 .board-sec .board-stage{margin-top:8px}
+
+/* registrácia v2, pass, dokumenty (pravidlá, rebríčkový poriadok, súkromie) */
+.pass-status{margin:6px 14px 0;font-weight:700;font-size:.875rem}
+.pass-status.warn{color:var(--red)}
+.nft-link{font-size:.75rem;font-weight:800;letter-spacing:.06em;text-decoration:underline}
+.captcha{min-height:66px}
+.doc-list{margin:8px 0 0;padding-left:1.2em;max-width:70ch}
+.doc-list li{margin:6px 0}
+.points-table{min-width:0;max-width:420px}
+.points-table td:last-child,.points-table th:last-child{text-align:right}
