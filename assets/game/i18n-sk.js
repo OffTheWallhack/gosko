@@ -132,7 +132,8 @@ export const T = {
   onboarding: {
     title: 'Hráčsky profil',
     lead: 'Nick je verejný. Celé meno, vek ani e-mail v hre nikto neuvidí.',
-    loginLead: 'Do hry sa prihlasuješ e-mailom. Pošleme ti kód, heslo netreba.',
+    loginLead: 'Do hry sa prihlasuješ e-mailom a heslom. Nový účet si založíš v tom istom okne.',
+    loginLeadMagic: 'Do hry sa prihlasuješ e-mailom. Pošleme ti kód, heslo netreba.',
     loginCta: 'Prihlásiť sa e-mailom',
     knownRider: 'Tvoj e-mail poznáme z GOSko registrácie. Hráča napojíme na tvojho jazdca.',
     ambiguous: 'Na tento e-mail máme viac jazdcov. Zadaj svoj dátum narodenia.',

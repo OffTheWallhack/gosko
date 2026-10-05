@@ -185,8 +185,14 @@ async function liveStore(CONFIG) {
     onAuth(fn) { sb.auth.onAuthStateChange(() => fn()); },
     async signedIn() { return !!(await session()); },
     async email() { return (await session())?.user?.email || ''; },
+    /* LOGIN_MODE 'magic': kód alebo odkaz z e-mailu */
     async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } })); },
     async verifyCode(email, token) { must(await sb.auth.verifyOtp({ email, token, type: 'email' })); },
+    /* LOGIN_MODE 'password'. Chyby (AuthApiError s code) prekladá assets/login.js loginErrorMessage. */
+    async signInPassword(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    /* bez session v odpovedi treba potvrdiť e-mail odkazom (Supabase: Confirm email) */
+    async signUp(email, password) { return must(await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })); },
+    async resendConfirmation(email) { must(await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname } })); },
     async logout() { await sb.auth.signOut(); },
     async listParks() {
       const data = must(await sb.from('parks_ranked').select('*').order('votes', { ascending: false }).limit(300));
@@ -333,7 +339,7 @@ function offlineStore() {
   const down = async () => { throw new UserError(OFFLINE_MSG); };
   const store = { mode: 'offline', message: OFFLINE_MSG, client: null, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
     async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; } };
-  for (const k of ['login', 'verifyCode', 'listParks', 'submitPark', 'vote', 'listEvents', 'submitEvent', 'listSpots', 'submitSpot', 'send', 'subscribe',
+  for (const k of ['login', 'verifyCode', 'signInPassword', 'signUp', 'resendConfirmation', 'listParks', 'submitPark', 'vote', 'listEvents', 'submitEvent', 'listSpots', 'submitSpot', 'send', 'subscribe',
     'findRegistration', 'checkIn', 'pendingParks', 'pendingEvents', 'pendingSpots', 'pendingEventPhotos', 'approve', 'reject', 'inbox',
     'listResults', 'listOfficialEvents', 'adminCheckin', 'eventRegistrations', 'listAwards', 'listBrackets', 'saveBracket', 'deleteBracket', 'saveResults', 'deleteResults', 'saveAwards', 'listEventPhotos', 'submitEventPhoto',
     'setEventImage', 'listPosts', 'allPosts', 'getPost', 'savePost', 'deletePost'])

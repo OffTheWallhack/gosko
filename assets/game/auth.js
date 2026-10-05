@@ -1,4 +1,4 @@
-/* Stav hráča: prihlásenie (Supabase Auth, e-mailový odkaz alebo kód zo store.login) a profil hráča
+/* Stav hráča: prihlásenie (Supabase Auth: e-mail a heslo, alebo odkaz či kód z e-mailu pri LOGIN_MODE 'magic') a profil hráča
    (game_me). Po kliknutí na odkaz v e-maile sa web otvorí na úvode; return.js vráti hráča späť do hry. */
 import { createGameApi } from './api.js';
 import { playerMode } from './logic.js';

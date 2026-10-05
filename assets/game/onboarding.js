@@ -91,7 +91,7 @@ function onboardingForm(status, api, done) {
   return form;
 }
 
-/* ctx: { store, login(after), go(hash), apiBase, rerender() } */
+/* ctx: { store, login(after), loginMode ('password' | 'magic'), go(hash), apiBase, rerender() } */
 export async function pageOnboarding(root, ctx) {
   const { body } = gameShell(root, '');
   await loadGameCss();
@@ -103,7 +103,7 @@ export async function pageOnboarding(root, ctx) {
   const player = await loadPlayer(api);
   const head = (lead = T.onboarding.lead) => h('header', { class: 'g-page-head' }, h('h1', { class: 'wide' }, T.onboarding.title), h('p', {}, lead));
   if (player.mode === 'anon') {
-    page.append(head(T.onboarding.loginLead), h('button', { class: 'g-btn g-btn-in', type: 'button', onclick: () => { rememberReturn('#/hra/profil'); ctx.login(() => ctx.rerender()); } }, T.onboarding.loginCta));
+    page.append(head(ctx.loginMode === 'magic' ? T.onboarding.loginLeadMagic : T.onboarding.loginLead), h('button', { class: 'g-btn g-btn-in', type: 'button', onclick: () => { rememberReturn('#/hra/profil'); ctx.login(() => ctx.rerender()); } }, T.onboarding.loginCta));
     return leaveGame;
   }
   if (player.me) { page.append(profileCard(player, api, ctx)); return leaveGame; }

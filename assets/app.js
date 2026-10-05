@@ -13,6 +13,7 @@ import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPay
 import { apiRequest, browserFetch } from './api.js';
 import { pointsTable, rankingRules, PRIVACY } from './pages.js';
 import { consumeReturn } from './game/return.js';
+import { loginMode, credentialsError, loginErrorMessage, signUpOutcome, MIN_PASSWORD } from './login.js';
 /* 3D (three.js, 1,3 MB z CDN) sa načítava cez import() len tam, kde sa kreslí:
    board.js (doska na úvode a u jazdca), park.js (stavebnica parkov), card.js (karta jazdca). */
 
@@ -179,7 +180,60 @@ function formDialog({ title, intro, fields, submit, onSubmit, onClose }) {
   document.body.append(dlg); dlg.showModal();
   return dlg;
 }
+/* Prihlásenie podľa CONFIG.LOGIN_MODE (assets/login.js): 'password' = e-mail a heslo (aj nový účet), 'magic' = kód z e-mailu. */
+const LOGIN_MODE = loginMode(CONFIG);
 function loginDialog(after) {
+  return LOGIN_MODE === 'magic' ? magicLoginDialog(after) : passwordLoginDialog(after);
+}
+function passwordLoginDialog(after, { signUp = false, email = '' } = {}) {
+  const fail = err => { if (!err?.code && !err?.status) console.error(err); throw new UserError(loginErrorMessage(err)); };
+  const done = () => { if (typeof after === 'function') after(); return 'Si prihlásený.'; };
+  const dlg = formDialog({
+    title: signUp ? 'Nový účet' : 'Prihlásenie', submit: signUp ? 'Založiť účet' : 'Prihlásiť sa',
+    intro: signUp
+      ? 'Založ si účet e-mailom a heslom. Potom ti pošleme e-mail s odkazom, ktorým e-mail potvrdíš.'
+      : h('span', {}, 'Prihlás sa e-mailom a heslom. Prihlásený ostaneš aj nabudúce. Nemáš účet? ',
+        h('button', { class: 'linklike', type: 'button', onclick: () => { dlg.close(); passwordLoginDialog(after, { signUp: true }); } }, 'Založ si ho'), '.'),
+    fields: [
+      { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email', value: email },
+      { name: 'password', label: 'Heslo', type: 'password', required: true, autocomplete: signUp ? 'new-password' : 'current-password',
+        hint: signUp ? `Aspoň ${MIN_PASSWORD} znakov.` : null },
+      signUp ? { name: 'password2', label: 'Heslo ešte raz', type: 'password', required: true, autocomplete: 'new-password' } : null,
+    ].filter(Boolean),
+    onSubmit: async v => {
+      const email = v.email.toLowerCase(), problem = credentialsError({ ...v, email }, { signUp });
+      if (problem) throw new UserError(problem);
+      if (!signUp) {
+        try { await store.signInPassword(email, v.password); } catch (err) {
+          if (err?.code === 'email_not_confirmed') return unconfirmed(email);
+          fail(err);
+        }
+        return done();
+      }
+      let data;
+      try { data = await store.signUp(email, v.password); } catch (err) { fail(err); }
+      const outcome = signUpOutcome(data);
+      if (outcome === 'signed_in') return done();
+      if (outcome === 'exists') throw new UserError(loginErrorMessage({ code: 'user_already_exists' }));
+      return unconfirmed(email, true);
+    },
+  });
+  /* nepotvrdený e-mail: jasná hláška a možnosť poslať potvrdzovací e-mail znova */
+  function unconfirmed(email, fresh = false) {
+    const msg = h('p', { class: 'form-msg', role: 'status' });
+    return h('div', {},
+      h('p', {}, fresh ? `Účet je založený. Poslali sme e-mail na ${email}. Klikni na odkaz v ňom, tým e-mail potvrdíš, a potom sa prihlás heslom.`
+        : loginErrorMessage({ code: 'email_not_confirmed' })),
+      h('button', { class: 'btn small', type: 'button', onclick: async e => {
+        const btn = e.currentTarget; btn.disabled = true; msg.textContent = '';
+        try { await store.resendConfirmation(email); msg.textContent = 'Poslali sme ho znova. Pozri aj spam.'; }
+        catch (err) { msg.textContent = loginErrorMessage(err); btn.disabled = false; }
+      } }, 'Poslať potvrdzovací e-mail znova'), msg);
+  }
+  return dlg;
+}
+/* LOGIN_MODE 'magic' (zatiaľ vypnuté): kód alebo odkaz z e-mailu cez signInWithOtp */
+function magicLoginDialog(after) {
   formDialog({
     title: 'Prihlásenie', submit: 'Poslať kód',
     intro: 'Pošleme ti e-mail s kódom, heslo netreba. Prihlásený ostaneš aj nabudúce.',
@@ -2202,7 +2256,7 @@ function pageImportPasses(root, data, to) {
 function funStrip() { return polaroidStrip(EVENTS.flatMap(e => e.photos || []), lightbox); }
 /* Hra Ghoskate (assets/game/): načíta sa až na herných stránkach. */
 const gamePage = name => async (root, ...args) => (await import('./game/index.js'))[name](root, {
-  store, login: loginDialog, go, rerender: route, setOnAuth: fn => { onAuthChange = fn; }, events: EVENTS, apiBase: API,
+  store, login: loginDialog, loginMode: LOGIN_MODE, go, rerender: route, setOnAuth: fn => { onAuthChange = fn; }, events: EVENTS, apiBase: API,
 }, ...args);
 const gameSoon = which => async root => (await import('./game/index.js')).pageSoon(root, {}, which);
 

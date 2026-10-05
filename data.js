@@ -11,6 +11,8 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: 'sb_publishable_r28_fu2eIWR_iSP-1Spz8g_yQTjapV3',
   // Cloudflare Turnstile, verejný site key (secret je len na serveri). Prázdne = widget sa nezobrazí.
   TURNSTILE_SITE_KEY: '1x00000000000000000000AA', // TESTOVACÍ kľúč Cloudflare (vždy prejde), pred ostrým spustením vymeniť
+  // Prihlásenie (admin, hlasovanie, hra): 'password' = e-mail a heslo, 'magic' = kód alebo odkaz z e-mailu.
+  LOGIN_MODE: 'password',
   // Adresa API (Vercel Functions). Prázdne = ten istý web.
   API_BASE: '',
   // Adresa kontraktu GoskoPass na Base (verejná). Prázdne = pri výsledkoch sa nezobrazí odkaz na NFT.

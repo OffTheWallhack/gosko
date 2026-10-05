@@ -317,6 +317,21 @@ to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
    insert into public.admins (user_id)
    select id from auth.users where email = 'tvoj@email.sk';
    ```
+   Alebo pozvánkou (migrácia 014): `insert into public.admin_invites (email) values ('meno@example.com');`.
+   Admin práva dostane účet s týmto e-mailom, keď je e-mail potvrdený (aj už existujúci potvrdený účet).
+
+### Prihlásenie heslom (`LOGIN_MODE`)
+
+`CONFIG.LOGIN_MODE` v `data.js` určuje prihlásenie do adminu, hlasovania aj hry:
+
+- `'password'` (teraz): e-mail a heslo (`signInWithPassword`), nový účet v tom istom okne (`signUp`).
+  Admina založíš v **Authentication → Users → Add user** s heslom a zaškrtnutým **Auto Confirm User**,
+  potom mu daj admin práva (SQL vyššie alebo pozvánka).
+- `'magic'`: kód alebo odkaz z e-mailu (body 5 a 6 vyššie). Prepnutie späť je len táto jedna hodnota.
+
+**Authentication → Sign In / Providers → Email: „Confirm email“ musí ostať zapnuté.** Hra
+(`/api/game/link-rider`) aj pozvánky adminov veria, že e-mail je overený; s vypnutým potvrdzovaním si
+ktokoľvek založí účet s cudzím e-mailom (napr. pozvaného admina alebo rodiča jazdca).
 
 V admine potom schvaľuješ parky, eventy a spoty od komunity a vidíš registrácie,
 odber noviniek, objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
@@ -337,7 +352,7 @@ Pri evente môže byť aj posledný deň (`end_date`) a prize pool (`prize`). Vl
 
 ## Novinky a články (bez programovania)
 
-1. Otvor `#/admin` a prihlás sa e-mailom (účet musí byť admin, postup je vyššie).
+1. Otvor `#/admin` a prihlás sa e-mailom a heslom (účet musí byť admin, postup je vyššie).
 2. Klikni **+ Pridať novinku**, vyplň nadpis, pár viet, prípadne fotku a odkaz, a daj **Zverejniť**.
 3. Novinka sa hneď ukáže v časti **Novinky**, na úvodke aj v bežiacom páse. Upraviť alebo zmazať ju vieš v admine.
 
