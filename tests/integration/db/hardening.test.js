@@ -71,7 +71,8 @@ describe('public views are SELECT-only', () => {
     assert.ok(!('contact' in ce.body[0]), 'contact must not be public');
     const sp = await rest('/spots_public?select=*');
     assert.equal(sp.status, 200);
-    assert.deepEqual(sp.body.map(r => r.id), [SPOT_OK]);
+    // seed spots_ba (012) pridáva schválené spoty 5b0a0000-…; tu sa overujú iba spoty z tohto testu
+    assert.deepEqual(sp.body.map(r => r.id).filter(id => id.startsWith('22222222')), [SPOT_OK]);
     assert.ok(!('user_id' in sp.body[0]));
     const ph = await rest('/event_photos_public?select=*');
     assert.equal(ph.status, 200);
@@ -305,7 +306,10 @@ describe('grants audit (supabase/checks/grants.sql)', () => {
       where grantee = 'anon' and table_schema = 'public' order by 1, 2`);
     const allowedSelect = ['brackets', 'community_events_public', 'event_awards', 'event_photos_public', 'event_results',
       'events_public', 'parks_ranked', 'results_public', 'riders_public', 'spots_public'];
-    assert.deepEqual(tableGrants, allowedSelect.map(t => ({ table_name: t, privilege_type: 'SELECT' })));
+    // hra (010–012): verejné pohľady bez osobných údajov a katalóg gearu
+    const gameSelect = ['clips_public', 'crew_leaderboard', 'crews_public', 'gear', 'loot_public', 'players_public',
+      'spot_control', 'spot_crew_scores', 'spot_summary'];
+    assert.deepEqual(tableGrants, [...allowedSelect, ...gameSelect].sort().map(t => ({ table_name: t, privilege_type: 'SELECT' })));
 
     const colGrants = sqlRows(`select table_name, string_agg(distinct privilege_type, ',') as p
       from information_schema.column_privileges
