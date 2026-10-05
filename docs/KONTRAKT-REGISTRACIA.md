@@ -106,7 +106,7 @@ rate_limits(key text, window_start timestamptz, count int NOT NULL DEFAULT 0, PR
 
 ### Lokálny test stack
 - `supabase/test/shim.sql`: role `anon`, `authenticated`, `service_role` (NOLOGIN), `authenticator` (LOGIN, s členstvom vo všetkých troch), schéma `auth` s `auth.uid()` (z `current_setting('request.jwt.claims', true)::json->>'sub'`) a `auth.users(id uuid PK)`, schéma `storage` s tabuľkami `buckets`, `objects` a funkciou `storage.foldername(text)`. Ak treba, aj `extensions`.
-- `scripts/test-db.sh`: `dropdb --if-exists gosko_test && createdb gosko_test`, potom shim, `supabase-setup.sql` a migrácie 001–003 v poradí s `ON_ERROR_STOP=1`. Socket `/tmp`, port 5432.
+- `scripts/test-db.sh`: `dropdb --if-exists gosko_test && createdb gosko_test`, potom shim, `supabase-setup.sql` a migrácie 001–005 v poradí s `ON_ERROR_STOP=1`. Socket `/tmp`, port 5432.
 - PostgREST (`/opt/homebrew/bin/postgrest`) beží na porte **3901** s `db-uri=postgresql://authenticator@/gosko_test?host=/tmp`, `db-schemas=public`, `db-anon-role=anon` a `jwt-secret` = 32+ znakový testovací reťazec v `supabase/test/postgrest.conf`. Testy si vyrobia JWT (HS256) pre `anon`, `authenticated` (sub = uuid admina) a `service_role` cez `node:crypto`.
 - Helper `tests/helpers/stack.js` exportuje `startStack()` (vytvorí DB a spustí postgrest), `stopStack()`, `jwt(role, sub?)` a `REST_URL`.
 

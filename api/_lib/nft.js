@@ -94,16 +94,20 @@ export function createNft({ env, db, chain, log = console, now = () => new Date(
     }
   }
 
-  // Pošle jeden výsledok na chain. Pri chybe status 'failed'.
+  // Pošle jeden výsledok na chain; result null = výsledok zmizol, na chaine sa vynuluje (0, 0).
+  // Pri chybe status 'failed'.
   async function pushOne(tok, result) {
     const attempts = (tok.attempts || 0) + 1;
+    const placement = result ? Number(result.place) : 0;
+    const points = result ? Number(result.points) : 0;
     try {
       if (tok.token_id == null) throw new Error('Token nemá tokenId.');
-      const { txHash } = await chain.setPassResult({ tokenId: String(tok.token_id), placement: Number(result.place), points: Number(result.points) });
+      const { txHash } = await chain.setPassResult({ tokenId: String(tok.token_id), placement, points });
       // kým sme zapisovali, mohli prísť nové výsledky: potom ostane result_pending
       const fresh = await db.selectOne('event_results', { registration_id: eq(tok.registration_id) }, { select: 'place,points' }).catch(() => null);
-      const changed = fresh && (Number(fresh.place) !== Number(result.place) || Number(fresh.points) !== Number(result.points));
-      await safeUpdate(tok.registration_id, { status: changed ? 'result_pending' : 'result_set', result_tx: txHash, error: null, attempts: 0 });
+      const same = fresh ? Number(fresh.place) === placement && Number(fresh.points) === points : !result;
+      const status = !same ? 'result_pending' : result ? 'result_set' : 'minted';
+      await safeUpdate(tok.registration_id, { status, result_tx: txHash, error: null, attempts: 0 });
       return true;
     } catch (err) {
       log.warn('[nft] setResult zlyhal', tok.registration_id, errText(err));
@@ -118,25 +122,27 @@ export function createNft({ env, db, chain, log = console, now = () => new Date(
     const results = await db.select('event_results', { registration_id: inList(tokens.map(t => t.registration_id)) }, { select: 'registration_id,place,points' });
     const byReg = new Map(results.map(r => [r.registration_id, r]));
     for (const tok of tokens) {
-      const result = byReg.get(tok.registration_id);
-      if (!result) {
-        // výsledok medzitým zmizol, nie je čo zapísať
-        await safeUpdate(tok.registration_id, { status: 'minted' }, { status: eq('result_pending') });
-        continue;
-      }
-      if (await pushOne(tok, result)) out.updated += 1; else out.failed += 1;
+      // bez výsledku (vymazaný z kategórie) sa výsledok na chaine vynuluje
+      if (await pushOne(tok, byReg.get(tok.registration_id) || null)) out.updated += 1; else out.failed += 1;
     }
     return out;
   }
 
-  /** Po uložení výsledkov eventu pošle setResult pre každý token v stave result_pending. */
+  /**
+   * Po uložení výsledkov eventu pošle setResult pre každý token v stave result_pending.
+   * Patria sem aj tokeny jazdcov, ktorých výsledok sa zmazal (save_results z 005 ich označí).
+   */
   async function pushResults(eventId) {
     if (!enabled()) return { updated: 0, failed: 0 };
     try {
-      const results = await db.select('event_results', { event_id: eq(eventId), registration_id: notNull }, { select: 'registration_id' });
-      if (!results.length) return { updated: 0, failed: 0 };
+      const [results, regs] = await Promise.all([
+        db.select('event_results', { event_id: eq(eventId), registration_id: notNull }, { select: 'registration_id' }),
+        db.select('registrations', { event_id: eq(eventId) }, { select: 'id' }),
+      ]);
+      const ids = [...new Set([...results.map(r => r.registration_id), ...regs.map(r => r.id)])];
+      if (!ids.length) return { updated: 0, failed: 0 };
       const tokens = await db.select('nft_tokens', {
-        registration_id: inList([...new Set(results.map(r => r.registration_id))]),
+        registration_id: inList(ids),
         status: eq('result_pending'),
       }, { select: 'registration_id,token_id,status,attempts' });
       return await pushPending(tokens);

@@ -246,6 +246,20 @@ test('results: oprava výsledku pošle setResult znova', async () => {
   assert.deepEqual(chain.resultCalls.map(c => c.placement), [2, 1]);
 });
 
+test('results: vyhodený jazdec a prázdna kategória vynulujú výsledok na chaine (0, 0)', async () => {
+  const { db, chain } = await mintedSeed();
+  const h = results(db, chain);
+  await post(h, { event_id: EV, category: 'open', rows: [{ registration_id: G1, rider_name: 'Marek K.', place: 1 }, { rider_name: 'Hosť', place: 2 }] });
+  const removed = await post(h, { event_id: EV, category: 'open', rows: [{ rider_name: 'Hosť', place: 1 }] });
+  assert.deepEqual(removed.json, { ok: true, saved: 1, nft_updates: 1, nft_failed: 0 });
+  assert.equal(db.t('nft_tokens').find(t => t.registration_id === G1).status, 'minted');
+  await post(h, { event_id: EV, category: 'open', rows: [{ registration_id: G1, rider_name: 'Marek K.', place: 3 }] });
+  const cleared = await post(h, { event_id: EV, category: 'open', rows: [] });
+  assert.deepEqual(cleared.json, { ok: true, saved: 0, nft_updates: 1, nft_failed: 0 });
+  assert.deepEqual(chain.resultCalls.map(c => [c.placement, c.points]), [[1, 100], [0, 0], [3, 60], [0, 0]]);
+  assert.equal(db.t('nft_tokens').find(t => t.registration_id === G1).status, 'minted');
+});
+
 test('results: chyba setResult nezhodí uloženie (200, nft_failed)', async () => {
   const { db } = await mintedSeed();
   const res = await post(results(db, fakeChain({ failResult: 1 })), { event_id: EV, category: 'open', rows: [{ registration_id: G1, rider_name: 'Marek K.', place: 1 }] });

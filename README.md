@@ -28,12 +28,15 @@ manifest.webmanifest  nastavenie appky na ploche
 icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
-supabase-setup.sql    databáza pre ostrý režim
+supabase-setup.sql    databáza pre ostrý režim (základ)
+supabase/migrations/  migrácie 001–005 nad supabase-setup.sql (registrácia v2, výsledky, NFT)
+supabase/checks/      grants.sql: audit práv anon/authenticated (iba čítanie)
+chain/                kontrakt GoskoPass (Hardhat), lokálny deploy
 vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
 .vercelignore         čo sa nenahrá na Vercel (a teda nie je verejné)
 api/                  Vercel funkcie (registrácia, passy, admin, NFT, cron)
 scripts/dev-server.js lokálny server s rovnakými hlavičkami a routovaním /api ako na Verceli
-tests/                unit, api, integračné a smoke testy
+tests/                unit, api, integračné, smoke a lokálne e2e testy
 ```
 
 ## 1. Nasadenie na Vercel
@@ -71,8 +74,18 @@ Po zmene premenných treba nasadiť znova, inak ich bežiaca verzia nevidí.
 adresu, takže odkazy v e-mailoch testuj radšej na produkcii alebo tam nastav `PUBLIC_BASE_URL`
 na adresu preview.
 
-Verejné hodnoty webu (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TURNSTILE_SITE_KEY`, `API_BASE`) nie sú
-v prostredí, sú v `CONFIG` v `data.js`.
+Verejné hodnoty webu nie sú v prostredí, sú v `CONFIG` v `data.js`:
+
+| Kľúč | Čo to je | Prázdne znamená |
+|---|---|---|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | projekt Supabase a verejný (publishable) kľúč | ukážkový režim, všetko len v prehliadači |
+| `TURNSTILE_SITE_KEY` | verejný site key Cloudflare Turnstile (secret je len v prostredí API) | widget sa v registrácii nezobrazí; API v produkcii bez `TURNSTILE_SECRET_KEY` registráciu odmietne |
+| `API_BASE` | adresa Vercel funkcií, ak web beží inde (napr. `https://gosko.sk`) | API na tom istom webe (`/api/...`) |
+| `NFT_CONTRACT_ADDRESS` | adresa kontraktu GoskoPass na Base, verejná | pri výsledkoch sa nezobrazí odkaz na NFT |
+
+`NFT_CONTRACT_ADDRESS` doplní operátor do `data.js` ručne po nasadení kontraktu, rovnakú hodnotu ako
+v prostredí API. Pohľad `results_public` adresu kontraktu nevracia (len `chain_id`, `token_id`, `nft_status`),
+odkaz na prieskumník si web skladá z `CONFIG`.
 
 Verzia Node pre funkcie sa berie z `engines.node` v `package.json` (Node 22).
 
@@ -147,6 +160,57 @@ a hash CSP, a že nič z `.vercelignore` (`/supabase-setup.sql`, `/README.md`, `
 nie je verejné. Preview za Vercel Authentication potrebuje navyše `VERCEL_AUTOMATION_BYPASS_SECRET`
 (Project Settings → Deployment Protection → Protection Bypass for Automation).
 
+### Stránky (hash routy)
+
+| Route | Čo je tam |
+|---|---|
+| `#/registracia/<event>` | registrácia v2 (`POST /api/register`), pod 16 rokov s rodičom |
+| `#/registracia/potvrdene`, `#/registracia/neplatny-odkaz` | sem presmeruje odkaz rodiča z e-mailu (`/api/consent`) |
+| `#/pass`, `#/pass/<token>` | moje passy; pass z odkazu v e-maile sa načíta zo servera (`GET /api/pass`) |
+| `#/checkin/<token>`, `#/admin/scan` | check-in pre crew (`POST /api/admin/checkin`), aj ručne podľa mena |
+| `#/admin/vysledky/<event>` | zápis výsledkov a pavúka (`POST /api/admin/results`) |
+| `#/rebricek`, `#/rebricek/pravidla` | GOSko Ranking z `results_public` a rebríčkový poriadok |
+| `#/pravidla`, `#/sukromie` | súťažný poriadok a ochrana osobných údajov |
+
+API endpointy sú v `docs/KONTRAKT-REGISTRACIA.md`, časť 3.
+
+### Supabase v produkcii: poradie migrácií
+
+Všetko v **SQL Editore** projektu, po jednom súbore, v tomto poradí:
+
+1. `supabase/checks/grants.sql` (iba čítanie): ulož si výsledok. Riadky `KRITICKÉ` pri `*_public` pohľadoch
+   sú dôvod migrácie 001.
+2. `supabase/migrations/001_hardening.sql`
+3. `supabase/migrations/002_registration_v2.sql` (premenuje starú tabuľku `registrations` na `registrations_legacy`)
+4. `supabase/migrations/003_results_rpc.sql`
+5. `supabase/migrations/004_guardian_after_checkin.sql`
+6. `supabase/migrations/005_results_clear_nft.sql` (vyhodený jazdec alebo zmazaná kategória vynuluje výsledok aj na chaine)
+7. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`)
+8. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
+
+Každá migrácia je v transakcii a dá sa spustiť znova. Po opätovnom spustení 001 treba znova spustiť 002 až 005
+(001 odoberá všetky práva).
+
+### Čo musí urobiť operátor (brány)
+
+Kód je hotový a lokálne overený, toto sa bez vlastníka projektu nedá:
+
+1. **Supabase:** spustiť migrácie (vyššie) a do Vercelu dať `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Sensitive).
+2. **Resend:** overiť doménu odosielateľa a nastaviť `RESEND_API_KEY`, `MAIL_FROM`. Bez kľúča e-maily neodídu.
+3. **Turnstile:** založiť widget pre `gosko.sk`, site key do `CONFIG.TURNSTILE_SITE_KEY`, secret do `TURNSTILE_SECRET_KEY`.
+   V produkcii bez secretu API registráciu odmietne.
+4. **Minter a kontrakt:** vyrobiť novú peňaženku mintera (nikdy nie testovacie kľúče Hardhatu), poslať jej trochu ETH
+   na Base, nasadiť GoskoPass (`chain/README.md`), nastaviť `CHAIN_ID`, `RPC_URL`, `NFT_CONTRACT_ADDRESS`,
+   `MINTER_PRIVATE_KEY`, `NFT_CUSTODY_ADDRESS` vo Verceli a adresu kontraktu aj do `CONFIG.NFT_CONTRACT_ADDRESS`.
+5. **Doména `gosko.sk`:** kúpiť, pripojiť vo Verceli, `PUBLIC_BASE_URL=https://gosko.sk`, Supabase Auth URL (vyššie).
+6. **GitHub Pages:** súbory z `redirect/` (`index.html`, `sw.js`) nahrá vlastník repozitára do gh-pages, aby
+   stará adresa presmerovala na `gosko.sk` a starý service worker sa odregistroval.
+7. **Zakladatelia a NFT:** import (`node scripts/import-founders.js <csv> --dry-run`, potom bez `--dry-run`; CSV
+   s osobnými údajmi nikdy do repa) zapíše registrácie bez NFT súhlasu. Od zakladateľov treba **najprv získať
+   súhlas s NFT**, zapísať ho (`nft_consent = true`) a až potom spustiť `node scripts/backfill-mint.js --dry-run`
+   a `node scripts/backfill-mint.js`.
+8. **CSP:** po kontrole konzoly na produkcii prepnúť z Report-Only na vynucovanie (vyššie).
+
 ## 2. Lokálny vývoj
 
 Potrebuješ Node 22 alebo novší. Raz `npm install` (jediná závislosť je `viem` pre API).
@@ -175,9 +239,29 @@ Testy:
 | `npm run test:api-int` | API proti PostgREST a lokálnemu Hardhat uzlu |
 | `npm run test:chain` | testy kontraktu (Hardhat, priečinok `chain/`) |
 | `npm run test:smoke` | smoke test nasadenia, treba `GOSKO_URL` (bez neho sa preskočí) |
+| `npm run test:e2e` | celý tok v prehliadači proti lokálnemu stacku (nižšie) |
 
 Smoke test sa dá pustiť aj proti lokálnemu serveru: v jednom termináli `node scripts/dev-server.js`,
 v druhom `GOSKO_URL=http://localhost:3000 npm run test:smoke`.
+
+### Lokálny end-to-end beh
+
+`tests/e2e/local.e2e.test.js` spustí všetko sám a na konci to zastaví: lokálnu DB `gosko_test` s migráciami
+001–005 a PostgREST na porte 3901, `npx hardhat node` (8545) s GoskoPass nasadeným cez
+`chain/scripts/deploy-local.ts`, dev server na porte 3010 a headless Chromium. Prejde registráciu dospelého
+a pass, registráciu U16 so súhlasom rodiča (GET stránka, POST potvrdenie), check-in adminom s mintom,
+metadáta NFT bez osobných údajov, uloženie výsledkov s rebríčkom a zmazanie výsledkov s vynulovaním na chaine.
+
+```bash
+PLAYWRIGHT_MODULE=/cesta/k/node_modules/playwright npm run test:e2e
+```
+
+Potrebuje lokálny Postgres (socket `/tmp`, port 5432), `postgrest`, `chain/node_modules` a Playwright
+s nainštalovaným Chromiom (nie je závislosť projektu, preto `PLAYWRIGHT_MODULE`). Port 8545 musí byť voľný.
+Dev server dostane lokálne hodnoty cez prostredie (nič sa nezapisuje do `.env.local`). GoTrue lokálne
+nebeží, preto test spustí malú bránu na porte 3902: `/auth/v1/user` overí testovací JWT a `/rest/v1/*`
+pošle na PostgREST, aby supabase-js v prehliadači fungoval ako proti Supabase. Prehliadač má zakázané
+všetky požiadavky mimo localhost (aj `*.supabase.co`) a test zlyhá, ak by niektorá išla na Supabase.
 
 ## 3. Bežná údržba: `data.js`
 
@@ -238,7 +322,9 @@ event, stiahni CSV a pošli e-mail cez svoj mail alebo nástroj ako Mailchimp
    Ide to aj bežnou kamerou mobilu: QR otvorí stránku na potvrdenie.
 4. V admine pri registráciách vidíš, koľko ľudí prišlo.
 
-Check-in potrebuje internet. Body do rebríčka sa stále zapisujú do `data.js`.
+Check-in potrebuje internet. Pri check-ine jazdca so súhlasom s NFT (U16 až po súhlase rodiča) sa vydá
+GoskoPass; ak mint nevyjde, dorobí ho cron. Výsledky uložené v `#/admin/vysledky` idú rovno do rebríčka
+(`results_public`) a na chain; staršie výsledky v `data.js` ostávajú.
 
 Na hlasovanie a posielanie parkov sa treba prihlásiť e-mailom (jeden človek,
 jeden hlas). Registrácie, eventy a formuláre idú bez prihlásenia.

@@ -137,6 +137,30 @@ test('pushResults: chyba setResult zapíše failed, ostatné prejdú', async () 
   assert.deepEqual(db.t('nft_tokens').map(t => t.status).sort(), ['failed', 'result_set']);
 });
 
+test('pushResults: token, ktorému zmizol výsledok, sa na chaine vynuluje (0, 0) a vráti do minted', async () => {
+  const db = new FakeDb({
+    registrations: [{ id: REG, rider_id: RIDER, event_id: 'ev-1', category: 'open', status: 'checked_in', nft_consent: true }],
+    nft_tokens: [{ registration_id: REG, token_id: '7', status: 'result_pending' }],
+    event_results: [],
+  });
+  const chain = fakeChain();
+  const r = await make(db, chain).pushResults('ev-1');
+  assert.deepEqual(r, { updated: 1, failed: 0 });
+  assert.deepEqual(chain.resultCalls, [{ tokenId: '7', placement: 0, points: 0 }]);
+  assert.equal(db.t('nft_tokens')[0].status, 'minted');
+  assert.ok(db.t('nft_tokens')[0].result_tx);
+});
+
+test('pushResults: tokeny iného eventu sa nevynulujú', async () => {
+  const db = new FakeDb({
+    registrations: [{ id: REG2, rider_id: RIDER, event_id: 'ev-2', category: 'open', status: 'checked_in', nft_consent: true }],
+    nft_tokens: [{ registration_id: REG2, token_id: '8', status: 'result_pending' }],
+  });
+  const chain = fakeChain();
+  assert.deepEqual(await make(db, chain).pushResults('ev-1'), { updated: 0, failed: 0 });
+  assert.equal(chain.resultCalls.length, 0);
+});
+
 test('retryAll: dorobí failed mint, zaseknutý pending a čakajúce výsledky', async () => {
   const db = seed();
   db.t('registrations').push({ id: REG2, rider_id: RIDER, event_id: 'ev-1', category: 'open', status: 'checked_in', nft_consent: true });

@@ -11,6 +11,7 @@
     "test:api-int": "node --test --test-concurrency=1 \"tests/integration/api/**/*.test.js\"",
     "test:chain": "cd chain && npx hardhat test nodejs",
     "test:smoke": "node --test \"tests/smoke/**/*.test.js\"",
+    "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/**/*.test.js\"",
     "dev": "node scripts/dev-server.js"
   },
   "dependencies": {

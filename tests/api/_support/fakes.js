@@ -165,6 +165,12 @@ export class FakeDb {
         return { ...r };
       },
       save_results: ({ p_event_id, p_category, p_rows, p_actor }) => {
+        // ako migrácia 005: token vyhodeného jazdca s výsledkom na chaine sa má vynulovať
+        const kept = new Set(p_rows.map(r => r.registration_id).filter(Boolean));
+        for (const old of this.t('event_results').filter(x => x.event_id === p_event_id && x.category === p_category && x.registration_id && !kept.has(x.registration_id))) {
+          const tok = this.t('nft_tokens').find(t => t.registration_id === old.registration_id && t.status === 'result_set');
+          if (tok) tok.status = 'result_pending';
+        }
         this.tables.event_results = this.t('event_results').filter(x => !(x.event_id === p_event_id && x.category === p_category));
         for (const row of p_rows) {
           this.tables.event_results.push({ ...DEFAULTS.event_results(), event_id: p_event_id, category: p_category, registration_id: row.registration_id ?? null, rider_name: row.rider_name, place: row.place, points: pointsFor(row.place) });

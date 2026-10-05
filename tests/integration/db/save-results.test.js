@@ -126,6 +126,27 @@ describe('save_results', () => {
     assert.equal(auditCount(), before + 1);
   });
 
+  test('005: a rider removed from the results gets result_pending so the chain value is cleared', async () => {
+    await save([{ registration_id: a.registration_id, rider_name: 'Adam Prvý', place: 1 }, { registration_id: b.registration_id, rider_name: 'Boris Druhý', place: 2 }]);
+    sql(`update public.nft_tokens set status = 'result_set' where registration_id in ('${a.registration_id}', '${b.registration_id}')`);
+    const res = await save([{ registration_id: b.registration_id, rider_name: 'Boris Druhý', place: 1 }]);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(nftStatus(a.registration_id), 'result_pending', 'removed rider: chain still holds the old result');
+    assert.equal(nftStatus(b.registration_id), 'result_pending');
+    const [log] = sqlRows(`select data from public.audit_log where action = 'results.save' order by id desc limit 1`);
+    assert.equal(log.data.nft_updates, 2);
+  });
+
+  test('005: an empty array marks every token that had a result on chain, not unminted or untouched ones', async () => {
+    await save([{ registration_id: a.registration_id, rider_name: 'Adam Prvý', place: 1 }, { registration_id: c.registration_id, rider_name: 'Cyril Tretí', place: 2 }]);
+    sql(`update public.nft_tokens set status = 'result_set' where registration_id = '${a.registration_id}'`);
+    const res = await save([]);
+    assert.equal(res.status, 200);
+    assert.equal(nftStatus(a.registration_id), 'result_pending');
+    assert.equal(nftStatus(b.registration_id), 'result_set', 'token without a result in this category stays');
+    assert.equal(nftStatus(c.registration_id), 'pending', 'unminted token stays pending');
+  });
+
   test('only service_role can execute it', async () => {
     for (const as of ['anon', 'authenticated', 'admin', null]) {
       const res = await save([{ rider_name: 'Hacker', place: 1 }], { as });

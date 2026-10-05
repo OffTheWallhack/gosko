@@ -82,6 +82,19 @@ describe('admin reads, only service_role writes', () => {
     }
   });
 
+  // assets/store.js eventRegistrations(): supabase-js embed cez FK registrations.rider_id -> riders
+  test('admin embed registrations?select=...,riders(display_name) works; others get nothing', async () => {
+    const q = '/registrations?select=id,category,status,checked_in_at,riders(display_name)&event_id=eq.bratislava-2&status=neq.cancelled&limit=2000';
+    const admin = await rest(q, { as: 'admin' });
+    assert.equal(admin.status, 200, JSON.stringify(admin.body));
+    const row = admin.body.find(r => r.id === marek.registration_id);
+    assert.deepEqual(row, { id: marek.registration_id, category: 'open', status: 'confirmed', checked_in_at: null, riders: { display_name: 'Marek Kupkovič' } });
+    const user = await rest(q, { as: 'authenticated' });
+    assert.ok(DENIED.includes(user.status) || (user.status === 200 && user.body.length === 0), `${user.status} ${JSON.stringify(user.body)}`);
+    const anon = await rest(q, { as: 'anon' });
+    assert.ok(DENIED.includes(anon.status), `${anon.status} ${JSON.stringify(anon.body)}`);
+  });
+
   test('service_role can create a rider and a registration', async () => {
     const rider = { rider_ref: riderRef(), display_name: 'Servisný Jazdec', country: 'CZ', public_name_mode: 'full' };
     const r = await rest('/riders', { method: 'POST', as: 'service_role', body: rider, headers: { Prefer: 'return=representation' } });
@@ -321,14 +334,14 @@ describe('seed and re-runnable migrations', () => {
     ]);
   });
 
-  test('migrations 001-004 and the seed can be applied again without changes', async () => {
+  test('migrations 001-005 and the seed can be applied again without changes', async () => {
     const state = () => sql(`select md5(string_agg(x, '|' order by x)) from (
       select id || status || category as x from public.registrations
       union all select id || name || status || registration_open::text from public.events
       union all select event_id || category || rider_name || place || points from public.event_results
       union all select id::text || public_name_mode from public.riders) s`);
     const before = state();
-    for (const f of ['001_hardening', '002_registration_v2', '003_results_rpc', '004_guardian_after_checkin']) sqlFile(join(ROOT, 'supabase', 'migrations', `${f}.sql`));
+    for (const f of ['001_hardening', '002_registration_v2', '003_results_rpc', '004_guardian_after_checkin', '005_results_clear_nft']) sqlFile(join(ROOT, 'supabase', 'migrations', `${f}.sql`));
     sqlFile(join(ROOT, 'supabase', 'seed', 'events_2026.sql'));
     assert.equal(state(), before);
     assert.equal(sql(`select count(*) from public.registrations_legacy`), '1');
