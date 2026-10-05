@@ -42,6 +42,8 @@ export function consentPage({ token, eventName, eventDate, eventCity, publicName
   return page('Súhlas rodiča', `<h1 style="margin:0 0 12px;font-size:24px">Súhlas rodiča</h1>
 <p style="margin:0 0 12px">Podujatie: <strong>${escapeHtml(eventName)}</strong> (${escapeHtml(when)})<br>
 Jazdec: <strong>${escapeHtml(publicName)}</strong></p>
+<p style="margin:0 0 12px">Vo výsledkoch a v rebríčku sa po potvrdení zobrazí meno: <strong>${escapeHtml(publicName)}</strong>.
+Ak chcete iné zobrazenie (napr. len meno a iniciálu), pošlite nám žiadosť o súkromie na webe GOSko.</p>
 <p style="margin:0 0 8px">Potvrdením súhlasíte s:</p>
 <ul style="margin:0 0 16px;padding-left:20px">
 <li>účasťou jazdca na podujatí podľa pravidiel GOSko,</li>
@@ -101,7 +103,7 @@ export function createHandler(deps) {
     let reg;
     try {
       reg = await db.selectOne('registrations', { guardian_token: eq(token) }, {
-        select: 'id,event_id,rider_id,status,guardian_confirmed_at,photo_consent,nft_consent',
+        select: 'id,event_id,rider_id,status,guardian_confirmed_at,guardian_token_expires_at,photo_consent,nft_consent',
       });
     } catch (err) {
       if (clientError(err)) return redirect(res, bad());
@@ -109,6 +111,7 @@ export function createHandler(deps) {
       return unavailable(res);
     }
     if (!reg || reg.guardian_confirmed_at || !OPEN.includes(reg.status)) return redirect(res, bad());
+    if (reg.guardian_token_expires_at && Date.parse(reg.guardian_token_expires_at) <= now().getTime()) return redirect(res, bad());
     const [event, rider] = await Promise.all([loadEvent(db, reg.event_id), loadRider(db, reg.rider_id)]).catch(() => [null, null]);
     const html = consentPage({
       token,

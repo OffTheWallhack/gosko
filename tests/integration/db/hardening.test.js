@@ -50,7 +50,7 @@ const VIEWS = {
   spots_public: { col: 'name', filter: 'id=not.is.null' },
   event_photos_public: { col: 'caption', filter: 'id=not.is.null' },
   parks_ranked: { col: 'name', filter: 'id=not.is.null' },
-  riders_public: { col: 'city', filter: 'id=not.is.null' },
+  riders_public: { col: 'country', filter: 'id=not.is.null' },
   results_public: { col: 'category', filter: 'place=gte.0' },
   events_public: { col: 'name', filter: 'id=not.is.null' },
 };

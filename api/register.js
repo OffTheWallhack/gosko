@@ -1,19 +1,24 @@
 // POST /api/register (kontrakt §3). Poradie: Turnstile, rate limit, event, validácia,
 // rodič pri U16, kapacita, jazdec (dedupe lower(email)+birth_date), registrácia, e-mail.
+// Existujúci jazdec (rovnaký e-mail a dátum narodenia) dostane 202 check_email bez passu a mena:
+// pass ide len e-mailom na adresu z registrácie, údaje jazdca ani rodiča sa neprepíšu (audit M1).
 import { baseDeps } from './_lib/deps.js';
-import { ApiError, allowMethods, clientIp, readJson, send, sendError } from './_lib/http.js';
+import { ApiError, allowMethods, clientIp, rateLimitIp, readJson, send, sendError } from './_lib/http.js';
 import { eq, inList, isUniqueViolation } from './_lib/db.js';
 import { U16_LIMIT, ageAt, categoryFor, isEventId, todayIn, validateRegistration } from './_lib/validate.js';
 import { rateLimitHit } from './_lib/ratelimit.js';
-import { confirmationMail, guardianConsentMail } from './_lib/mail.js';
+import { confirmationMail, guardianConsentMail, passResendMail } from './_lib/mail.js';
 import { audit } from './_lib/audit.js';
 import { consentUrl, loadEvent, passOf, passUrl, riderPublicName } from './_lib/passview.js';
 import { randomBytes as nodeRandomBytes, randomUUID } from 'node:crypto';
 
 const ACTIVE = ['pending_guardian', 'confirmed', 'checked_in'];
 
-const conflict = () => new ApiError(409, 'already_registered',
-  'Registrácia s týmito údajmi na tento event už existuje. Pass ti vieme poslať znova e-mailom.');
+const DAY = 86_400_000;
+// Odkaz pre rodiča platí 7 dní po evente, bez dátumu eventu 60 dní (006, guardian_token_expires_at).
+export const guardianExpiry = (eventDate, now) => (eventDate
+  ? new Date(Date.parse(`${eventDate}T23:59:59Z`) + 7 * DAY)
+  : new Date(now.getTime() + 60 * DAY)).toISOString();
 
 export function createHandler(deps) {
   const { env, db, mail, turnstile } = deps;
@@ -23,24 +28,17 @@ export function createHandler(deps) {
   const uuid = deps.uuid || randomUUID;
 
   async function findRider(input) {
-    const priv = await db.selectOne('rider_private', { email: eq(input.email), birth_date: eq(input.birth_date) }, { select: 'rider_id' });
+    const priv = await db.selectOne('rider_private', { email: eq(input.email), birth_date: eq(input.birth_date) },
+      { select: 'rider_id,email,guardian_name,guardian_email' });
     if (!priv) return null;
-    return db.selectOne('riders', { id: eq(priv.rider_id) }, { select: 'id,display_name,nickname,public_name_mode' });
+    const rider = await db.selectOne('riders', { id: eq(priv.rider_id) }, { select: 'id,display_name,nickname,public_name_mode' });
+    return rider ? { ...rider, existing: true, priv } : null;
   }
 
-  async function findOrCreateRider(input, minor) {
+  // Existujúci jazdec sa z neprihlásenej požiadavky nikdy nemení (ani rodič v rider_private).
+  async function findOrCreateRider(input) {
     const existing = await findRider(input);
-    if (existing) {
-      // existujúci jazdec sa nemení; pri U16 si zapamätáme rodiča, ktorému ide súhlas
-      if (minor) {
-        await db.update('rider_private', { rider_id: eq(existing.id) }, {
-          guardian_email: input.guardian_email,
-          guardian_name: input.guardian_name,
-          updated_at: now().toISOString(),
-        });
-      }
-      return existing;
-    }
+    if (existing) return existing;
     const [rider] = await db.insert('riders', {
       rider_ref: `0x${randomBytes(32).toString('hex')}`,
       display_name: input.display_name,
@@ -71,6 +69,19 @@ export function createHandler(deps) {
     return rider;
   }
 
+  // Pass existujúcej registrácie znova e-mailom na adresu jazdca (duplicitná registrácia).
+  async function resendPass(reg, event, to) {
+    try {
+      await mail.send({ to, ...passResendMail({ eventName: event.name, eventDate: event.date, eventCity: event.city, passUrl: passUrl(env, reg.token) }) });
+      return true;
+    } catch (err) {
+      log.error('[register] e-mail neodišiel', reg.id, err?.message);
+      return false;
+    }
+  }
+
+  const checkEmail = (res, mailSent) => send(res, 202, { ok: true, status: 'check_email', mail_sent: mailSent });
+
   return async function register(req, res) {
     if (!allowMethods(req, res, ['POST'])) return;
     try {
@@ -80,7 +91,7 @@ export function createHandler(deps) {
       const captcha = await turnstile.verify(body.turnstile_token, ip);
       if (!captcha.ok) throw new ApiError(403, 'captcha_failed', 'Overenie, že nie si robot, zlyhalo. Obnov stránku a skús to znova.');
 
-      if (await rateLimitHit(db, `reg:${ip}`, env.RATE_LIMIT_PER_10MIN, 10)) {
+      if (await rateLimitHit(db, `reg:${rateLimitIp(ip)}`, env.RATE_LIMIT_PER_10MIN, 10)) {
         throw new ApiError(429, 'rate_limited', 'Príliš veľa registrácií z tejto siete. Skús to znova o 10 minút.');
       }
 
@@ -111,13 +122,25 @@ export function createHandler(deps) {
         if (taken >= event.capacity) throw new ApiError(422, 'event_closed', 'Event je už plný.');
       }
 
-      const rider = await findOrCreateRider(input, minor);
-      const dup = await db.selectOne('registrations', { rider_id: eq(rider.id), event_id: eq(event.id) }, { select: 'id' });
-      if (dup) throw conflict();
+      const rider = await findOrCreateRider(input);
+      const riderEmail = rider.priv?.email || input.email;
+      const findDup = () => db.selectOne('registrations', { rider_id: eq(rider.id), event_id: eq(event.id) }, { select: 'id,token' });
+      const dup = await findDup();
+      if (dup) {
+        const sent = await resendPass(dup, event, riderEmail);
+        await audit(db, { action: 'register.duplicate', entity: 'registration', entity_id: dup.id, data: { event_id: event.id, mail_sent: sent } }, log);
+        return checkEmail(res, sent);
+      }
 
       const category = categoryFor(age, input.women);
       const status = minor ? 'pending_guardian' : 'confirmed';
       const guardianToken = minor ? uuid() : null;
+      // rodič patrí k registrácii; pri známom jazdcovi platí rodič, ktorého už máme
+      const guardian = minor
+        ? (rider.priv?.guardian_email
+          ? { name: rider.priv.guardian_name, email: rider.priv.guardian_email }
+          : { name: input.guardian_name, email: input.guardian_email })
+        : { name: null, email: null };
       let reg;
       try {
         [reg] = await db.insert('registrations', {
@@ -130,20 +153,26 @@ export function createHandler(deps) {
           photo_consent: input.consents.photo,
           nft_consent: input.consents.nft,
           guardian_token: guardianToken,
+          guardian_token_expires_at: guardianToken ? guardianExpiry(event.date, now()) : null,
+          guardian_name: guardian.name,
+          guardian_email: guardian.email,
         });
       } catch (err) {
-        if (isUniqueViolation(err)) throw conflict();
-        throw err;
+        if (!isUniqueViolation(err)) throw err;
+        const raced = await findDup();
+        if (!raced) throw err;
+        return checkEmail(res, await resendPass(raced, event, riderEmail));
       }
 
       let mailSent = false;
       try {
         if (minor) {
           await mail.send({
-            to: input.guardian_email,
+            to: guardian.email,
             ...guardianConsentMail({
-              guardianName: input.guardian_name,
-              riderName: input.legal_name,
+              guardianName: guardian.name,
+              riderName: rider.existing ? riderPublicName(rider) : input.legal_name,
+              publicName: riderPublicName(rider),
               eventName: event.name,
               eventDate: event.date,
               eventCity: event.city,
@@ -154,7 +183,7 @@ export function createHandler(deps) {
           });
         } else {
           await mail.send({
-            to: input.email,
+            to: riderEmail,
             ...confirmationMail({
               eventName: event.name,
               eventDate: event.date,
@@ -174,9 +203,10 @@ export function createHandler(deps) {
         action: 'register',
         entity: 'registration',
         entity_id: reg.id,
-        data: { event_id: event.id, category, status, consent_version: env.CONSENT_VERSION, mail_sent: mailSent },
+        data: { event_id: event.id, category, status, consent_version: env.CONSENT_VERSION, mail_sent: mailSent, existing_rider: Boolean(rider.existing) },
       }, log);
 
+      if (rider.existing) return checkEmail(res, mailSent);
       send(res, 201, { ok: true, status, pass: passOf(reg, event, rider), mail_sent: mailSent });
     } catch (err) {
       sendError(res, err, log);

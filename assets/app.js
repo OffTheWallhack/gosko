@@ -529,6 +529,8 @@ function registerDialog(ev) {
       }
       if (v.newsletter) store.subscribe(v.email.trim().toLowerCase(), 'registracia').catch(() => {});
       updateMenu();
+      if (r.status === 'check_email') return h('div', { class: 'pass-done' },
+        h('p', {}, 'Registráciu sme prijali. Pass ti pošleme e-mailom na adresu, ktorú si zadal. Pozri aj spam.'));
       return h('div', { class: 'pass-done' },
         h('p', {}, r.status === 'pending_guardian'
           ? 'Registrácia čaká na súhlas rodiča. Poslali sme mu e-mail s odkazom na potvrdenie. Pass platí až po potvrdení, ukáž ho crew pri príchode.'

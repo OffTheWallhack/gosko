@@ -129,8 +129,10 @@ export function validateRegistration(input, opts = {}) {
 
   value.women = bool(input.women);
 
+  // bez výslovnej voľby: dospelý celé meno, jazdec do 16 rokov len meno a iniciála (audit M4)
+  const minorAtEvent = isDate(value.birth_date) && ageAt(value.birth_date, opts.eventDate && isDate(opts.eventDate) ? opts.eventDate : today) < U16_LIMIT;
   value.public_name_mode = input.public_name_mode === undefined || input.public_name_mode === null || input.public_name_mode === ''
-    ? 'full' : input.public_name_mode;
+    ? (minorAtEvent ? 'short' : 'full') : input.public_name_mode;
   if (!NAME_MODES.includes(value.public_name_mode)) errors.public_name_mode = 'Vyber, ako sa má zobraziť tvoje meno.';
 
   value.guardian_name = null;

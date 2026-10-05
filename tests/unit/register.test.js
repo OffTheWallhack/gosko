@@ -194,6 +194,15 @@ describe('completeRegistration: pass len zo servera', () => {
     await assert.rejects(R.completeRegistration({ fetch: fakeFetch(201, { ok: true, status: 'confirmed', pass: {} }), payload, ev, save: p => saved.push(p) }), UserError);
     assert.equal(saved.length, 0);
   });
+  test('202 check_email (známy jazdec): žiadny pass sa neuloží, status check_email', async () => {
+    const saved = [];
+    const r = await R.completeRegistration({ fetch: fakeFetch(202, { ok: true, status: 'check_email', mail_sent: true }), payload, ev, save: p => saved.push(p) });
+    assert.deepEqual(r, { status: 'check_email', pass: null });
+    assert.equal(saved.length, 0);
+  });
+  test('NAME_MODES: predvolená (prvá) voľba je meno a iniciála', () => {
+    assert.equal(R.NAME_MODES[0].value, 'short');
+  });
   test('pending_guardian: pass sa uloží so stavom čakania na rodiča', async () => {
     const saved = [];
     await R.completeRegistration({ fetch: fakeFetch(201, { ok: true, status: 'pending_guardian', pass: { ...pass, category: 'u16' } }), payload, ev, save: p => saved.push(p) });

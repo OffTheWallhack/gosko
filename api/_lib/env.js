@@ -34,6 +34,7 @@ export function readEnv(src = process.env) {
     TURNSTILE_SECRET_KEY: s('TURNSTILE_SECRET_KEY'),
     RESEND_API_KEY: s('RESEND_API_KEY'),
     MAIL_FROM: s('MAIL_FROM') || 'GOSko <registracia@gosko.sk>',
+    MAIL_DEV_LOG: s('MAIL_DEV_LOG'),
     PUBLIC_BASE_URL: trimSlash(s('PUBLIC_BASE_URL') || 'https://gosko.sk'),
     CONSENT_VERSION: s('CONSENT_VERSION') || '2026-10',
     CHAIN_ID: int(src.CHAIN_ID, 84532),

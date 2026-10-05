@@ -224,11 +224,13 @@ if (missing.length) {
     assert.ok(S.mail.sent.at(-1).text.includes(`${BASE}/#/pass/${S.adultToken}`));
   });
 
-  test('duplicita: 409 already_registered bez údajov', async () => {
+  test('duplicita: 202 check_email bez údajov, pass ide e-mailom jazdcovi', async () => {
     const res = await post(S.h.register, body({ email: 'ZUZANA.tajomna@example.sk', legal_name: 'Iné Meno' }), { 'x-forwarded-for': '198.51.100.11' });
-    assert.equal(res.statusCode, 409);
-    assert.equal(res.json.error, 'already_registered');
+    assert.equal(res.statusCode, 202);
+    assert.deepEqual(res.json, { ok: true, status: 'check_email', mail_sent: true });
     assert.ok(!res.body.includes('Zuz') && !res.body.includes(S.adultToken));
+    assert.equal(S.mail.sent.at(-1).to, 'zuzana.tajomna@example.sk');
+    assert.ok(S.mail.sent.at(-1).text.includes(S.adultToken));
   });
 
   test('U16: bez rodiča 422, s rodičom pending_guardian, súhlas -> potvrdene, druhý klik -> neplatny-odkaz', async () => {
@@ -297,7 +299,9 @@ if (missing.length) {
     S.adultTokenId = BigInt(tok.token_id);
     assert.equal(await read('tokenOfRegistration', [encodeRegistrationKey(S.adultReg.id)]), S.adultTokenId);
     const pass = await read('passOf', [S.adultTokenId]);
-    assert.equal(pass.riderRef, S.adultRiderRef);
+    // 006 (audit M2): riderRef na chaine je náhodný pre token, nie riders.rider_ref
+    assert.notEqual(pass.riderRef, S.adultRiderRef);
+    assert.equal(pass.riderRef, tok.rider_ref);
     assert.equal(pass.eventId, encodeEventId(S.eventId));
     assert.equal(pass.category, 1);
     assert.equal((await read('ownerOf', [S.adultTokenId])).toLowerCase(), CUSTODY.toLowerCase());

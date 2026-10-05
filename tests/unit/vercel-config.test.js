@@ -85,6 +85,7 @@ describe('vercel.json: bezpečnostné hlavičky', () => {
       const h = headersFor(p);
       assert.equal(h['x-content-type-options'], 'nosniff');
       assert.equal(h['referrer-policy'], 'strict-origin-when-cross-origin');
+      assert.equal(h['strict-transport-security'], 'max-age=63072000; includeSubDomains');
       const pp = h['permissions-policy'];
       for (const f of ['camera=(self)', 'geolocation=(self)', 'fullscreen=(self)', 'screen-wake-lock=(self)']) assert.ok(pp.includes(f), `Permissions-Policy: ${f}`);
       assert.ok(h['content-security-policy-report-only'] || h['content-security-policy'], 'CSP chýba');
@@ -112,8 +113,10 @@ describe('vercel.json: CSP', () => {
   });
 
   test('script-src', () => {
-    has('script-src', "'self'", 'https://cdn.jsdelivr.net', 'https://challenges.cloudflare.com');
+    has('script-src', "'self'", 'https://cdn.jsdelivr.net/npm/three@0.160.0/', 'https://challenges.cloudflare.com');
     const list = csp.get('script-src');
+    // celý jsdelivr by dovolil obísť CSP ľubovoľným npm balíkom (audit M3); povolený je len three
+    assert.ok(!list.includes('https://cdn.jsdelivr.net'), 'script-src nesmie povoliť celý cdn.jsdelivr.net');
     assert.ok(!list.includes("'unsafe-inline'") && !list.includes("'unsafe-eval'"));
   });
   test('style-src', () => has('style-src', "'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'));
@@ -173,7 +176,8 @@ describe('.vercelignore', () => {
   const ignores = createIgnore(read('.vercelignore'));
 
   for (const p of ['README.md', 'supabase/migrations/001_hardening.sql', 'supabase-setup.sql', 'tests/unit/ranking.test.js', 'chain/contracts/GoskoPass.sol',
-    'scripts/dev-server.js', 'docs/KONTRAKT-REGISTRACIA.md', '.workflow/session.json', 'redirect/index.html', '.env', '.env.example', '.env.local']) {
+    'scripts/dev-server.js', 'docs/KONTRAKT-REGISTRACIA.md', '.workflow/session.json', 'redirect/index.html', '.env', '.env.example', '.env.local',
+    'zakladatelia.csv', 'Downloads/GOSko registrácie.xlsx', 'export.tsv']) {
     test(`vylúčené: ${p}`, () => assert.equal(ignores(p), true));
   }
 

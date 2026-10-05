@@ -4,9 +4,10 @@
 import { apiRequest, ApiError } from './api.js';
 
 export const U16_LIMIT = 16;
+/* Prvá možnosť je predvolená: meno a iniciála (audit M4, chráni hlavne jazdcov do 16 rokov). */
 export const NAME_MODES = [
-  { value: 'full', label: 'Celé meno (napr. Marek Kupkovič)' },
   { value: 'short', label: 'Meno a iniciála (napr. Marek K.)' },
+  { value: 'full', label: 'Celé meno (napr. Marek Kupkovič)' },
   { value: 'nick', label: 'Prezývka' },
 ];
 export const COUNTRIES = [
@@ -111,9 +112,11 @@ export function buildPayload(v, eventId, turnstileToken) {
 const BAD_PASS = 'Server nevrátil pass. Registráciu sme nepotvrdili, skús to znova alebo nám napíš.';
 const toRecord = (p, date, status, now) => ({ token: p.token, eventId: p.event_id, event: p.event_name, date: date || '', name: p.public_name, category: p.category, status, created: now });
 
-/* Odošle registráciu. save(pass) sa zavolá LEN pri úspechu s passom zo servera; pri chybe sa hodí UserError s textom zo servera. */
+/* Odošle registráciu. save(pass) sa zavolá LEN pri úspechu s passom zo servera; pri chybe sa hodí UserError s textom zo servera.
+   Známy jazdec (rovnaký e-mail a dátum narodenia) dostane status check_email bez passu: pass mu príde len e-mailom. */
 export async function completeRegistration({ fetch, payload, ev, save, apiBase = '', now = Date.now() }) {
   const data = await apiRequest(fetch, `${apiBase}/api/register`, { method: 'POST', body: payload });
+  if (data.status === 'check_email') return { status: 'check_email', pass: null };
   const p = data.pass;
   if (!p || typeof p.token !== 'string' || !p.token) throw new ApiError(BAD_PASS, { code: 'bad_response' });
   const rec = toRecord(p, ev?.date, data.status, now);

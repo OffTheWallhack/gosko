@@ -1,7 +1,7 @@
 // GET /api/pass?token= : pass zo servera. POST /api/pass {email, event_id}: znova pošle pass
 // e-mailom. POST vždy vráti 200 {ok:true}, aby sa nedalo zisťovať, kto je registrovaný.
 import { baseDeps } from './_lib/deps.js';
-import { ApiError, allowMethods, clientIp, queryOf, readJson, send, sendError } from './_lib/http.js';
+import { ApiError, allowMethods, clientIp, queryOf, rateLimitIp, readJson, send, sendError } from './_lib/http.js';
 import { eq, inList } from './_lib/db.js';
 import { isEmail, isEventId, isUuid } from './_lib/validate.js';
 import { rateLimitHit } from './_lib/ratelimit.js';
@@ -28,7 +28,7 @@ export function createHandler(deps) {
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const eventId = typeof body.event_id === 'string' ? body.event_id.trim() : '';
     if (!isEmail(email) || !isEventId(eventId)) return;
-    if (await rateLimitHit(db, `pass:${ip}`, env.RATE_LIMIT_PER_10MIN, 10)) return;
+    if (await rateLimitHit(db, `pass:${rateLimitIp(ip)}`, env.RATE_LIMIT_PER_10MIN, 10)) return;
     const privs = await db.select('rider_private', { email: eq(email) }, { select: 'rider_id' });
     if (!privs.length) return;
     const regs = await db.select('registrations', {

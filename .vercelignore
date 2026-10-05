@@ -21,3 +21,8 @@
 .env*
 .DS_Store
 *.log
+
+# exporty s osobnými údajmi (napr. zakladatelia z Google Forms)
+*.csv
+*.tsv
+*.xlsx

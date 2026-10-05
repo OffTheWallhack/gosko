@@ -32,6 +32,13 @@ export const INBOX = {
 
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
 
+/* Riadky pohľadu registrations_admin pre admin výsledkov. Meno je verejné meno podľa voľby jazdca; U16 bez súhlasu
+   rodiča meno nemá a dostane zástupné „Jazdec U16 #abcd“ (stabilné podľa ID, aby sa dalo spárovať s registráciou). */
+export const adminRegistrations = rows => rows.map(r => ({
+  id: r.id, category: r.category, status: r.status, checked_in_at: r.checked_in_at,
+  name: r.public_name || `Jazdec U16 #${String(r.id).slice(0, 4)}`,
+}));
+
 /* Riadky pohľadu results_public (+ krajina z riders_public) do tvaru, ktorý berie ranking.js (mergeEvent):
    { event_id, category, rider_name, place, rider_id, country?, nft? }. Staršie výsledky bez registrácie majú rider_id null. */
 export function mapPublicResults(rows, riders = []) {
@@ -234,10 +241,10 @@ async function liveStore(CONFIG) {
     async accessToken() { return (await session())?.access_token || ''; },
     /* Admin zápisy idú cez Vercel API so Supabase JWT (kontrakt §3). */
     async adminCheckin(body) { return api('/api/admin/checkin', body); },
-    /* Registrácie eventu pre zápis výsledkov a ručný check-in (admin má SELECT na registrations a riders). */
+    /* Registrácie eventu pre pavúk, ocenenia a výsledky: pohľad registrations_admin (006) dáva len verejné meno,
+       lebo tieto mená idú do verejných tabuliek brackets a event_awards (audit H1). */
     async eventRegistrations(event_id) {
-      const data = must(await sb.from('registrations').select('id,category,status,checked_in_at,riders(display_name)').eq('event_id', event_id).neq('status', 'cancelled').limit(2000));
-      return data.map(r => ({ id: r.id, category: r.category, status: r.status, checked_in_at: r.checked_in_at, name: r.riders?.display_name || '' }));
+      return adminRegistrations(must(await sb.from('registrations_admin').select('id,category,status,checked_in_at,public_name').eq('event_id', event_id).neq('status', 'cancelled').limit(2000)));
     },
     async listAwards() { return must(await sb.from('event_awards').select('event_id,name,rider_name').limit(1000)); },
     async listBrackets() { return must(await sb.from('brackets').select('event_id,category,data,updated_at').limit(500)); },

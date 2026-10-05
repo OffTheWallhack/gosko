@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readJson, send, redirect, allowMethods, clientIp, queryOf, bearerToken, ApiError, sendError, pathParam } from '../../../api/_lib/http.js';
+import { readJson, send, redirect, allowMethods, clientIp, rateLimitIp, queryOf, bearerToken, ApiError, sendError, pathParam } from '../../../api/_lib/http.js';
+import { DbError } from '../../../api/_lib/db.js';
 import { mockReq, mockRes } from '../_support/fakes.js';
 
 test('readJson: objekt od Vercelu sa vráti priamo', async () => {
@@ -52,6 +53,27 @@ test('allowMethods: nepovolená metóda dostane 405 a Allow', () => {
   assert.equal(allowMethods(mockReq({ method: 'POST' }), mockRes(), ['POST']), true);
 });
 
+test('readJson: iný Content-Type ako JSON je 415 (cross-site text/plain a formulár), JSON s charset prejde', async () => {
+  for (const ct of ['text/plain', 'application/x-www-form-urlencoded', 'multipart/form-data; boundary=x', 'application/jsonp']) {
+    await assert.rejects(readJson(mockReq({ method: 'POST', headers: { 'content-type': ct }, body: '{"a":1}' })), e => e.status === 415 && e.code === 'unsupported_media_type', ct);
+  }
+  assert.deepEqual(await readJson(mockReq({ method: 'POST', headers: { 'content-type': 'application/json; charset=utf-8' }, body: '{"a":1}' })), { a: 1 });
+});
+
+test('clientIp: x-vercel-forwarded-for a x-real-ip majú prednosť pred x-forwarded-for', () => {
+  assert.equal(clientIp(mockReq({ headers: { 'x-forwarded-for': '6.6.6.6', 'x-real-ip': '198.51.100.2' } })), '198.51.100.2');
+  assert.equal(clientIp(mockReq({ headers: { 'x-forwarded-for': '6.6.6.6', 'x-real-ip': '198.51.100.2', 'x-vercel-forwarded-for': '198.51.100.3' } })), '198.51.100.3');
+});
+
+test('rateLimitIp: IPv4 ostáva, IPv6 sa zoskupí podľa /64', () => {
+  assert.equal(rateLimitIp('198.51.100.1'), '198.51.100.1');
+  assert.equal(rateLimitIp('::ffff:198.51.100.1'), '198.51.100.1');
+  assert.equal(rateLimitIp('2001:db8:aa:bb:1:2:3:4'), '2001:db8:aa:bb::/64');
+  assert.equal(rateLimitIp('2001:DB8:aa:bb:ffff::9'), '2001:db8:aa:bb::/64');
+  assert.equal(rateLimitIp('2001:db8::1'), '2001:db8:0:0::/64');
+  assert.equal(rateLimitIp(undefined), 'unknown');
+});
+
 test('clientIp: prvá adresa z x-forwarded-for, potom x-real-ip', () => {
   assert.equal(clientIp(mockReq({ headers: { 'x-forwarded-for': ' 198.51.100.1 , 10.0.0.1' } })), '198.51.100.1');
   const r = mockReq({ headers: { 'x-real-ip': '198.51.100.9' } });
@@ -88,4 +110,14 @@ test('sendError: ApiError zachová kód, neznáma chyba je 500 bez detailov', ()
   assert.equal(r2.statusCode, 500);
   assert.equal(r2.json.error, 'server_error');
   assert.ok(!r2.body.includes('tajne'));
+});
+
+test('sendError: chyba DB 4xx neprezradí kód ani text Postgresu (audit L3)', () => {
+  const r = mockRes();
+  const logged = [];
+  sendError(r, new DbError({ status: 409, code: '23505', message: 'duplicate key value violates unique constraint "rider_private_email_birth_key"' }), { error: (...a) => logged.push(a) });
+  assert.equal(r.statusCode, 400);
+  assert.equal(r.json.error, 'request_failed');
+  assert.ok(!r.body.includes('23505') && !r.body.includes('rider_private'));
+  assert.equal(logged.length, 1);
 });

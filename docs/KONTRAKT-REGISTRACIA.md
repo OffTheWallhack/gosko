@@ -5,7 +5,7 @@ Plán: `~/.claude/plans/gosko-vercel-registracia-nft.md`.
 
 ## 0. Zásady
 - **Databáza je systém záznamu.** Blockchain je verejná, overiteľná kópia výsledkov.
-- **Na chaine ani v NFT metadátach nie sú osobné údaje:** žiadne mená, prezývky, dátumy, e-maily ani hashe z nich. Na chaine je iba náhodný `rider_ref`.
+- **Na chaine ani v NFT metadátach nie sú osobné údaje:** žiadne mená, prezývky, dátumy, e-maily ani hashe z nich. Na chaine je iba náhodný `riderRef`, od 006 iný pre každý token (`nft_tokens.rider_ref`), takže passy jedného jazdca sa na chaine nedajú pospájať.
 - **Server je bez frameworku:** Vercel Node funkcie (ESM), prístup k Supabase cez PostgREST `fetch`, bez supabase-js. Jediná runtime závislosť je `viem`.
 - **Jazdec do 16 rokov** (vek v deň eventu) potrebuje potvrdenie rodiča e-mailom. NFT mu vznikne len so súhlasom rodiča.
 - Kategórie: `open` (16+), `u16` (do 16), `women` (babská, voliteľná od 16 rokov; mladšie jazdkyne idú do u16).
@@ -58,6 +58,7 @@ registrations(id uuid PK DEFAULT gen_random_uuid(), rider_id uuid NOT NULL REFER
        consent_version text NOT NULL, consent_at timestamptz NOT NULL,
        photo_consent boolean NOT NULL DEFAULT false, nft_consent boolean NOT NULL DEFAULT false,
        guardian_token uuid UNIQUE, guardian_confirmed_at timestamptz,
+       guardian_name text, guardian_email text, guardian_token_expires_at timestamptz,  -- 006: rodič pri registrácii, platnosť odkazu
        checked_in_at timestamptz, created_at timestamptz DEFAULT now(),
        UNIQUE(rider_id, event_id))
 
@@ -87,11 +88,12 @@ rate_limits(key text, window_start timestamptz, count int NOT NULL DEFAULT 0, PR
   - V **jednej transakcii** zmaže a vloží výsledky danej kategórie a zapíše `audit_log`.
   - Pri každom riadku s `registration_id`, ktorý má token v `nft_tokens` (status `minted` alebo `result_set`), nastaví status `result_pending`.
   - Vráti počet riadkov. EXECUTE iba pre `service_role`.
-- `confirm_guardian(p_token uuid) returns registrations`: z `pending_guardian` urobí `confirmed`, nastaví `guardian_confirmed_at` a vynuluje `guardian_token`. EXECUTE iba pre `service_role`.
+- `confirm_guardian(p_token uuid) returns registrations`: z `pending_guardian` urobí `confirmed`, nastaví `guardian_confirmed_at` a vynuluje `guardian_token`. Od 006 odmietne token po `guardian_token_expires_at` (PT404, 7 dní po evente, bez dátumu 60 dní). EXECUTE iba pre `service_role`.
 
 ### Pohľady (iba SELECT pre anon/authenticated, bez PII)
-- `riders_public(id, public_name, country, city, is_founder)`
-- `results_public(event_id, category, place, points, rider_id NULL, public_name, chain_id, token_id, nft_status)`: pri starších výsledkoch bez registrácie je `public_name = rider_name` a `rider_id = null`.
+- `riders_public(id, public_name, country, is_founder)` (od 006 bez `city`)
+- `results_public(event_id, category, place, points, rider_id NULL, public_name, chain_id, token_id, nft_status)`: pri starších výsledkoch bez registrácie je `public_name = rider_name` a `rider_id = null`. Pri zástupnom mene `GOSko jazdec` (U16 bez súhlasu rodiča, zrušená registrácia) sú od 006 `rider_id`, `chain_id`, `token_id` a `nft_status` NULL.
+- `registrations_admin(id, event_id, category, status, checked_in_at, public_name)` (006): iba admin (`is_admin()`), verejné meno podľa `public_name_mode`, U16 bez súhlasu rodiča `public_name = NULL`. Z neho admin berie mená do pavúka, ocenení a výsledkov (tie sú verejné).
 - `events_public` = `events`
 
 ### RLS a granty (001 + 002)
@@ -106,7 +108,7 @@ rate_limits(key text, window_start timestamptz, count int NOT NULL DEFAULT 0, PR
 
 ### Lokálny test stack
 - `supabase/test/shim.sql`: role `anon`, `authenticated`, `service_role` (NOLOGIN), `authenticator` (LOGIN, s členstvom vo všetkých troch), schéma `auth` s `auth.uid()` (z `current_setting('request.jwt.claims', true)::json->>'sub'`) a `auth.users(id uuid PK)`, schéma `storage` s tabuľkami `buckets`, `objects` a funkciou `storage.foldername(text)`. Ak treba, aj `extensions`.
-- `scripts/test-db.sh`: `dropdb --if-exists gosko_test && createdb gosko_test`, potom shim, `supabase-setup.sql` a migrácie 001–005 v poradí s `ON_ERROR_STOP=1`. Socket `/tmp`, port 5432.
+- `scripts/test-db.sh`: `dropdb --if-exists gosko_test && createdb gosko_test`, potom shim, `supabase-setup.sql` a migrácie 001–006 v poradí s `ON_ERROR_STOP=1`. Socket `/tmp`, port 5432.
 - PostgREST (`/opt/homebrew/bin/postgrest`) beží na porte **3901** s `db-uri=postgresql://authenticator@/gosko_test?host=/tmp`, `db-schemas=public`, `db-anon-role=anon` a `jwt-secret` = 32+ znakový testovací reťazec v `supabase/test/postgrest.conf`. Testy si vyrobia JWT (HS256) pre `anon`, `authenticated` (sub = uuid admina) a `service_role` cez `node:crypto`.
 - Helper `tests/helpers/stack.js` exportuje `startStack()` (vytvorí DB a spustí postgrest), `stopStack()`, `jwt(role, sub?)` a `REST_URL`.
 
@@ -115,7 +117,7 @@ Každý handler: `export function createHandler(deps)` + `export default createH
 
 | Endpoint | Vstup | Výstup |
 |---|---|---|
-| `POST /api/register` | `{event_id, legal_name, display_name?, nickname?, birth_date:'YYYY-MM-DD', email, phone?, instagram?, country:'SK'\|'CZ'\|..., city?, women?:bool, guardian_name?, guardian_email?, public_name_mode:'full'\|'short'\|'nick', consents:{rules:true, privacy:true, photo:bool, nft:bool}, turnstile_token}` | 201 `{ok, status:'confirmed'\|'pending_guardian', pass:{token, event_id, event_name, public_name, category}}`; 400 `invalid_input`, 403 `captcha_failed`, 404 `event_not_found`, 409 `already_registered`, 422 `guardian_required` alebo `event_closed`, 429 `rate_limited` |
+| `POST /api/register` | `{event_id, legal_name, display_name?, nickname?, birth_date:'YYYY-MM-DD', email, phone?, instagram?, country:'SK'\|'CZ'\|..., city?, women?:bool, guardian_name?, guardian_email?, public_name_mode:'full'\|'short'\|'nick', consents:{rules:true, privacy:true, photo:bool, nft:bool}, turnstile_token}` | 201 `{ok, status:'confirmed'\|'pending_guardian', pass:{token, event_id, event_name, public_name, category}}`; 400 `invalid_input`, 403 `captcha_failed`, 404 `event_not_found`, 202 `{ok, status:'check_email', mail_sent}` pre známeho jazdca (rovnaký `lower(email)` + `birth_date`, aj duplicitnú registráciu: pass ide len e-mailom na adresu jazdca, odpoveď nemá meno ani token), 415 `unsupported_media_type` (iný Content-Type ako JSON), 422 `guardian_required` alebo `event_closed`, 429 `rate_limited` |
 | `GET /api/consent?token=` | guardian token | 302 na `${PUBLIC_BASE_URL}/#/registracia/potvrdene`, prípadne `/#/registracia/neplatny-odkaz` |
 | `GET /api/pass?token=` | token registrácie | `{ok, pass:{token, event_id, event_name, public_name, category, status}}`, 404 |
 | `POST /api/pass` | `{email, event_id}` | vždy 200 `{ok:true}`; ak registrácia existuje, odíde e-mail s odkazom na pass (proti zisťovaniu e-mailov) |
@@ -130,7 +132,8 @@ Pravidlá:
 - Validácia: meno 2–60 znakov, e-mail, dátum narodenia nie v budúcnosti a vek 6–99, krajina ISO-2, súhlasy `rules` a `privacy` = true.
 - Event musí byť `registration_open` a mať voľnú kapacitu.
 - Vek sa počíta k dátumu eventu. Pod 16 rokov: kategória `u16`, povinné `guardian_email` (iné ako email jazdca), status `pending_guardian` a e-mail rodičovi s odkazom `/api/consent?token=…`. Od 16 rokov: `confirmed` a `women ? 'women' : 'open'`.
-- Jazdec sa deduplikuje podľa `lower(email)` + `birth_date`, pri zhode sa použije existujúci. `rider_ref` = `'0x' + randomBytes(32)`.
+- Jazdec sa deduplikuje podľa `lower(email)` + `birth_date`, pri zhode sa použije existujúci a nič sa na ňom nemení (ani rodič v `rider_private`). Rodič sa ukladá k registrácii (`registrations.guardian_*`); pri známom jazdcovi s uloženým rodičom ide súhlas tomuto rodičovi. `rider_ref` = `'0x' + randomBytes(32)`.
+- Bez `public_name_mode` je predvolené `full`, pre jazdca do 16 rokov `short`. Formulár má predvolené `short`.
 - E-maily odchádzajú cez Resend. Bez kľúča sa iba vypíše `console.info('[mail:dev]', …)`.
 - Admin auth: `GET ${SUPABASE_AUTH_URL}/user` s JWT používateľa vráti `id`, potom sa cez service role overí riadok v `admins`. V testoch sa nahrádza (`deps.auth`).
 - `checkin`: status `checked_in`; ak `nft_consent` a je nastavené `NFT_CONTRACT_ADDRESS`, vznikne `nft_tokens(status='pending')` a skúsi sa mint (chyba mintu check-in nezhodí, ostane `failed` a dorobí ho cron).
@@ -159,7 +162,7 @@ event MetadataUpdate(uint256 _tokenId)
 event BatchMetadataUpdate(uint256 _fromTokenId, uint256 _toTokenId)
 ```
 - `tokenId` začína od 1. `tokenOfRegistration` vráti 0, ak token neexistuje. `mint` s rovnakým `registrationKey` revertuje `AlreadyMinted()`.
-- Kódovanie: `registrationKey = keccak256(utf8(registration.id))`, `eventId = keccak256(utf8(event.id))`, `riderRef = riders.rider_ref` (bytes32). `category`: 1 = open, 2 = u16, 3 = women.
+- Kódovanie: `registrationKey = keccak256(utf8(registration.id))`, `eventId = keccak256(utf8(event.id))`, `riderRef = nft_tokens.rider_ref` (bytes32, náhodný pre každý token, vzniká s riadkom `nft_tokens`; do 006 to bol `riders.rider_ref`). `category`: 1 = open, 2 = u16, 3 = women.
 - **Soulbound:** `locked()` vráti vždy true; každý prenos revertuje `Soulbound()`. Výnimky sú mint, burn (`revoke`) a jednorazový `claim`. `claim` presunie token z vlastníka (custody) na `to` a potom je token znova zamknutý. Druhý `claim` revertuje `AlreadyClaimed()`.
 - **Roly:** `DEFAULT_ADMIN_ROLE` (deployer alebo Safe) a `MINTER_ROLE` (server). `Pausable`: pauza zastaví mint, setResult aj claim. `supportsInterface` hlási aj ERC-5192 (`0xb45a3c0e`) a ERC-4906 (`0x49064906`).
 - `setResult` emituje `ResultSet` a `MetadataUpdate`. `tokenURI` = `baseURI + tokenId`, baseURI = `${PUBLIC_BASE_URL}/api/nft/metadata/`.

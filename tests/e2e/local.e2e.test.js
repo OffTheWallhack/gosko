@@ -308,17 +308,22 @@ if (skip) {
     await context.close();
   });
 
-  test('admin: zoznam registrácií eventu (embed riders) a výsledky -> rebríček a NFT', { timeout: 90_000 }, async () => {
+  test('admin: registrácie eventu s verejným menom (registrations_admin) a výsledky -> rebríček a NFT', { timeout: 90_000 }, async () => {
     const context = await newContext({ admin: true });
     const page = await newPage(context);
     await page.goto(`${WEB}/#/admin/vysledky/${EVENT}`);
+    // H1: import z registrácií dá do pavúka verejné mená (Zuzana T.), nie celé meno; U16 len po súhlase rodiča
+    await page.getByRole('button', { name: 'Načítať z registrácií a check-inu' }).click();
+    const draft = await page.locator('ul.draft').textContent();
+    assert.match(draft, /Zuzana T\./);
+    assert.ok(!draft.includes('Tajomná'), 'pavúk nesmie dostať celé meno');
     await page.locator('summary', { hasText: 'Alebo zapíš len poradie' }).click();
-    await page.locator('textarea[aria-label="Poradie jazdcov"]').fill('Zuzana Tajomná\nHosť Bez Registrácie');
+    await page.locator('textarea[aria-label="Poradie jazdcov"]').fill('Zuzana T.\nHosť Bez Registrácie');
     await page.getByRole('button', { name: 'Uložiť poradie' }).click();
     await page.locator('.res-note', { hasText: 'Uložené: 2 jazdcov' }).waitFor({ timeout: 30_000 });
 
     const rows = stack.sqlRows(`select rider_name, place, points, registration_id from public.event_results where event_id = '${EVENT}' and category = 'open' order by place`);
-    assert.deepEqual(rows.map(r => [r.place, r.points, r.registration_id]), [[1, 100, S.adult.id], [2, 80, null]], 'meno sa spárovalo s registráciou cez embed riders(display_name)');
+    assert.deepEqual(rows.map(r => [r.place, r.points, r.registration_id]), [[1, 100, S.adult.id], [2, 80, null]], 'verejné meno sa spárovalo s registráciou cez registrations_admin');
     assert.equal(stack.sql(`select status from public.nft_tokens where registration_id = '${S.adult.id}'`), 'result_set');
     assert.deepEqual(await passOf(S.tokenId), [1, 100], 'setResult na chaine');
     const meta = await (await fetch(`${WEB}/api/nft/metadata/${S.tokenId}`)).json();

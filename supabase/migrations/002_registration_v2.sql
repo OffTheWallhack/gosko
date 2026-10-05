@@ -310,7 +310,9 @@ grant usage, select on sequence public.audit_log_id_seq to service_role;
 -- ---------- verejné pohľady (iba SELECT, bez osobných údajov) ----------
 -- Verejný je jazdec s aspoň jednou platnou registráciou; jazdec do 16 rokov až
 -- po potvrdení rodiča. Inak sa jeho meno nikde verejne neukáže.
-create or replace view public.riders_public with (security_barrier = true) as
+-- 006 pohľad zúžil (bez city); opätovný beh 002 ho preto vytvára nanovo
+drop view if exists public.riders_public;
+create view public.riders_public with (security_barrier = true) as
   select r.id, public.public_name(r.display_name, r.nickname, r.public_name_mode) as public_name,
          r.country, r.city, r.is_founder
   from public.riders r

@@ -271,7 +271,7 @@ describe('public views expose no personal data', () => {
   test('riders_public short mode shows "Marek K." and only public columns', async () => {
     const res = await rest(`/riders_public?select=*&id=eq.${marek.rider_id}`);
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, [{ id: marek.rider_id, public_name: 'Marek K.', country: 'SK', city: 'Bratislava', is_founder: false }]);
+    assert.deepEqual(res.body, [{ id: marek.rider_id, public_name: 'Marek K.', country: 'SK', is_founder: false }]);
   });
 
   test('riders_public full / nick modes', async () => {
@@ -293,8 +293,10 @@ describe('public views expose no personal data', () => {
 
     sql(`insert into public.event_results (event_id, category, rider_name, place, registration_id)
          values ('bratislava-2', 'u16', 'Bez Súhlasu', 5, '${noConsent.registration_id}')`);
-    const r = await rest('/results_public?select=public_name,rider_id&event_id=eq.bratislava-2&category=eq.u16&place=eq.5');
-    assert.deepEqual(r.body, [{ public_name: 'GOSko jazdec', rider_id: noConsent.rider_id }]);
+    createNftToken({ registration_id: noConsent.registration_id, status: 'minted', token_id: 77 });
+    const r = await rest('/results_public?select=public_name,rider_id,chain_id,token_id,nft_status&event_id=eq.bratislava-2&category=eq.u16&place=eq.5');
+    // 006 (M2): zástupné meno sa nedá cez rider_id ani token spojiť s jazdcom
+    assert.deepEqual(r.body, [{ public_name: 'GOSko jazdec', rider_id: null, chain_id: null, token_id: null, nft_status: null }]);
   });
 
   test('no public view has a personal-data column', () => {
@@ -305,7 +307,7 @@ describe('public views expose no personal data', () => {
     assert.deepEqual(cols.filter(c => c.table_name === 'results_public').map(c => c.column_name),
       ['event_id', 'category', 'place', 'points', 'rider_id', 'public_name', 'chain_id', 'token_id', 'nft_status']);
     assert.deepEqual(cols.filter(c => c.table_name === 'riders_public').map(c => c.column_name),
-      ['id', 'public_name', 'country', 'city', 'is_founder']);
+      ['id', 'public_name', 'country', 'is_founder']);
   });
 
   test('events_public lists the seeded events', async () => {
@@ -334,14 +336,14 @@ describe('seed and re-runnable migrations', () => {
     ]);
   });
 
-  test('migrations 001-005 and the seed can be applied again without changes', async () => {
+  test('migrations 001-006 and the seed can be applied again without changes', async () => {
     const state = () => sql(`select md5(string_agg(x, '|' order by x)) from (
       select id || status || category as x from public.registrations
       union all select id || name || status || registration_open::text from public.events
       union all select event_id || category || rider_name || place || points from public.event_results
       union all select id::text || public_name_mode from public.riders) s`);
     const before = state();
-    for (const f of ['001_hardening', '002_registration_v2', '003_results_rpc', '004_guardian_after_checkin', '005_results_clear_nft']) sqlFile(join(ROOT, 'supabase', 'migrations', `${f}.sql`));
+    for (const f of ['001_hardening', '002_registration_v2', '003_results_rpc', '004_guardian_after_checkin', '005_results_clear_nft', '006_privacy']) sqlFile(join(ROOT, 'supabase', 'migrations', `${f}.sql`));
     sqlFile(join(ROOT, 'supabase', 'seed', 'events_2026.sql'));
     assert.equal(state(), before);
     assert.equal(sql(`select count(*) from public.registrations_legacy`), '1');

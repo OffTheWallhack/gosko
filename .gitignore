@@ -9,3 +9,8 @@ chain/types/
 chain/ignition/deployments/chain-31337/
 .workflow/
 supabase/test/*.log
+
+# exporty s osobnými údajmi (napr. zakladatelia z Google Forms) nikdy do repa ani na web
+*.csv
+*.tsv
+*.xlsx

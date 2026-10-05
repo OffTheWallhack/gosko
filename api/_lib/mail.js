@@ -19,7 +19,9 @@ export function createMailer({ env, fetch: f = globalThis.fetch, log = console }
           // v produkcii bez kľúča nelogujeme obsah ani adresu (osobné údaje)
           log.warn('[mail:dev]', 'RESEND_API_KEY chýba, e-mail neodišiel:', subject);
         } else {
-          log.info('[mail:dev]', JSON.stringify({ to, subject, text }));
+          // mimo produkcie: adresa a obsah sa logujú len s MAIL_DEV_LOG=full (osobné údaje, odkazy s tokenom)
+          if (env.MAIL_DEV_LOG === 'full') log.info('[mail:dev]', JSON.stringify({ to, subject, text }));
+          else log.info('[mail:dev]', 'RESEND_API_KEY chýba, e-mail neodišiel:', subject);
         }
         return { id: null, dev: true };
       }
@@ -96,7 +98,7 @@ export function confirmationMail({ eventName, eventDate, eventCity, publicName, 
   return { subject: `Registrácia potvrdená: ${eventName}`, ...render(blocks) };
 }
 
-export function guardianConsentMail({ guardianName, riderName, eventName, eventDate, eventCity, photo = false, nft = false, consentUrl }) {
+export function guardianConsentMail({ guardianName, riderName, publicName, eventName, eventDate, eventCity, photo = false, nft = false, consentUrl }) {
   const extra = [];
   if (photo) extra.push('Súhlas zahŕňa aj fotografovanie jazdca na podujatí a zverejnenie fotiek a videí z podujatia.');
   if (nft) extra.push('Súhlas zahŕňa aj vydanie digitálneho záznamu o účasti a výsledku (NFT). Záznam neobsahuje meno ani iné osobné údaje.');
@@ -104,6 +106,7 @@ export function guardianConsentMail({ guardianName, riderName, eventName, eventD
     guardianName ? `Dobrý deň, ${guardianName},` : 'Dobrý deň,',
     `prišla nám registrácia na podujatie ${eventName} (${when(eventDate, eventCity)}) pre jazdca: ${riderName}.`,
     'Jazdec mladší ako 16 rokov potrebuje súhlas rodiča alebo zákonného zástupcu. Súhlasom potvrdzujete účasť na podujatí podľa pravidiel GOSko a spracúvanie osobných údajov jazdca na účely registrácie a výsledkov.',
+    ...(publicName ? [`Vo výsledkoch a v rebríčku sa po vašom súhlase zobrazí meno: ${publicName}. Zmenu nám napíšte cez žiadosť o súkromie na webe GOSko.`] : []),
     ...extra,
     { href: consentUrl, label: 'Potvrdiť súhlas' },
     'Ak o registrácii neviete, e-mail ignorujte. Bez súhlasu registrácia nebude potvrdená a jazdec sa nedostane do výsledkov.',

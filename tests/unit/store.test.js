@@ -46,7 +46,7 @@ describe('getStore', () => {
   });
 });
 
-import { mapPublicResults } from '../../assets/store.js';
+import { mapPublicResults, adminRegistrations } from '../../assets/store.js';
 describe('mapPublicResults (results_public + riders_public)', () => {
   test('riadok výsledku pre ranking.js: public_name ako rider_name, rider_id, krajina z riders_public, NFT', () => {
     const rows = [
@@ -63,5 +63,15 @@ describe('mapPublicResults (results_public + riders_public)', () => {
     const [r] = mapPublicResults([{ event_id: 'e', category: 'open', place: 3, rider_id: 'rx', public_name: 'GOSko jazdec' }], []);
     assert.equal(r.country, undefined);
     assert.equal(r.rider_id, 'rx');
+  });
+});
+
+describe('adminRegistrations (registrations_admin, audit H1)', () => {
+  test('verejné meno ide ďalej, U16 bez súhlasu rodiča dostane zástupné meno podľa ID', () => {
+    const rows = [
+      { id: 'aaaa1111-0000', category: 'open', status: 'confirmed', checked_in_at: null, public_name: 'Marek K.' },
+      { id: 'bbbb2222-0000', category: 'u16', status: 'pending_guardian', checked_in_at: null, public_name: null },
+    ];
+    assert.deepEqual(adminRegistrations(rows).map(r => [r.id, r.name]), [['aaaa1111-0000', 'Marek K.'], ['bbbb2222-0000', 'Jazdec U16 #bbbb']]);
   });
 });

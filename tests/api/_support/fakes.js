@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { DbError, UniqueViolationError } from '../../../api/_lib/db.js';
+import { ApiError } from '../../../api/_lib/http.js';
 
 export const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -156,8 +157,9 @@ export class FakeDb {
         return this.rl[p_key] > p_limit;
       },
       confirm_guardian: ({ p_token }) => {
-        // ako migrácia 004: aj checked_in bez súhlasu, status checked_in ostáva; inak PT404
+        // ako migrácia 006: aj checked_in bez súhlasu, status checked_in ostáva; prepadnutý token alebo iný PT404
         const r = this.t('registrations').find(x => x.guardian_token === p_token
+          && (!x.guardian_token_expires_at || Date.parse(x.guardian_token_expires_at) > Date.now())
           && (x.status === 'pending_guardian' || (x.status === 'checked_in' && !x.guardian_confirmed_at)));
         if (!r) throw new DbError({ status: 404, code: 'PT404', message: 'invalid_token' });
         if (r.status === 'pending_guardian') r.status = 'confirmed';
@@ -293,8 +295,8 @@ export function fakeAuth({ adminId = ADMIN_ID } = {}) {
   return {
     async requireAdmin(req) {
       const h = req.headers.authorization || '';
-      if (!h.startsWith('Bearer ')) { const e = new Error('Chýba prihlásenie.'); e.status = 401; e.code = 'unauthorized'; throw e; }
-      if (h !== 'Bearer admin-jwt') { const e = new Error('Nemáš oprávnenie admina.'); e.status = 403; e.code = 'forbidden'; throw e; }
+      if (!h.startsWith('Bearer ')) throw new ApiError(401, 'unauthorized', 'Chýba prihlásenie.');
+      if (h !== 'Bearer admin-jwt') throw new ApiError(403, 'forbidden', 'Nemáš oprávnenie admina.');
       return { userId: adminId };
     },
   };

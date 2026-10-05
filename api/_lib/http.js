@@ -31,7 +31,13 @@ function parseText(text) {
 }
 
 // Vercel telo často sparsuje sám (req.body). Čistý Node ho treba prečítať zo streamu.
+// Iný Content-Type ako JSON je 415: text/plain alebo formulár z cudzej stránky prejde bez
+// CORS preflightu, JSON nie (audit L2). Bez hlavičky (server-server, testy) sa telo berie ako JSON.
 export async function readJson(req) {
+  const ct = header(req, 'content-type');
+  if (ct && !/^application\/json\b/i.test(String(ct).trim())) {
+    throw new ApiError(415, 'unsupported_media_type', 'Požiadavka musí byť JSON (Content-Type: application/json).');
+  }
   const b = req.body;
   if (b !== undefined && b !== null) {
     if (Buffer.isBuffer(b)) {
@@ -111,16 +117,31 @@ export function allowMethods(req, res, methods) {
   return false;
 }
 
-// Vercel prepisuje x-forwarded-for skutočnou adresou klienta, prvá položka je klient.
+// Na Verceli je adresa klienta v x-vercel-forwarded-for a x-real-ip (nastavuje ich Vercel);
+// x-forwarded-for je až záloha pre lokálny server a testy (prvá položka je klient).
 export function clientIp(req) {
+  for (const name of ['x-vercel-forwarded-for', 'x-real-ip']) {
+    const v = header(req, name);
+    const first = v && String(v).split(',')[0].trim();
+    if (first) return first;
+  }
   const xff = header(req, 'x-forwarded-for');
   if (xff) {
     const first = String(xff).split(',')[0].trim();
     if (first) return first;
   }
-  const real = header(req, 'x-real-ip');
-  if (real && String(real).trim()) return String(real).trim();
   return req.socket?.remoteAddress || 'unknown';
+}
+
+// Kľúč pre rate limit: IPv6 sa zoskupí podľa /64, inak by stačilo meniť adresu v rámci prefixu (audit L4).
+export function rateLimitIp(ip) {
+  const s = String(ip || 'unknown').trim().toLowerCase();
+  if (!s.includes(':') || /^::ffff:\d+\.\d+\.\d+\.\d+$/.test(s)) return s.replace(/^::ffff:/, '');
+  const [head, tail = ''] = s.split('::');
+  const h = head ? head.split(':') : [];
+  const t = tail ? tail.split(':') : [];
+  const full = s.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
+  return `${full.slice(0, 4).map(x => (x || '0').replace(/^0+(?=.)/, '')).join(':')}::/64`;
 }
 
 export function queryOf(req) {
@@ -153,11 +174,18 @@ export function bearerToken(req) {
   return m ? m[1] : null;
 }
 
+// Klient dostane kód a text len z ApiError. Chyby DB (kódy Postgresu, názvy obmedzení) sa iba
+// zalogujú a klient dostane všeobecnú odpoveď (audit L3).
 export function sendError(res, err, log = console) {
-  if (err instanceof ApiError || (err && Number.isInteger(err.status) && typeof err.code === 'string' && err.status < 500)) {
+  if (err instanceof ApiError) {
     const body = { ok: false, error: err.code, message: err.message };
     if (err.extra) Object.assign(body, err.extra);
     send(res, err.status, body);
+    return;
+  }
+  if (err && Number.isInteger(err.status) && err.status >= 400 && err.status < 500) {
+    log.error('[api] chyba požiadavky', err?.name, err?.code, err?.message);
+    send(res, 400, { ok: false, error: 'request_failed', message: 'Požiadavku sa nepodarilo spracovať. Skontroluj údaje a skús to znova.' });
     return;
   }
   log.error('[api] neočakávaná chyba', err?.name, err?.code, err?.message);

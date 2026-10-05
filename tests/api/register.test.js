@@ -116,6 +116,18 @@ test('14-ročný s rodičom: pending_guardian, u16 a e-mail rodičovi s jednoraz
   assert.ok(mail.sent[0].text.includes(`https://gosko.test/api/consent?token=${reg.guardian_token}`));
   assert.ok(mail.sent[0].text.includes('Peter Malý'));
   assert.equal(db.t('rider_private')[0].guardian_email, 'mama@example.sk');
+  // 006: rodič a platnosť odkazu pri registrácii (7 dní po evente 21. 11. 2026)
+  assert.equal(reg.guardian_email, 'mama@example.sk');
+  assert.equal(reg.guardian_name, 'Jana Malá');
+  assert.equal(reg.guardian_token_expires_at, '2026-11-28T23:59:59.000Z');
+  assert.match(mail.sent[0].text, /zobrazí meno: Peter M\./, 'rodič vidí, aké meno sa zverejní (bez voľby u U16 short)');
+});
+
+test('U16 bez výslovnej voľby zobrazenia: short; dospelý bez voľby: full (audit M4)', async () => {
+  const { handler, db } = setup();
+  await post(handler, kid({ guardian_email: 'mama@example.sk', public_name_mode: undefined }));
+  await post(handler, adult({ public_name_mode: undefined }));
+  assert.deepEqual(db.t('riders').map(r => r.public_name_mode), ['short', 'full']);
 });
 
 test('e-mail rodiča rovnaký ako jazdca: 400 invalid_input', async () => {
@@ -167,38 +179,69 @@ test('šiesta registrácia z jednej IP za 10 minút: 429 rate_limited', async ()
   assert.equal(other.statusCode, 201);
 });
 
-test('duplicita (rovnaký e-mail inak napísaný + dátum narodenia): 409 bez cudzích údajov', async () => {
-  const { handler, db } = setup();
+test('duplicita (rovnaký e-mail inak napísaný + dátum narodenia): 202 check_email, pass len e-mailom, nič neprezradí', async () => {
+  const { handler, db, mail } = setup();
   await post(handler, adult({ nickname: 'Kovo' }));
   const res = await post(handler, adult({ email: 'MAREK@example.SK', legal_name: 'Niekto Iný' }));
-  assert.equal(res.statusCode, 409);
-  assert.equal(res.json.error, 'already_registered');
-  assert.deepEqual(Object.keys(res.json).sort(), ['error', 'message', 'ok']);
+  assert.equal(res.statusCode, 202);
+  assert.deepEqual(res.json, { ok: true, status: 'check_email', mail_sent: true });
   for (const leak of ['Marek', 'Kovo', 'marek@', '2000-04-10', db.t('registrations')[0].token]) {
-    assert.ok(!res.body.includes(leak), `409 prezradil ${leak}`);
+    assert.ok(!res.body.includes(leak), `odpoveď prezradila ${leak}`);
   }
+  assert.equal(mail.sent.at(-1).to, 'marek@example.sk');
+  assert.ok(mail.sent.at(-1).text.includes(db.t('registrations')[0].token), 'pass ide e-mailom na adresu jazdca');
   assert.equal(db.t('riders').length, 1);
   assert.equal(db.t('registrations').length, 1);
 });
 
-test('ten istý jazdec na inom evente: použije sa existujúci rider', async () => {
+test('ten istý jazdec na inom evente: existujúci rider, 202 check_email, pass len e-mailom', async () => {
   const db = new FakeDb({ events: [baseEvent(), baseEvent({ id: 'zilina-2026-12', name: 'GOSko Žilina' })] });
-  const { handler } = setup({ db });
+  const { handler, mail } = setup({ db });
   await post(handler, adult());
   const res = await post(handler, adult({ event_id: 'zilina-2026-12', email: 'marek@EXAMPLE.sk' }));
-  assert.equal(res.statusCode, 201, res.body);
+  assert.equal(res.statusCode, 202, res.body);
+  assert.deepEqual(res.json, { ok: true, status: 'check_email', mail_sent: true });
   assert.equal(db.t('riders').length, 1);
   assert.equal(db.t('registrations').length, 2);
   assert.equal(db.t('registrations')[0].rider_id, db.t('registrations')[1].rider_id);
+  assert.equal(mail.sent.at(-1).to, 'marek@example.sk');
+  assert.ok(mail.sent.at(-1).text.includes(db.t('registrations')[1].token));
 });
 
-test('súbeh pri vkladaní registrácie (23505): 409', async () => {
+test('známy U16 jazdec: cudzí rodič neprepíše kontakt, súhlas ide rodičovi, ktorého už máme (audit M1)', async () => {
+  const db = new FakeDb({ events: [baseEvent(), baseEvent({ id: 'zilina-2026-12', name: 'GOSko Žilina' })] });
+  const { handler, mail } = setup({ db });
+  await post(handler, kid({ guardian_email: 'mama@example.sk', guardian_name: 'Jana Malá' }));
+  const res = await post(handler, kid({ event_id: 'zilina-2026-12', guardian_email: 'utocnik@example.sk', guardian_name: 'Cudzí Človek' }));
+  assert.equal(res.statusCode, 202, res.body);
+  assert.equal(res.json.status, 'check_email');
+  assert.equal(db.t('rider_private')[0].guardian_email, 'mama@example.sk');
+  const reg = db.t('registrations')[1];
+  assert.equal(reg.guardian_email, 'mama@example.sk');
+  assert.equal(mail.sent.at(-1).to, 'mama@example.sk');
+  assert.ok(!mail.sent.some(m => m.to === 'utocnik@example.sk'));
+  // ani duplicita na tom istom evente kontakt nezmení
+  await post(handler, kid({ guardian_email: 'utocnik@example.sk' }));
+  assert.equal(db.t('rider_private')[0].guardian_email, 'mama@example.sk');
+});
+
+test('súbeh pri vkladaní registrácie (23505): 202 check_email', async () => {
   const { handler, db } = setup();
   const { UniqueViolationError } = await import('../../api/_lib/db.js');
-  db.failNext['insert:registrations'] = new UniqueViolationError({ status: 409, message: 'dup' });
+  db.t('riders').push({ id: 'cccccccc-0000-4000-8000-000000000009', rider_ref: '0x' + '9'.repeat(64), display_name: 'Marek Kováč', public_name_mode: 'full' });
+  db.t('rider_private').push({ rider_id: 'cccccccc-0000-4000-8000-000000000009', email: 'marek@example.sk', birth_date: '2000-04-10', legal_name: 'Marek Kováč' });
+  const orig = db.insert.bind(db);
+  db.insert = async (t, row, o) => {
+    if (t === 'registrations') {
+      // súbežný request vložil registráciu medzi kontrolou a zápisom
+      await orig(t, row, o);
+      throw new UniqueViolationError({ status: 409, message: 'dup' });
+    }
+    return orig(t, row, o);
+  };
   const res = await post(handler, adult());
-  assert.equal(res.statusCode, 409);
-  assert.equal(res.json.error, 'already_registered');
+  assert.equal(res.statusCode, 202, res.body);
+  assert.equal(res.json.status, 'check_email');
 });
 
 test('súbeh pri zakladaní jazdca (23505 na rider_private): použije existujúceho, sirota sa zmaže', async () => {
@@ -218,7 +261,8 @@ test('súbeh pri zakladaní jazdca (23505 na rider_private): použije existujúc
     return orig(t, f, o);
   };
   const res = await post(handler, adult());
-  assert.equal(res.statusCode, 201, res.body);
+  assert.equal(res.statusCode, 202, res.body);
+  assert.equal(res.json.status, 'check_email');
   assert.equal(db.t('riders').length, 1, 'sirota zmazaná');
   assert.equal(db.t('registrations')[0].rider_id, RID);
 });

@@ -46,7 +46,24 @@ test('ensureMinted: mint zapíše minted, token_id, mint_tx a správne argumenty
   assert.equal(row.mint_tx, '0x' + 'ab'.repeat(32));
   assert.equal(row.chain_id, 31337);
   assert.equal(row.contract, '0x5fbdb2315678afecb367f032d93f642f64180aa3');
-  assert.deepEqual(chain.mintCalls[0], { registrationId: REG, eventId: 'ev-1', riderRef: '0x' + 'cd'.repeat(32), category: 'open' });
+  // 006 (audit M2): riderRef je náhodný pre každý token a uloží sa k nemu, nie riders.rider_ref
+  assert.match(row.rider_ref, /^0x[0-9a-f]{64}$/);
+  assert.notEqual(row.rider_ref, '0x' + 'cd'.repeat(32));
+  assert.deepEqual(chain.mintCalls[0], { registrationId: REG, eventId: 'ev-1', riderRef: row.rider_ref, category: 'open' });
+});
+
+test('ensureMinted: dva passy toho istého jazdca majú rôzny riderRef; opakovanie po chybe použije ten istý', async () => {
+  const db = seed();
+  db.t('registrations').push({ id: REG2, rider_id: RIDER, event_id: 'ev-2', category: 'open', status: 'checked_in', nft_consent: true });
+  const chain = fakeChain({ failMint: 1 });
+  const nft = make(db, chain);
+  assert.equal((await nft.ensureMinted(REG)).status, 'failed');
+  const firstRef = db.t('nft_tokens')[0].rider_ref;
+  assert.equal((await nft.ensureMinted(REG)).status, 'minted');
+  await nft.ensureMinted(REG2);
+  const refs = chain.mintCalls.map(c => c.riderRef);
+  assert.deepEqual(refs.slice(0, 2), [firstRef, firstRef], 'retry rovnaký riderRef');
+  assert.notEqual(refs[2], firstRef);
 });
 
 test('ensureMinted dvakrát: druhé volanie chain vôbec nevolá', async () => {

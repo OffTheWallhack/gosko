@@ -29,7 +29,7 @@ icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim (základ)
-supabase/migrations/  migrácie 001–005 nad supabase-setup.sql (registrácia v2, výsledky, NFT)
+supabase/migrations/  migrácie 001–006 nad supabase-setup.sql (registrácia v2, výsledky, NFT)
 supabase/checks/      grants.sql: audit práv anon/authenticated (iba čítanie)
 chain/                kontrakt GoskoPass (Hardhat), lokálny deploy
 vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
@@ -185,11 +185,17 @@ Všetko v **SQL Editore** projektu, po jednom súbore, v tomto poradí:
 4. `supabase/migrations/003_results_rpc.sql`
 5. `supabase/migrations/004_guardian_after_checkin.sql`
 6. `supabase/migrations/005_results_clear_nft.sql` (vyhodený jazdec alebo zmazaná kategória vynuluje výsledok aj na chaine)
-7. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`)
-8. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
+7. `supabase/migrations/006_privacy.sql` (opravy z bezpečnostného auditu: rodič pri registrácii, platnosť odkazu pre rodiča,
+   `riderRef` pre každý token, `riders_public` bez mesta, `registrations_admin` pre admin výsledkov, práva na nové funkcie)
+8. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`)
+9. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
 
 Každá migrácia je v transakcii a dá sa spustiť znova. Po opätovnom spustení 001 treba znova spustiť 002 až 005
 (001 odoberá všetky práva).
+
+Pred prvým zápisom výsledkov cez nový admin skontroluj tabuľky `brackets` a `event_awards`: pred 006 sa do pavúka
+a ocenení načítavali celé mená z registrácií. Riadky s celým menom jazdca, ktorý si zvolil skrátené meno alebo prezývku,
+(a mená U16 bez súhlasu rodiča) uprav alebo zmaž; sú verejné.
 
 ### Čo musí urobiť operátor (brány)
 
@@ -209,7 +215,8 @@ Kód je hotový a lokálne overený, toto sa bez vlastníka projektu nedá:
    s osobnými údajmi nikdy do repa) zapíše registrácie bez NFT súhlasu. Od zakladateľov treba **najprv získať
    súhlas s NFT**, zapísať ho (`nft_consent = true`) a až potom spustiť `node scripts/backfill-mint.js --dry-run`
    a `node scripts/backfill-mint.js`.
-8. **CSP:** po kontrole konzoly na produkcii prepnúť z Report-Only na vynucovanie (vyššie).
+8. **CSP:** po kontrole konzoly na produkcii prepnúť z Report-Only na vynucovanie (vyššie). `script-src` povoľuje
+   z jsDelivr už len `three@0.160.0`; hlavička HSTS je zapnutá, takže doména musí ostať na HTTPS.
 
 ## 2. Lokálny vývoj
 
@@ -225,6 +232,8 @@ z `vercel.json`, neservíruje nič z `.vercelignore` (takže `/README.md` dá 40
 a `/api/*` smeruje na súbory v `api/`, vrátane dynamických `[id]` (`api/nft/metadata/[id].js` je
 `/api/nft/metadata/7`). Port a adresu zmeníš cez `PORT` a `HOST` (`PORT=3001 node scripts/dev-server.js`).
 Premenné z `.env.local` sa načítajú do prostredia funkcií.
+Bez `RESEND_API_KEY` e-maily neodchádzajú a do konzoly sa vypíše len predmet; s `MAIL_DEV_LOG=full` aj adresa
+a text (napr. odkaz pre rodiča). Obsahujú osobné údaje, preto to nie je predvolené.
 
 Web treba otvárať cez server, nie dvojklikom na `index.html`, inak prehliadač moduly nenačíta.
 Service worker na `localhost` cachuje súbory, takže po zmene zvýš `VERSION` v `sw.js` alebo ho v DevTools
@@ -247,7 +256,7 @@ v druhom `GOSKO_URL=http://localhost:3000 npm run test:smoke`.
 ### Lokálny end-to-end beh
 
 `tests/e2e/local.e2e.test.js` spustí všetko sám a na konci to zastaví: lokálnu DB `gosko_test` s migráciami
-001–005 a PostgREST na porte 3901, `npx hardhat node` (8545) s GoskoPass nasadeným cez
+001–006 a PostgREST na porte 3901, `npx hardhat node` (8545) s GoskoPass nasadeným cez
 `chain/scripts/deploy-local.ts`, dev server na porte 3010 a headless Chromium. Prejde registráciu dospelého
 a pass, registráciu U16 so súhlasom rodiča (GET stránka, POST potvrdenie), check-in adminom s mintom,
 metadáta NFT bez osobných údajov, uloženie výsledkov s rebríčkom a zmazanie výsledkov s vynulovaním na chaine.

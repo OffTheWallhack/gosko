@@ -1,5 +1,6 @@
 // Orchestrácia NFT nad DB (nft_tokens) a chainom. Žiadna funkcia nehádže volajúcemu:
 // chyba sa zapíše ako status 'failed' (s error a attempts) a dorobí ju cron.
+import { randomBytes } from 'node:crypto';
 import { eq, inList, isUniqueViolation, lt, notNull } from './db.js';
 
 export const MAX_ATTEMPTS = 10;
@@ -7,6 +8,10 @@ export const STUCK_PENDING_MINUTES = 5;
 const DONE = ['minted', 'result_pending', 'result_set', 'revoked'];
 // stavy, pri ktorých sa mint vôbec neskúša (nie sú to chyby chainu)
 const SKIPPED = ['no_consent', 'guardian_pending', 'not_checked_in', 'not_found'];
+
+// riderRef na chaine je náhodný pre každý token (006, nft_tokens.rider_ref): passy jedného jazdca
+// sa podľa neho nedajú pospájať a po výmaze riadku nie je čím ich s jazdcom spojiť (audit M2).
+const newRiderRef = () => `0x${randomBytes(32).toString('hex')}`;
 
 const errText = err => String(err?.shortMessage || err?.message || err || 'neznáma chyba').slice(0, 500);
 
@@ -31,6 +36,7 @@ export function createNft({ env, db, chain, log = console, now = () => new Date(
         registration_id: registrationId,
         chain_id: env.CHAIN_ID,
         contract: String(chain.address).toLowerCase(),
+        rider_ref: newRiderRef(),
         status: 'pending',
         attempts: 0,
       });
@@ -61,14 +67,14 @@ export function createNft({ env, db, chain, log = console, now = () => new Date(
       row = await ensureRow(registrationId);
       if (DONE.includes(row.status)) return { status: row.status, tokenId: row.token_id == null ? undefined : String(row.token_id) };
 
-      const rider = await db.selectOne('riders', { id: eq(reg.rider_id) }, { select: 'id,rider_ref' });
-      if (!rider) throw new Error('Jazdec registrácie neexistuje.');
+      // riadok spred 006 nemá rider_ref: dostane ho pred prvým mintom, opakovanie použije ten istý
+      const riderRef = row.rider_ref || newRiderRef();
       const attempts = (row.attempts || 0) + 1;
-      await safeUpdate(registrationId, { status: 'pending', attempts });
+      await safeUpdate(registrationId, { status: 'pending', attempts, ...(row.rider_ref ? {} : { rider_ref: riderRef }) });
 
       let minted;
       try {
-        minted = await chain.mintPass({ registrationId, eventId: reg.event_id, riderRef: rider.rider_ref, category: reg.category });
+        minted = await chain.mintPass({ registrationId, eventId: reg.event_id, riderRef, category: reg.category });
       } catch (err) {
         log.warn('[nft] mint zlyhal', registrationId, errText(err));
         await safeUpdate(registrationId, { status: 'failed', error: errText(err), attempts });

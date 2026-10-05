@@ -56,6 +56,22 @@ test('consent GET: neplatný, chýbajúci alebo použitý token ide na neplatny-
   }
 });
 
+test('consent GET: stránka povie rodičovi, aké meno sa zverejní (audit M4)', async () => {
+  const res = await call(consent(seed()), { query: { token: GTOKEN } });
+  assert.match(res.body, /zobrazí meno: <strong>Peťo<\/strong>/);
+});
+
+test('consent: prepadnutý odkaz (guardian_token_expires_at) ide na neplatny-odkaz a nič nepotvrdí (audit L6)', async () => {
+  const db = seed({ guardian_token_expires_at: '2026-10-05T09:59:59Z' });
+  const get = await call(consent(db), { query: { token: GTOKEN } });
+  assert.equal(get.headers.location, BAD);
+  const post = await confirmForm(consent(db), GTOKEN);
+  assert.equal(post.headers.location, BAD);
+  assert.equal(db.t('registrations')[0].status, 'pending_guardian');
+  const ok = await call(consent(seed({ guardian_token_expires_at: '2026-10-06T00:00:00Z' })), { query: { token: GTOKEN } });
+  assert.equal(ok.statusCode, 200);
+});
+
 test('consent GET: výpadok DB je 503 stránka', async () => {
   const db = seed();
   db.failNext['select:registrations'] = new DbError({ status: 503, code: 'network', message: 'down' });
