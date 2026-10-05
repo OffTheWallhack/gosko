@@ -147,3 +147,24 @@ test('auth: výpadok GoTrue je 503', async () => {
   const a = createAuth({ env: testEnv(), db: new FakeDb(), fetch: async () => { throw new TypeError('fetch failed'); } });
   await assert.rejects(a.requireAdmin(mockReq({ headers: { authorization: 'Bearer ok' } })), e => e.status === 503);
 });
+
+/* ---------- auth: hráč (requireUser) ---------- */
+const PLAYER_ID = '33333333-3333-4333-8333-333333333333';
+
+test('auth.requireUser: bez Bearer 401 bez siete, neplatný JWT 401', async () => {
+  const f = recorder(() => json(200, {}));
+  await assert.rejects(createAuth({ env: testEnv(), db: new FakeDb(), fetch: f }).requireUser(mockReq()), e => e.status === 401);
+  assert.equal(f.calls.length, 0);
+  const bad = createAuth({ env: testEnv(), db: new FakeDb(), fetch: async () => json(401, { msg: 'bad jwt' }) });
+  await assert.rejects(bad.requireUser(mockReq({ headers: { authorization: 'Bearer zly' } })), e => e.status === 401);
+});
+
+test('auth.requireUser: overený e-mail vráti userId a e-mail malými písmenami', async () => {
+  const a = createAuth({ env: testEnv(), db: new FakeDb(), fetch: async () => json(200, { id: PLAYER_ID, email: 'Jano@Example.SK', email_confirmed_at: '2026-10-05T10:00:00Z' }) });
+  assert.deepEqual(await a.requireUser(mockReq({ headers: { authorization: 'Bearer ok' } })), { userId: PLAYER_ID, email: 'jano@example.sk' });
+});
+
+test('auth.requireUser: neoverený e-mail je 403 email_unverified', async () => {
+  const a = createAuth({ env: testEnv(), db: new FakeDb(), fetch: async () => json(200, { id: PLAYER_ID, email: 'jano@example.sk', email_confirmed_at: null }) });
+  await assert.rejects(a.requireUser(mockReq({ headers: { authorization: 'Bearer ok' } })), e => e.status === 403 && e.code === 'email_unverified');
+});

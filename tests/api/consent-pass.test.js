@@ -247,3 +247,62 @@ test('POST pass: výpadok DB aj e-mailu vráti {ok:true}', async () => {
 test('pass: iná metóda je 405', async () => {
   assert.equal((await call(pass(seed()), { method: 'DELETE' })).statusCode, 405);
 });
+
+/* ---------- súhlas rodiča s hrou (player_guardian, 010 + 013) ---------- */
+const PLAYER = 'cccccccc-0000-4000-8000-000000000001';
+const PTOKEN = 'ffffffff-0000-4000-8000-000000000001';
+const GAME_OK = 'https://gosko.test/#/hra/potvrdene';
+function seedGame(over = {}) {
+  const db = seed();
+  db.t('players').push({ id: PLAYER, rider_id: RIDER, username: 'petko_kf', guardian_confirmed_at: null });
+  db.t('player_guardian').push({ player_id: PLAYER, guardian_email: 'mama@example.sk', token: PTOKEN, token_expires_at: '2026-10-19T10:00:00Z', ...over });
+  return db;
+}
+
+test('consent GET s herným tokenom: stránka s rozsahom hry (poloha, klipy, crew), nie eventu', async () => {
+  const db = seedGame();
+  const res = await call(consent(db), { query: { token: PTOKEN } });
+  assert.equal(res.statusCode, 200);
+  for (const s of ['Súhlas rodiča s hrou', 'petko_kf', 'check-in', 'polohu', 'fotky', 'videá', 'crew', 'Potvrdzujem súhlas', `value="${PTOKEN}"`]) {
+    assert.ok(res.body.includes(s), s);
+  }
+  assert.ok(!res.body.includes('účasťou jazdca na podujatí'), 'text eventu nepatrí k hre');
+  for (const pii of ['Malý', 'peto@', 'mama@', '2012-05-01']) assert.ok(!res.body.includes(pii), pii);
+  assert.ok(!res.body.includes('—'));
+  assert.equal(db.callsOf('rpc', 'confirm_player_guardian').length, 0, 'GET nesmie potvrdiť');
+});
+
+test('consent GET s herným tokenom: prepadnutý alebo použitý ide na neplatny-odkaz', async () => {
+  for (const over of [{ token_expires_at: '2026-10-05T09:00:00Z' }, { token: null }]) {
+    const res = await call(consent(seedGame(over)), { query: { token: PTOKEN } });
+    assert.equal(res.headers.location, BAD, JSON.stringify(over));
+  }
+});
+
+test('consent POST s herným tokenom: confirm_player_guardian odomkne hru, token sa použije raz', async () => {
+  const db = seedGame();
+  const h = consent(db);
+  const res = await confirmForm(h, PTOKEN);
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.headers.location, GAME_OK);
+  assert.ok(db.t('players')[0].guardian_confirmed_at);
+  assert.equal(db.t('player_guardian')[0].token, null);
+  assert.equal(db.t('registrations')[0].status, 'pending_guardian', 'súhlas s hrou nepotvrdí event');
+  assert.ok(db.t('audit_log').some(a => a.action === 'guardian_confirm_game' && a.entity_id === PLAYER));
+  assert.equal((await confirmForm(h, PTOKEN)).headers.location, BAD);
+});
+
+test('consent POST s tokenom eventu nepotvrdí hru', async () => {
+  const db = seedGame();
+  await confirmForm(consent(db), GTOKEN);
+  assert.equal(db.t('players')[0].guardian_confirmed_at, null);
+  assert.equal(db.callsOf('rpc', 'confirm_player_guardian').length, 0);
+});
+
+test('consent POST: výpadok DB pri hernom tokene je 503', async () => {
+  const db = seedGame();
+  db.failNext['rpc:confirm_player_guardian'] = new DbError({ status: 503, code: 'network', message: 'down' });
+  const r = await confirmForm(consent(db), PTOKEN);
+  assert.equal(r.statusCode, 503);
+  assert.equal(db.t('players')[0].guardian_confirmed_at, null);
+});

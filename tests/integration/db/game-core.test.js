@@ -212,17 +212,28 @@ describe('U16 gating', () => {
     assert.equal(sql(`select count(*) from public.clips where player_id = '${kid.id}'`), '0');
   });
 
-  test('U16 can play after the guardian confirmed the game or any GOSko registration; 16+ needs nothing', async () => {
+  test('U16 can play after the guardian confirmed the game; 16+ needs nothing', async () => {
     const spot = createSpot();
     const gameOk = createPlayer({ age: 14, guardian: true });
     assert.equal((await checkIn(gameOk, spot)).status, 200);
 
-    const eventOk = createPlayer({ age: 14 });
-    createRegistration({ rider_id: eventOk.rider_id, category: 'u16', status: 'confirmed', guardian_confirmed_at: '2026-09-01T10:00:00Z' });
-    assert.equal((await checkIn(eventOk, spot)).status, 200);
-
     const sixteen = createPlayer({ age: 16 });
     assert.equal((await checkIn(sixteen, spot)).status, 200);
+  });
+
+  // 013: súhlas rodiča s eventom nepokrýva hru s polohou (rozhodnutie 5. 10. 2026)
+  test('a guardian-confirmed event registration does not unlock the game', async () => {
+    const spot = createSpot();
+    const eventOnly = createPlayer({ age: 14, username: 'len_event' });
+    createRegistration({ rider_id: eventOnly.rider_id, category: 'u16', status: 'confirmed', guardian_confirmed_at: '2026-09-01T10:00:00Z' });
+    const res = await checkIn(eventOnly, spot);
+    assert.equal(res.status, 400, JSON.stringify(res.body));
+    assert.equal(res.body.message, 'NEED_GUARDIAN');
+    const me = await rpc('game_me', eventOnly);
+    assert.equal(me.body.can_write, false);
+    assert.equal(me.body.needs_guardian, true);
+    const pub = await rest(`/players_public?id=eq.${eventOnly.id}`, { as: 'anon' });
+    assert.deepEqual(pub.body, []);
   });
 
   test('game_me tells the client whether the player can write', async () => {

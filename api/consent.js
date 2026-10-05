@@ -3,11 +3,14 @@
 //   POST /api/consent {token}  -> confirm_guardian -> 302 na #/registracia/potvrdene
 // Neplatný alebo použitý token -> 302 na #/registracia/neplatny-odkaz.
 // Ak bol jazdec už na mieste odbavený (checked_in) a má nft_consent, po súhlase sa skúsi mint.
+// Dva druhy tokenu: registrácia na event (registrations.guardian_token) a hra (player_guardian.token,
+// api/game/link-rider.js). Stránka ukáže rozsah podľa druhu; POST skúsi confirm_guardian a pri
+// neznámom tokene confirm_player_guardian -> 302 na #/hra/potvrdene. Súhlas s eventom hru neodomyká.
 import { baseDeps } from './_lib/deps.js';
 import { allowMethods, queryOf, readBody, redirect, sendRaw } from './_lib/http.js';
 import { eq } from './_lib/db.js';
 import { isUuid } from './_lib/validate.js';
-import { confirmationMail, escapeHtml, formatDateSk } from './_lib/mail.js';
+import { GAME_CONSENT_SCOPE, confirmationMail, escapeHtml, formatDateSk } from './_lib/mail.js';
 import { audit } from './_lib/audit.js';
 import { createChain } from './_lib/chain.js';
 import { createNft } from './_lib/nft.js';
@@ -57,6 +60,23 @@ ${extra.join('\n')}
 <p style="margin:0;font-size:14px;color:#444">Ak o registrácii neviete, stránku zatvorte. Bez súhlasu registrácia nebude potvrdená.</p>`);
 }
 
+export function gameConsentPage({ token, username }) {
+  return page('Súhlas rodiča s hrou', `<h1 style="margin:0 0 12px;font-size:24px">Súhlas rodiča s hrou</h1>
+<p style="margin:0 0 12px">Hra GOSko Ghoskate, hráč: <strong>${escapeHtml(username)}</strong></p>
+<p style="margin:0 0 12px">Hráč mladší ako 16 rokov môže hru len prezerať, kým nepotvrdíte súhlas.
+Súhlas s registráciou na GOSko event hru neodomyká.</p>
+<p style="margin:0 0 8px">Potvrdením povoľujete:</p>
+<ul style="margin:0 0 16px;padding-left:20px">
+${GAME_CONSENT_SCOPE.map(s => `<li>${escapeHtml(s)}</li>`).join('\n')}
+</ul>
+<p style="margin:0 0 16px">Hráčske meno je verejné, celé meno, vek ani e-mail sa v hre nezobrazujú.</p>
+<form method="post" action="/api/consent" style="margin:0 0 16px">
+<input type="hidden" name="token" value="${escapeHtml(token)}">
+<button type="submit" style="width:100%;padding:14px 18px;border:0;background:#A01D21;color:#F3EBDD;font-size:18px;font-weight:900;cursor:pointer">Potvrdzujem súhlas</button>
+</form>
+<p style="margin:0;font-size:14px;color:#444">Ak o hre neviete, stránku zatvorte. Bez súhlasu hráč nemôže robiť check-in, nahrávať klipy ani byť v crew.</p>`);
+}
+
 const UNAVAILABLE = page('Skús to o chvíľu', `<h1 style="margin:0 0 12px;font-size:24px">Skús to o chvíľu</h1>
 <p style="margin:0">Súhlas sa teraz nepodarilo spracovať. Odkaz z e-mailu ostáva platný, otvor ho znova o pár minút.</p>`);
 
@@ -69,6 +89,7 @@ export function createHandler(deps) {
   const nft = deps.nft || createNft({ env, db, chain: deps.chain, log, now });
 
   const ok = () => `${env.PUBLIC_BASE_URL}/#/registracia/potvrdene`;
+  const gameOk = () => `${env.PUBLIC_BASE_URL}/#/hra/potvrdene`;
   const bad = () => `${env.PUBLIC_BASE_URL}/#/registracia/neplatny-odkaz`;
   const unavailable = res => sendRaw(res, 503, 'text/html; charset=utf-8', UNAVAILABLE, PAGE_HEADERS);
 
@@ -110,7 +131,8 @@ export function createHandler(deps) {
       log.error('[consent] načítanie zlyhalo', err?.code, err?.message);
       return unavailable(res);
     }
-    if (!reg || reg.guardian_confirmed_at || !OPEN.includes(reg.status)) return redirect(res, bad());
+    if (!reg) return showGame(token, res);
+    if (reg.guardian_confirmed_at || !OPEN.includes(reg.status)) return redirect(res, bad());
     if (reg.guardian_token_expires_at && Date.parse(reg.guardian_token_expires_at) <= now().getTime()) return redirect(res, bad());
     const [event, rider] = await Promise.all([loadEvent(db, reg.event_id), loadRider(db, reg.rider_id)]).catch(() => [null, null]);
     const html = consentPage({
@@ -125,6 +147,37 @@ export function createHandler(deps) {
     return sendRaw(res, 200, 'text/html; charset=utf-8', html, PAGE_HEADERS);
   }
 
+  // Herný token (player_guardian). Platný = nepoužitý a neprepadnutý.
+  async function showGame(token, res) {
+    let g, player;
+    try {
+      g = await db.selectOne('player_guardian', { token: eq(token) }, { select: 'player_id,token_expires_at' });
+      if (g) player = await db.selectOne('players', { id: eq(g.player_id) }, { select: 'username' });
+    } catch (err) {
+      if (clientError(err)) return redirect(res, bad());
+      log.error('[consent] načítanie hry zlyhalo', err?.code, err?.message);
+      return unavailable(res);
+    }
+    if (!g || !player) return redirect(res, bad());
+    if (g.token_expires_at && Date.parse(g.token_expires_at) <= now().getTime()) return redirect(res, bad());
+    return sendRaw(res, 200, 'text/html; charset=utf-8', gameConsentPage({ token, username: player.username }), PAGE_HEADERS);
+  }
+
+  async function confirmGame(token, res) {
+    let out;
+    try {
+      out = await db.rpc('confirm_player_guardian', { p_token: token });
+    } catch (err) {
+      if (clientError(err)) return redirect(res, bad());
+      log.error('[consent] confirm_player_guardian zlyhal', err?.code, err?.message);
+      return unavailable(res);
+    }
+    const playerId = (Array.isArray(out) ? out[0] : out)?.player_id;
+    if (!playerId) return redirect(res, bad());
+    await audit(db, { action: 'guardian_confirm_game', entity: 'player', entity_id: playerId }, log);
+    return redirect(res, gameOk());
+  }
+
   async function confirm(req, res) {
     let body;
     try { body = await readBody(req); } catch { return redirect(res, bad()); }
@@ -135,7 +188,7 @@ export function createHandler(deps) {
       const out = await db.rpc('confirm_guardian', { p_token: token });
       reg = Array.isArray(out) ? out[0] : out;
     } catch (err) {
-      if (clientError(err)) return redirect(res, bad());
+      if (clientError(err)) return confirmGame(token, res);
       log.error('[consent] confirm_guardian zlyhal', err?.code, err?.message);
       return unavailable(res);
     }

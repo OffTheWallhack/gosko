@@ -12,6 +12,7 @@ import { safeUrl, csvRows, icsText, decodePasses, mergePasses, importTarget, Use
 import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPayload, completeRegistration, fetchPass, upsertPass } from './register.js';
 import { apiRequest, browserFetch } from './api.js';
 import { pointsTable, rankingRules, PRIVACY } from './pages.js';
+import { consumeReturn } from './game/return.js';
 /* 3D (three.js, 1,3 MB z CDN) sa načítava cez import() len tam, kde sa kreslí:
    board.js (doska na úvode a u jazdca), park.js (stavebnica parkov), card.js (karta jazdca). */
 
@@ -1027,8 +1028,9 @@ function spotDialog(refresh) {
 async function pageMap(root) {
   const mapEl = h('div', { class: 'map' });
   const list = h('ul', { class: 'spot-list' });
-  root.append(pageHead('Mapa spotov', 'Skateparky a street spoty od komunity. Poznáš dobrý spot? Pošli ho aj s fotkou.',
-    h('button', { class: 'btn primary', type: 'button', onclick: () => requireLogin(() => spotDialog(load)).then(ok => ok && spotDialog(load)) }, 'Pridať spot')),
+  root.append(pageHead('Zoznam spotov', 'Skateparky a street spoty od komunity. Poznáš dobrý spot? Pošli ho aj s fotkou.',
+    h('button', { class: 'btn primary', type: 'button', onclick: () => requireLogin(() => spotDialog(load)).then(ok => ok && spotDialog(load)) }, 'Pridať spot'),
+    h('a', { class: 'btn', href: '#/mapa' }, 'Herná mapa')),
     h('div', { class: 'wrap page-body' }, mapEl, h('h2', { class: 'wide sub' }, 'Spoty'), list));
   let stopMap = null;
   async function load() {
@@ -1540,6 +1542,12 @@ function pageImportPasses(root, data, to) {
    ===================================================================== */
 /* Polaroidy z eventov na spodku stránok: zábava ide až za hlavný obsah. */
 function funStrip() { return polaroidStrip(EVENTS.flatMap(e => e.photos || []), lightbox); }
+/* Hra Ghoskate (assets/game/): načíta sa až na herných stránkach. */
+const gamePage = name => async (root, ...args) => (await import('./game/index.js'))[name](root, {
+  store, login: loginDialog, go, rerender: route, setOnAuth: fn => { onAuthChange = fn; }, events: EVENTS, apiBase: API,
+}, ...args);
+const gameSoon = which => async root => (await import('./game/index.js')).pageSoon(root, {}, which);
+
 /* [regex hashu, stránka(root, ...skupiny z regexu), aktívna položka menu]. Nové stránky pridaj sem. */
 const ROUTES = [
   [/^#?\/?$/, pageHome, ''],
@@ -1557,7 +1565,15 @@ const ROUTES = [
   [/^#\/parky$/, pageParks, 'parky'],
   [/^#\/shop$/, pageShop, 'shop'],
   [/^#\/partneri(?:\/(\w+))?$/, pagePartners, 'partneri'],
-  [/^#\/mapa$/, pageMap, 'mapa'],
+  [/^#\/mapa$/, gamePage('pageGameMap'), 'mapa'],
+  [/^#\/spot\/([\w-]+)$/, gamePage('pageGameMap'), 'mapa'],
+  [/^#\/spoty$/, pageMap, 'mapa'],
+  [/^#\/hra\/profil$/, gamePage('pageOnboarding'), 'mapa'],
+  [/^#\/hra\/rebricek$/, gamePage('pageCrewBoard'), 'mapa'],
+  [/^#\/hra\/potvrdene$/, gamePage('pageGameConsentDone'), 'mapa'],
+  [/^#\/feed$/, gameSoon('feed'), 'mapa'],
+  [/^#\/crew$/, gameSoon('crew'), 'mapa'],
+  [/^#\/loadout$/, gameSoon('loadout'), 'mapa'],
   [/^#\/pass$/, pagePasses, ''],
   [/^#\/checkin\/([\w-]+)$/, pageCheckin, ''],
   [/^#\/import-passes\/([\w-]+)(?:\?to=(.*))?$/, pageImportPasses, ''],
@@ -1598,6 +1614,8 @@ async function route() {
   applyData();
   store = await getStore(CONFIG);
   store.onAuth(() => onAuthChange && onAuthChange());
+  // prihlásenie odkazom z e-mailu otvorí úvod: hráča vráť tam, odkiaľ sa prihlasoval (assets/game/return.js)
+  if (await store.signedIn()) { const back = consumeReturn(); if (back) history.replaceState(null, '', back); }
   await Promise.race([refreshRemote(), new Promise(r => setTimeout(r, 4000))]);
   window.addEventListener('hashchange', route);
   route();

@@ -127,6 +127,13 @@ describe('vercel.json: CSP', () => {
   test('img-src', () => has('img-src', "'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://tile.openstreetmap.org', SUPABASE_ORIGIN));
   test('connect-src', () => has('connect-src', "'self'", SUPABASE_ORIGIN, 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'));
   test('frame-src', () => has('frame-src', 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'));
+  // herná mapa (assets/game/map.js): MapLibre GL + OpenFreeMap (štýl, dlaždice, písma a sprite z jedného hostu)
+  test('herná mapa: OpenFreeMap v connect-src a img-src, worker MapLibre (self, blob:)', () => {
+    has('connect-src', 'https://tiles.openfreemap.org');
+    has('img-src', 'https://tiles.openfreemap.org', 'blob:');
+    has('worker-src', "'self'", 'blob:');
+    assert.ok(!csp.get('script-src').includes('blob:'), 'script-src nesmie povoliť blob:');
+  });
   test('worker-src, manifest-src, object-src, base-uri, frame-ancestors', () => {
     has('worker-src', "'self'");
     has('manifest-src', "'self'");

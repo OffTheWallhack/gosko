@@ -69,6 +69,7 @@ function demoStore() {
   const toDataUrl = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
   return {
     mode: 'demo',
+    client: null,
     onAuth() {},
     async signedIn() { return true; },
     async email() { return ''; },
@@ -162,6 +163,8 @@ async function liveStore(CONFIG) {
   };
   return {
     mode: 'live',
+    /* Supabase klient pre hernú časť (assets/game/api.js: RPC a pohľady hry, kontrakt §8) */
+    client: sb,
     onAuth(fn) { sb.auth.onAuthStateChange(() => fn()); },
     async signedIn() { return !!(await session()); },
     async email() { return (await session())?.user?.email || ''; },
@@ -284,7 +287,7 @@ async function liveStore(CONFIG) {
 const OFFLINE_MSG = 'Nepodarilo sa spojiť so serverom GOSko. Skontroluj pripojenie, obnov stránku a skús to znova.';
 function offlineStore() {
   const down = async () => { throw new UserError(OFFLINE_MSG); };
-  const store = { mode: 'offline', message: OFFLINE_MSG, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
+  const store = { mode: 'offline', message: OFFLINE_MSG, client: null, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
     async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; } };
   for (const k of ['login', 'verifyCode', 'listParks', 'submitPark', 'vote', 'listEvents', 'submitEvent', 'listSpots', 'submitSpot', 'send', 'subscribe',
     'findRegistration', 'checkIn', 'pendingParks', 'pendingEvents', 'pendingSpots', 'pendingEventPhotos', 'approve', 'reject', 'inbox',

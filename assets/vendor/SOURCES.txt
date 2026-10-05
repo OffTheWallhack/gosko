@@ -10,6 +10,10 @@ jsqr-1.4.0.js                  jsqr@1.4.0                         dist/jsQR.js  
 leaflet-1.9.4/leaflet.js       leaflet@1.9.4                      dist/leaflet.js        BSD-2-Clause  assets/map.js
 leaflet-1.9.4/leaflet.css      leaflet@1.9.4                      dist/leaflet.css       BSD-2-Clause  assets/map.js
 leaflet-1.9.4/images/*         leaflet@1.9.4                      dist/images/*          BSD-2-Clause  odkazy z leaflet.css
+maplibre-gl-6.12.0/maplibre-gl.mjs         maplibre-gl@6.12.0   dist/maplibre-gl.mjs          BSD-3-Clause  assets/game/map.js (import())
+maplibre-gl-6.12.0/maplibre-gl-shared.mjs  maplibre-gl@6.12.0   dist/maplibre-gl-shared.mjs   BSD-3-Clause  import z maplibre-gl.mjs aj z workera
+maplibre-gl-6.12.0/maplibre-gl-worker.mjs  maplibre-gl@6.12.0   dist/maplibre-gl-worker.mjs   BSD-3-Clause  module worker z tej istej adresy (worker-src 'self')
+maplibre-gl-6.12.0/maplibre-gl.css         maplibre-gl@6.12.0   dist/maplibre-gl.css          BSD-3-Clause  assets/game/map.js
 
 SHA-384 (SRI formát):
 supabase-2.117.2.js         sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok
@@ -17,8 +21,16 @@ qrcode-generator-1.4.4.js   sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs
 jsqr-1.4.0.js               sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx
 leaflet-1.9.4/leaflet.js    sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH
 leaflet-1.9.4/leaflet.css   sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H
+maplibre-gl-6.12.0/maplibre-gl.mjs          sha384-vBS3VmrCg3Nx8PUcTevNEjjj7+TCKU6VjJdezON8yplGOARpTkld7CN+keiqcPmj
+maplibre-gl-6.12.0/maplibre-gl-shared.mjs   sha384-OGp4zg2g805tukqDpmZzKOURd8MNCD2kvcC/OxRKuwSGKokyy00oiZ5ULT1Gl99V
+maplibre-gl-6.12.0/maplibre-gl-worker.mjs   sha384-IuV7xZl+IAF6ZPrDHUcisPa8mvjjGvtbBRgc86pIolWb72JU6Z3AB+yoiqFF7+LS
+maplibre-gl-6.12.0/maplibre-gl.css          sha384-pGcTesCDxgCFx0yvZdwOw9yHx4Gw6kQK19wigRk1RcuDoLTLdbPMEnK7w8e9MgjS
 
 Na CDN ostáva len three.js (1,27 MB, načíta sa až na stránkach s 3D): import map v index.html,
 https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js s integrity
 sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ (overené proti three@0.160.0 z npm).
+MapLibre GL 6 je čisté ES moduly: tri .mjs súbory musia ležať spolu (maplibre-gl.mjs a worker importujú
+./maplibre-gl-shared.mjs, worker sa načíta z ./maplibre-gl-worker.mjs vedľa hlavného súboru).
+Komentár sourceMappingURL na konci súborov ostáva (bajtová zhoda), .map súbory sa nenahrávajú.
+Mapové dlaždice, písma a sprite: OpenFreeMap (https://tiles.openfreemap.org, bez tokenu), dáta © OpenStreetMap.
 Licencie: licenses/ (qrcode-generator má licenciu v hlavičke súboru).

@@ -74,6 +74,9 @@ const UNIQUE = {
   nft_tokens: [['registration_id']],
   events: [['id']],
   admins: [['user_id']],
+  // players_username_key je unikátny index na lower(username)
+  players: [['id'], ['rider_id'], [Object.defineProperty(r => String(r.username).toLowerCase(), 'name', { value: 'username' })]],
+  player_guardian: [['player_id'], ['token']],
 };
 
 const DEFAULTS = {
@@ -84,6 +87,8 @@ const DEFAULTS = {
   audit_log: () => ({ id: Math.floor(Math.random() * 1e9), at: new Date().toISOString() }),
   event_results: () => ({ id: randomUUID(), created_at: new Date().toISOString() }),
   events: () => ({ country: 'SK', status: 'planned', registration_open: false, capacity: null, date: null, city: null, season: null }),
+  players: () => ({ city: null, stance: null, board_config: {}, guardian_confirmed_at: null, created_at: new Date().toISOString() }),
+  player_guardian: () => ({ guardian_name: null, token: null, token_expires_at: null, requested_at: new Date().toISOString() }),
 };
 
 function parseValue(v) {
@@ -166,6 +171,16 @@ export class FakeDb {
         r.guardian_confirmed_at = new Date().toISOString(); r.guardian_token = null;
         return { ...r };
       },
+      confirm_player_guardian: ({ p_token }) => {
+        // ako migrácia 010: token sa použije raz, prepadnutý alebo neznámy = PT404
+        const g = this.t('player_guardian').find(x => x.token && x.token === p_token
+          && (!x.token_expires_at || Date.parse(x.token_expires_at) > Date.now()));
+        if (!g) throw new DbError({ status: 404, code: 'PT404', message: 'invalid_token' });
+        g.token = null;
+        const p = this.t('players').find(x => x.id === g.player_id);
+        if (p) p.guardian_confirmed_at = new Date().toISOString();
+        return { player_id: g.player_id };
+      },
       save_results: ({ p_event_id, p_category, p_rows, p_actor }) => {
         // ako migrácia 005: token vyhodeného jazdca s výsledkom na chaine sa má vynulovať
         const kept = new Set(p_rows.map(r => r.registration_id).filter(Boolean));
@@ -198,7 +213,9 @@ export class FakeDb {
       if (cols.some(c => typeof c === 'string' && (row[c] === null || row[c] === undefined))) continue;
       const k = keyOf(row, cols);
       if (this.t(table).some(r => r !== except && keyOf(r, cols) === k)) {
-        throw new UniqueViolationError({ status: 409, code: '23505', message: `duplicate key value violates unique constraint on ${table}` });
+        // ako Postgres: v správe je názov obmedzenia (tabuľka_stĺpce_key)
+        const name = `${table}_${cols.map(c => (typeof c === 'string' ? c : c.name)).join('_')}_key`;
+        throw new UniqueViolationError({ status: 409, code: '23505', message: `duplicate key value violates unique constraint "${name}"` });
       }
     }
   }
@@ -298,6 +315,20 @@ export function fakeAuth({ adminId = ADMIN_ID } = {}) {
       if (!h.startsWith('Bearer ')) throw new ApiError(401, 'unauthorized', 'Chýba prihlásenie.');
       if (h !== 'Bearer admin-jwt') throw new ApiError(403, 'forbidden', 'Nemáš oprávnenie admina.');
       return { userId: adminId };
+    },
+  };
+}
+
+// Prihlásený hráč: 'Bearer <token>' -> používateľ z mapy users ({ id, email, verified? }).
+export function fakeUserAuth(users = {}) {
+  return {
+    async requireUser(req) {
+      const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
+      if (!m) throw new ApiError(401, 'unauthorized', 'Prihlás sa.');
+      const u = users[m[1]];
+      if (!u) throw new ApiError(401, 'unauthorized', 'Prihlásenie vypršalo. Prihlás sa znova.');
+      if (u.verified === false) throw new ApiError(403, 'email_unverified', 'Najprv potvrď e-mail.');
+      return { userId: u.id, email: String(u.email).toLowerCase() };
     },
   };
 }

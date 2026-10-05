@@ -193,11 +193,11 @@ event BatchMetadataUpdate(uint256 _fromTokenId, uint256 _toTokenId)
 - `npm run test:smoke` = `tests/smoke/**` (env `GOSKO_URL`).
 
 ## 8. Hra Ghoskate: databáza (010–012)
-Plán: `~/.claude/plans/gosko-master-ghoskate.md`, Task 1. Migrácie `010_game_core.sql`, `011_game_crews.sql`, `012_game_loot.sql`, seed `supabase/seed/spots_ba.sql` (súradnice približné, `needs_verification = true`).
+Plán: `~/.claude/plans/gosko-master-ghoskate.md`, Task 1 až 3. Migrácie `010_game_core.sql`, `011_game_crews.sql`, `012_game_loot.sql`, `013_game_consent.sql`, seed `supabase/seed/spots_ba.sql` (súradnice približné, `needs_verification = true`).
 
 ### Identita a U16
 - `players.id = auth.users.id = auth.uid()`; `players.rider_id` je 1:1 s `riders`. Hráča zakladá iba `service_role` (Task 2, `api/game/link-rider.js`), preto má každý hráč `rider_private.birth_date`.
-- Zapisovať (check-in, klip, spot, hodnotenie, hlásenie, crew, loot) môže hráč, ktorý má dnes 16+, alebo má `players.guardian_confirmed_at`, alebo jeho jazdec má ktorúkoľvek registráciu s `guardian_confirmed_at` (súhlas rodiča platí pre všetko). Inak `NEED_GUARDIAN`. Pravidlo je v internom pohľade `game_writers` (bez grantov).
+- Zapisovať (check-in, klip, spot, hodnotenie, hlásenie, crew, loot) môže hráč, ktorý má dnes 16+, alebo má `players.guardian_confirmed_at`. Inak `NEED_GUARDIAN`. Súhlas rodiča s registráciou na event hru **neodomyká** (rozhodnutie 5. 10. 2026, migrácia `013_game_consent.sql`). Pravidlo je v internom pohľade `game_writers` (bez grantov).
 - Súhlas rodiča pre hru: `player_guardian(player_id, guardian_name, guardian_email, token, token_expires_at)` zapisuje iba `service_role`; `confirm_player_guardian(p_token) returns jsonb` (iba `service_role`) nastaví `players.guardian_confirmed_at`, neplatný, použitý alebo prepadnutý token = PT404. Token nie je v `players`, aby si ho dieťa nevedelo prečítať.
 - Hráč mení vlastné `username, city, stance, board_config` priamo (RLS); `username` `^[A-Za-z0-9_.]{3,20}$`, unikátne bez ohľadu na veľkosť písmen.
 
@@ -238,4 +238,11 @@ Chyba = HTTP 400 a `{message: KÓD, details}`. Kódy: `FORBIDDEN` (bez profilu h
 - Nálepka za event: `gear.event_id`. Trigger `grant_event_gear` ju udelí pri `registrations.status -> checked_in`, pri prepojení hráča s jazdcom a pri gear pridanom po evente.
 
 ### Lokálne testy
-`GOSKO_TEST_DB` (musí začínať `gosko_test`) a `GOSKO_TEST_PORT` zvolia inú DB a port PostgRESTu pre súbežné behy; predvolené `gosko_test` a 3901. `scripts/test-db.sh [001…006|010|011|012]`, predvolené 012 so seedmi. `supabase/test/shim_game.sql` dopĺňa `auth.users.email_confirmed_at` a `auth.email()`.
+`GOSKO_TEST_DB` (musí začínať `gosko_test`) a `GOSKO_TEST_PORT` zvolia inú DB a port PostgRESTu pre súbežné behy; predvolené `gosko_test` a 3901. `scripts/test-db.sh [001…006|010…013]`, predvolené 013 so seedmi. `supabase/test/shim_game.sql` dopĺňa `auth.users.email_confirmed_at` a `auth.email()`.
+
+### Prihlásenie hráča a súhlas rodiča s hrou (Task 2)
+- Prihlásenie: Supabase Auth, e-mail s kódom alebo odkazom (`store.login`, ten istý klient ako admin). Šablóna e-mailu musí obsahovať `{{ .Token }}` (kód) aj odkaz.
+- `GET /api/game/link-rider` (Bearer JWT, overený e-mail): `{ok, status:'player', username, needs_guardian}` alebo `{ok, status:'new', rider:'none'|'known'|'ambiguous', guardian_known}`.
+- `POST /api/game/link-rider` `{username, city?, stance?, instagram?, consents:{rules, privacy}, birth_date?, name?, country?, guardian_email?, guardian_name?}` alebo `{resend_guardian:true}`. Jazdec podľa `rider_private.email = overený e-mail` (ešte nenapojený), pri súrodencoch rozhodne `birth_date`, inak nový jazdec (povinné `name`, `birth_date`, `country`). E-mail sa berie iba z prihlásenia. U16: token v `player_guardian` (14 dní), e-mail rodičovi s rozsahom hry; pri známom jazdcovi platí rodič z `rider_private`. Odpoveď `201 {ok, status:'created', rider:'linked'|'new', username, needs_guardian, guardian_mail_sent}` bez osobných údajov. Chyby: 401 `unauthorized`, 403 `email_unverified`, 400 `invalid_input` + `errors`, 409 `username_taken` / `rider_conflict`, 422 `birth_date_required` / `guardian_required`, 429 `rate_limited`.
+- `/api/consent` prijme oba tokeny: GET ukáže rozsah eventu alebo hry, POST skúsi `confirm_guardian`, pri neznámom tokene `confirm_player_guardian` -> 302 na `#/hra/potvrdene`.
+
