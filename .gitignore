@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+.vercel/
+chain/node_modules/
+chain/artifacts/
+chain/cache/
+chain/types/
+chain/ignition/deployments/chain-31337/
+.workflow/
+supabase/test/*.log
