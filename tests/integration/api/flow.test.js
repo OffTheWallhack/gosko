@@ -245,7 +245,14 @@ if (missing.length) {
     assert.equal(mail.to, 'mama@example.sk');
     const link = /\/api\/consent\?token=([0-9a-f-]{36})/.exec(mail.text);
     assert.ok(link, 'odkaz pre rodiča v e-maile');
-    const ok = await call(S.h.consent, { url: `/api/consent?token=${link[1]}` });
+    // krok 1: GET iba ukáže stránku (skener odkazov nič nepotvrdí)
+    const page = await call(S.h.consent, { url: `/api/consent?token=${link[1]}` });
+    assert.equal(page.statusCode, 200);
+    assert.ok(page.body.includes('Potvrdzujem súhlas'));
+    const [still] = await S.deps.db.select('registrations', { token: eq(S.kidToken) });
+    assert.equal(still.status, 'pending_guardian');
+    // krok 2: POST formulára
+    const ok = await call(S.h.consent, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, rawBody: `token=${link[1]}` });
     assert.equal(ok.statusCode, 302);
     assert.equal(ok.headers.location, `${BASE}/#/registracia/potvrdene`);
     const [reg] = await S.deps.db.select('registrations', { token: eq(S.kidToken) });
@@ -253,7 +260,7 @@ if (missing.length) {
     assert.ok(reg.guardian_confirmed_at);
     assert.equal(reg.guardian_token, null);
     S.kidReg = reg;
-    const again = await call(S.h.consent, { url: `/api/consent?token=${link[1]}` });
+    const again = await call(S.h.consent, { method: 'POST', body: { token: link[1] } });
     assert.equal(again.headers.location, `${BASE}/#/registracia/neplatny-odkaz`);
   });
 
@@ -342,6 +349,28 @@ if (missing.length) {
     assert.ok(img.body.includes('TRNAVA'));
   });
 
+  test('U16 odbavený pred súhlasom rodiča: po súhlase ostane checked_in a token sa zmintuje', async () => {
+    const kid = body({ legal_name: 'Ema Mladá', display_name: '', nickname: '', email: 'ema@example.sk', birth_date: yearsBefore(S.eventDate, 13), public_name_mode: 'full', guardian_email: 'otec@example.sk' });
+    const reg = await post(S.h.register, kid, { 'x-forwarded-for': '198.51.100.14' });
+    assert.equal(reg.statusCode, 201, reg.body);
+    const token = reg.json.pass.token;
+    const link = /\/api\/consent\?token=([0-9a-f-]{36})/.exec(S.mail.sent.at(-1).text)[1];
+    const chk = await post(S.h.checkin, { token }, ADMIN);
+    assert.equal(chk.json.registration.guardian_ok, false);
+    assert.equal(chk.json.nft.status, 'guardian_pending');
+    assert.equal((await call(S.h.consent, { url: `/api/consent?token=${link}` })).statusCode, 200);
+    const ok = await call(S.h.consent, { method: 'POST', body: { token: link } });
+    assert.equal(ok.headers.location, `${BASE}/#/registracia/potvrdene`);
+    const [row] = await S.deps.db.select('registrations', { token: eq(token) });
+    assert.equal(row.status, 'checked_in');
+    assert.ok(row.guardian_confirmed_at);
+    const [tok] = await S.deps.db.select('nft_tokens', { registration_id: eq(row.id) });
+    assert.equal(tok.status, 'minted', JSON.stringify(S.errors));
+    const id = await read('tokenOfRegistration', [encodeRegistrationKey(row.id)]);
+    assert.equal(BigInt(tok.token_id), id);
+    assert.equal((await read('passOf', [id])).category, 2);
+  });
+
   test('zlyhaný mint (RPC dole): check-in prejde s failed, cron ho dorobí bez duplikátu', async () => {
     const reg = await post(S.h.register, body({ legal_name: 'Ján Novák', display_name: '', nickname: '', email: 'jan@example.sk' }), { 'x-forwarded-for': '198.51.100.13' });
     assert.equal(reg.statusCode, 201, reg.body);
@@ -365,6 +394,6 @@ if (missing.length) {
     const [after] = await S.deps.db.select('nft_tokens', { registration_id: eq(row.id) });
     assert.equal(after.status, 'minted');
     assert.equal(await read('tokenOfRegistration', [encodeRegistrationKey(row.id)]), BigInt(after.token_id));
-    assert.equal(await read('balanceOf', [CUSTODY]), 3n);
+    assert.equal(await read('balanceOf', [CUSTODY]), 4n);
   });
 }

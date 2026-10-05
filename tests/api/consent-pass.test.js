@@ -1,10 +1,10 @@
-// GET /api/consent, GET a POST /api/pass.
+// GET/POST /api/consent (dvojkrokový súhlas rodiča), GET a POST /api/pass.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHandler as consentHandler } from '../../api/consent.js';
 import { createHandler as passHandler } from '../../api/pass.js';
 import { DbError } from '../../api/_lib/db.js';
-import { FakeDb, fakeMail, testEnv, silentLog, fixedNow, baseEvent, call } from './_support/fakes.js';
+import { FakeDb, fakeMail, fakeChain, testEnv, silentLog, fixedNow, baseEvent, call } from './_support/fakes.js';
 
 const RIDER = 'bbbbbbbb-0000-4000-8000-000000000001';
 const REG = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -18,16 +18,57 @@ function seed(regOver = {}) {
     events: [baseEvent()],
     riders: [{ id: RIDER, rider_ref: '0x' + '1'.repeat(64), display_name: 'Peter Malý', nickname: 'Peťo', public_name_mode: 'nick' }],
     rider_private: [{ rider_id: RIDER, legal_name: 'Peter Malý', birth_date: '2012-05-01', email: 'peto@example.sk', guardian_email: 'mama@example.sk' }],
-    registrations: [{ id: REG, rider_id: RIDER, event_id: 'bratislava-2026-11', category: 'u16', status: 'pending_guardian', token: TOKEN, guardian_token: GTOKEN, consent_version: '2026-10', consent_at: '2026-10-05T10:00:00Z', ...regOver }],
+    registrations: [{ id: REG, rider_id: RIDER, event_id: 'bratislava-2026-11', category: 'u16', status: 'pending_guardian', token: TOKEN, guardian_token: GTOKEN, consent_version: '2026-10', consent_at: '2026-10-05T10:00:00Z', nft_consent: true, photo_consent: true, ...regOver }],
   });
 }
-const consent = (db, mail = fakeMail()) => consentHandler({ env: testEnv(), db, mail, log: silentLog, now: fixedNow() });
+const consent = (db, mail = fakeMail(), chain = fakeChain()) => consentHandler({ env: testEnv(), db, mail, chain, log: silentLog, now: fixedNow() });
+const confirmForm = (h, token) => call(h, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, rawBody: `token=${encodeURIComponent(token)}` });
 
-/* ---------- consent ---------- */
-test('consent: platný token potvrdí a presmeruje na potvrdene', async () => {
+/* ---------- consent GET: iba stránka, nič nepotvrdí ---------- */
+test('consent GET: stránka s eventom, verejným menom a formulárom; token sa nepoužije', async () => {
+  const db = seed();
+  const res = await call(consent(db), { url: `/api/consent?token=${GTOKEN}`, query: { token: GTOKEN } });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers['content-type'], /text\/html/);
+  assert.equal(res.headers['cache-control'], 'no-store');
+  assert.equal(res.headers['referrer-policy'], 'no-referrer');
+  assert.match(res.headers['content-security-policy'], /form-action 'self'/);
+  for (const s of ['GOSko Bratislava', 'Peťo', 'Potvrdzujem súhlas', 'method="post"', 'action="/api/consent"', `value="${GTOKEN}"`, '#A01D21', 'NFT']) {
+    assert.ok(res.body.includes(s), s);
+  }
+  for (const pii of ['Malý', 'peto@', 'mama@', '2012-05-01']) assert.ok(!res.body.includes(pii), pii);
+  assert.ok(!res.body.includes('\u2014'));
+  assert.equal(db.callsOf('rpc', 'confirm_guardian').length, 0, 'GET nesmie potvrdiť');
+  assert.equal(db.t('registrations')[0].status, 'pending_guardian');
+});
+
+test('consent GET: neplatný, chýbajúci alebo použitý token ide na neplatny-odkaz', async () => {
+  for (const q of [{ token: 'nie-uuid' }, {}, { token: '' }]) {
+    const db = seed();
+    const res = await call(consent(db), { query: q });
+    assert.equal(res.headers.location, BAD);
+    assert.equal(db.calls.length, 0);
+  }
+  for (const over of [{ guardian_token: null }, { status: 'confirmed', guardian_confirmed_at: '2026-10-06T00:00:00Z' }, { status: 'cancelled' }]) {
+    const res = await call(consent(seed(over)), { query: { token: GTOKEN } });
+    assert.equal(res.statusCode, 302, JSON.stringify(over));
+    assert.equal(res.headers.location, BAD);
+  }
+});
+
+test('consent GET: výpadok DB je 503 stránka', async () => {
+  const db = seed();
+  db.failNext['select:registrations'] = new DbError({ status: 503, code: 'network', message: 'down' });
+  const res = await call(consent(db), { query: { token: GTOKEN } });
+  assert.equal(res.statusCode, 503);
+  assert.match(res.headers['content-type'], /text\/html/);
+});
+
+/* ---------- consent POST ---------- */
+test('consent POST (formulár): potvrdí, presmeruje na potvrdene, jazdec dostane pass', async () => {
   const db = seed();
   const mail = fakeMail();
-  const res = await call(consent(db, mail), { url: `/api/consent?token=${GTOKEN}`, query: { token: GTOKEN } });
+  const res = await confirmForm(consent(db, mail), GTOKEN);
   assert.equal(res.statusCode, 302);
   assert.equal(res.headers.location, OK);
   const reg = db.t('registrations')[0];
@@ -35,60 +76,83 @@ test('consent: platný token potvrdí a presmeruje na potvrdene', async () => {
   assert.ok(reg.guardian_confirmed_at);
   assert.equal(reg.guardian_token, null);
   assert.deepEqual(db.callsOf('rpc', 'confirm_guardian')[0].args, { p_token: GTOKEN });
-  // jazdec dostane potvrdenie s passom
   assert.equal(mail.sent.length, 1);
   assert.equal(mail.sent[0].to, 'peto@example.sk');
   assert.ok(mail.sent[0].text.includes(`https://gosko.test/#/pass/${TOKEN}`));
   assert.ok(db.t('audit_log').some(a => a.action === 'guardian_confirm'));
 });
 
-test('consent: použitý token (druhé kliknutie) ide na neplatny-odkaz', async () => {
+test('consent POST (JSON) funguje rovnako', async () => {
+  const db = seed();
+  const res = await call(consent(db), { method: 'POST', body: { token: GTOKEN } });
+  assert.equal(res.headers.location, OK);
+  assert.equal(db.t('registrations')[0].status, 'confirmed');
+});
+
+test('consent POST: použitý token (PT404), neplatný token a zlé telo idú na neplatny-odkaz', async () => {
   const db = seed();
   const h = consent(db);
-  await call(h, { query: { token: GTOKEN } });
-  const again = await call(h, { query: { token: GTOKEN } });
-  assert.equal(again.statusCode, 302);
-  assert.equal(again.headers.location, BAD);
-});
-
-test('consent: neplatný alebo chýbajúci token ide na neplatny-odkaz bez volania DB', async () => {
-  for (const q of [{ token: 'nie-uuid' }, {}, { token: '' }]) {
-    const db = seed();
-    const res = await call(consent(db), { query: q });
-    assert.equal(res.statusCode, 302);
-    assert.equal(res.headers.location, BAD);
-    assert.equal(db.calls.length, 0);
+  await confirmForm(h, GTOKEN);
+  assert.equal((await confirmForm(h, GTOKEN)).headers.location, BAD);
+  assert.equal((await confirmForm(h, 'nie')).headers.location, BAD);
+  assert.equal((await call(h, { method: 'POST', rawBody: '{zly' , headers: { 'content-type': 'application/json' } })).headers.location, BAD);
+  for (const ret of [null, { id: null }, []]) {
+    const d = seed();
+    d.rpcs.confirm_guardian = () => ret;
+    assert.equal((await confirmForm(consent(d), GTOKEN)).headers.location, BAD, JSON.stringify(ret));
   }
 });
 
-test('consent: neznámy token (RPC vráti null alebo prázdny riadok) ide na neplatny-odkaz', async () => {
-  for (const ret of [null, { id: null, status: null }, []]) {
-    const db = seed();
-    db.rpcs.confirm_guardian = () => ret;
-    const res = await call(consent(db), { query: { token: GTOKEN } });
-    assert.equal(res.headers.location, BAD, JSON.stringify(ret));
-  }
-});
-
-test('consent: výnimka z DB funkcie (4xx) je neplatný odkaz, výpadok DB je 503 bez presmerovania', async () => {
+test('consent POST: výpadok DB je 503 bez presmerovania a token ostáva platný', async () => {
   const db = seed();
-  db.failNext['rpc:confirm_guardian'] = new DbError({ status: 400, code: 'P0001', message: 'invalid token' });
-  const r1 = await call(consent(db), { query: { token: GTOKEN } });
-  assert.equal(r1.headers.location, BAD);
   db.failNext['rpc:confirm_guardian'] = new DbError({ status: 503, code: 'network', message: 'down' });
-  const r2 = await call(consent(db), { query: { token: GTOKEN } });
-  assert.equal(r2.statusCode, 503);
-  assert.match(r2.headers['content-type'], /text\/html/);
+  const r = await confirmForm(consent(db), GTOKEN);
+  assert.equal(r.statusCode, 503);
   assert.equal(db.t('registrations')[0].status, 'pending_guardian');
+  assert.equal((await confirmForm(consent(db), GTOKEN)).headers.location, OK);
 });
 
-test('consent: chyba e-mailu jazdcovi nezastaví presmerovanie', async () => {
-  const res = await call(consent(seed(), fakeMail({ fail: true })), { query: { token: GTOKEN } });
+test('consent POST: chyba e-mailu jazdcovi nezastaví presmerovanie', async () => {
+  const res = await confirmForm(consent(seed(), fakeMail({ fail: true })), GTOKEN);
   assert.equal(res.headers.location, OK);
 });
 
-test('consent: POST je 405', async () => {
-  assert.equal((await call(consent(seed()), { method: 'POST', query: { token: GTOKEN } })).statusCode, 405);
+test('U16 odbavený pred súhlasom: GET ukáže stránku, POST ponechá checked_in a zmintuje (nft_consent)', async () => {
+  const db = seed({ status: 'checked_in', checked_in_at: '2026-11-21T09:00:00Z' });
+  const chain = fakeChain();
+  const mail = fakeMail();
+  const h = consent(db, mail, chain);
+  assert.equal((await call(h, { query: { token: GTOKEN } })).statusCode, 200);
+  const res = await confirmForm(h, GTOKEN);
+  assert.equal(res.headers.location, OK);
+  const reg = db.t('registrations')[0];
+  assert.equal(reg.status, 'checked_in');
+  assert.ok(reg.guardian_confirmed_at);
+  assert.equal(chain.mintCalls.length, 1);
+  assert.equal(chain.mintCalls[0].category, 'u16');
+  assert.equal(db.t('nft_tokens')[0].status, 'minted');
+  assert.equal(mail.sent.length, 0, 'odbavený jazdec pass e-mailom nepotrebuje');
+});
+
+test('U16 odbavený pred súhlasom bez nft_consent: žiadny mint; chyba mintu nezastaví presmerovanie', async () => {
+  const chain = fakeChain();
+  await confirmForm(consent(seed({ status: 'checked_in', nft_consent: false }), fakeMail(), chain), GTOKEN);
+  assert.equal(chain.mintCalls.length, 0);
+  const db = seed({ status: 'checked_in' });
+  const res = await confirmForm(consent(db, fakeMail(), fakeChain({ failMint: 3 })), GTOKEN);
+  assert.equal(res.headers.location, OK);
+  assert.equal(db.t('nft_tokens')[0].status, 'failed');
+});
+
+test('consent POST pre bežné potvrdenie (status confirmed) nemintuje', async () => {
+  const chain = fakeChain();
+  await confirmForm(consent(seed(), fakeMail(), chain), GTOKEN);
+  assert.equal(chain.mintCalls.length, 0);
+});
+
+test('consent: iné metódy sú 405', async () => {
+  assert.equal((await call(consent(seed()), { method: 'PUT' })).statusCode, 405);
+  assert.equal((await call(consent(seed()), { method: 'HEAD', query: { token: GTOKEN } })).statusCode, 405);
 });
 
 /* ---------- pass GET ---------- */

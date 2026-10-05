@@ -57,6 +57,30 @@ export async function readJson(req) {
   return parseText(Buffer.concat(chunks).toString('utf8'));
 }
 
+// Telo ako JSON alebo application/x-www-form-urlencoded (HTML formulár).
+export async function readBody(req) {
+  const type = String(header(req, 'content-type') || '').toLowerCase();
+  if (!type.includes('application/x-www-form-urlencoded')) return readJson(req);
+  const b = req.body;
+  if (b && typeof b === 'object' && !Buffer.isBuffer(b)) return b; // Vercel už sparsoval
+  let text = '';
+  if (typeof b === 'string') text = b;
+  else if (Buffer.isBuffer(b)) text = b.toString('utf8');
+  else if (typeof req[Symbol.asyncIterator] === 'function') {
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of req) {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      size += buf.length;
+      if (size > MAX_BODY) throw new ApiError(413, 'invalid_input', 'Požiadavka je príliš veľká.');
+      chunks.push(buf);
+    }
+    text = Buffer.concat(chunks).toString('utf8');
+  }
+  if (text.length > MAX_BODY) throw new ApiError(413, 'invalid_input', 'Požiadavka je príliš veľká.');
+  return Object.fromEntries(new URLSearchParams(text).entries());
+}
+
 export function send(res, status, body, headers = {}) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');

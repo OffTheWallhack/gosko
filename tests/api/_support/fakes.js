@@ -156,9 +156,12 @@ export class FakeDb {
         return this.rl[p_key] > p_limit;
       },
       confirm_guardian: ({ p_token }) => {
-        const r = this.t('registrations').find(x => x.guardian_token === p_token && x.status === 'pending_guardian');
-        if (!r) return null;
-        r.status = 'confirmed'; r.guardian_confirmed_at = new Date().toISOString(); r.guardian_token = null;
+        // ako migrácia 004: aj checked_in bez súhlasu, status checked_in ostáva; inak PT404
+        const r = this.t('registrations').find(x => x.guardian_token === p_token
+          && (x.status === 'pending_guardian' || (x.status === 'checked_in' && !x.guardian_confirmed_at)));
+        if (!r) throw new DbError({ status: 404, code: 'PT404', message: 'invalid_token' });
+        if (r.status === 'pending_guardian') r.status = 'confirmed';
+        r.guardian_confirmed_at = new Date().toISOString(); r.guardian_token = null;
         return { ...r };
       },
       save_results: ({ p_event_id, p_category, p_rows, p_actor }) => {
