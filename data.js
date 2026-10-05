@@ -16,6 +16,11 @@ export const SITE = {
   email: '',            // kontaktný e-mail pre partnerov, napr. 'ahoj@gosko.sk'
   season: 2026,
   photoCredit: '',      // autor fotiek, zobrazí sa pod galériou
+  /* Video na pozadí úvodky. Krátky klip bez zvuku (10 – 20 s, MP4, ideálne do 8 MB), nahraj ho do priečinka video/.
+     Kým je prázdne, pozadie úvodky hrá YouTube vlog nižšie (bez zvuku). */
+  heroVideo: 'video/hero.mp4',
+  heroPoster: 'img/hero-poster.jpg',
+  vlog: 'h_ZyZHSvmL4',  // YouTube ID vlogu z eventov
 };
 
 /* Bodovanie do rebríčka podľa umiestnenia. Body sa rátajú len za Game of Skate. */
@@ -78,14 +83,14 @@ export const EVENTS = [
     id: 'zilina-2026',
     name: 'GOSko Žilina',
     city: 'Žilina',
-    date: '',
-    place: '',
+    date: '2026-06-27',
+    place: 'Skatepark Solinky (Shred Fest)',
     status: 'done',
     season: 2026,
     sticker: 'round',
-    stickerDate: '',
+    stickerDate: '27.06.2026',
     lat: null, lng: null,
-    about: 'Druhé GOSko, tentoraz v Žiline.',
+    about: 'Druhé GOSko, tentoraz ako súčasť festivalu Shred Fest v žilinskom skateparku Solinky.',
     results: {},
     awards: [],
     partners: [],
@@ -93,7 +98,7 @@ export const EVENTS = [
   },
   {
     id: 'bratislava-2',
-    name: 'GOSko Bratislava',
+    name: 'GOSko #3 Bratislava',
     city: 'Bratislava',
     date: '',
     place: '',
@@ -102,7 +107,8 @@ export const EVENTS = [
     sticker: 'next',
     stickerDate: '',
     lat: null, lng: null,
-    about: 'Ďalší stop GOSko. Dátum a miesto zverejníme na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
+    about: 'Pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027. Plánujeme 14. alebo 21. novembra 2026, presný dátum a miesto zverejníme na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
+    when: '14. alebo 21. 11. 2026',
     registration: true,
     results: {},
     awards: [],
@@ -126,16 +132,30 @@ export const PARTNERS = {
 
 /* Stránka pre partnerov */
 export const FACTS = [
-  { num: '2', label: 'odjazdené eventy: Bratislava a Žilina' },
-  { num: '3', label: 'kategórie: Open, U16 a Babská' },
-  { num: '8K', label: 'zobrazení dvoch príspevkov s výsledkami prvého eventu' },
-  { num: '5', label: 'partnerov na prvom evente' },
+  { num: '2', label: 'odjazdené eventy: Bratislava 31. 5. a Žilina 27. 6. 2026' },
+  { num: '19 000+', label: 'zobrazení na Instagrame (5 príspevkov @g.o.s.ko)' },
+  { num: '6 826', label: 'zobrazení plagátu GOSko Bratislava' },
+  { num: '11', label: 'partnerov a spolupracovníkov, od Red Bullu po mesto Žilina' },
+  { num: '1 811', label: 'účtov oslovil jeden spoločný post s výsledkami' },
 ];
+
+/* Plán sezóny (verejná verzia bez presných miest na rok 2027) */
+export const PLAN = [
+  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko #3, 14. alebo 21. 11.' },
+  { when: '2027', title: 'Stop 1', place: 'krajské mesto' },
+  { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
+  { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
+  { when: '2027 · CZ', title: 'Česko', place: 'prvý stop v Česku', dark: true },
+  { when: '2027', title: 'Finále', place: 'oznámime čoskoro', red: true },
+];
+/* Balíčky bez cien. Cena na vyžiadanie. */
 export const PACKAGES = [
   { name: 'Presenting partner', text: 'Celá séria nesie tvoje meno.',
     gets: ['Názov „GOSko presented by…“ na rankingu, webe aj vo videách', 'Vlastná aktivácia na každom evente', 'Exkluzivita v tvojej kategórii'] },
   { name: 'Partner kategórie', text: 'Tvoja značka pri konkrétnej časti programu.',
     gets: ['Vlastná kategória alebo cena, napr. Junior alebo Best Trick', 'Logo v obsahu, ktorý z nej vznikne', 'Aktivácia na mieste'] },
+  { name: 'Partner pilotu', text: 'Novembrový pilot v Bratislave, štart celej sezóny.',
+    gets: ['Partner novembrového eventu', 'Uvedenie na webe a sieťach', 'Priestor na stánok'] },
   { name: 'Lokálny partner', text: 'Jedna zastávka v tvojom meste alebo priestore.',
     gets: ['Partner konkrétneho eventu', 'Priestor, povolenia alebo vecné plnenie', 'Uvedenie na webe a v komunikácii eventu'] },
 ];
@@ -175,6 +195,18 @@ export const SEASON_RULES = {
    Pošli mi ich a doplním ich presne tak, ako ich napíšeš. */
 export const RULES = [];
 export const FAQ = [];
+
+/* Známe skateparky na mape. Poloha je orientačná: ak pin nesedí, v Google Maps podrž prst na
+   presnom mieste, skopíruj súradnice a prepíš lat a lng. Navigácia hľadá park podľa názvu a mesta. */
+export const SKATEPARKS = [
+  { name: 'Skatepark Janka Kráľa (pod Mostom SNP)', city: 'Bratislava', area: 'Petržalka', lat: 48.1371, lng: 17.1050, about: 'Jeden z najväčších skateparkov na Slovensku, 1 350 m² pod mostom, svieti aj večer.', tag: 'betón' },
+  { name: 'Skatepark Rača (Urbanpark Tbiliská)', city: 'Bratislava', area: 'Rača', lat: 48.2049, lng: 17.1516, about: 'Domovský park prvého GOSka (31. 5. 2026).', tag: 'GOSko' },
+  { name: 'Hangair', city: 'Bratislava', area: 'Vajnory', lat: 48.2045, lng: 17.1890, about: 'Akadémia akčných športov. Vnútorný park s minirampou a vonkajší betónový park.', tag: 'indoor' },
+  { name: 'Skatepark Solinky', city: 'Žilina', area: 'Solinky', lat: 49.2160, lng: 18.7650, about: 'Tu bolo druhé GOSko na Shred Feste (27. 6. 2026).', tag: 'GOSko' },
+  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v roku 2025.', tag: 'betón' },
+  { name: 'Skatepark KVP', city: 'Košice', area: 'Sídlisko KVP', lat: 48.7166, lng: 21.2145, about: 'Moderný park na Moskovskej triede, tu sa jazdili Majstrovstvá SR 2026.', tag: 'betón' },
+  { name: 'Sketon Skatepark', city: 'Sládkovičovo', area: '', lat: 48.2003, lng: 17.6371, about: 'Domov Cube Skate Day.', tag: 'betón' },
+];
 
 /* Profily jazdcov (všetko voliteľné). Kľúč je meno bez diakritiky, malými písmenami, s pomlčkami.
      photo:     'img/riders/sebastian.webp'  (štvorcová fotka, aspoň 300 × 300 px; kým chýba, ukáže sa avatar s iniciálami)

@@ -105,6 +105,22 @@ function demoStore() {
       LS.set(K.awards, [...keep, ...list.map(a => ({ event_id, name: a.name, rider_name: a.rider_name }))]);
     },
 
+    async setEventImage(id, photo) {
+      const a = LS.get(K.events, []); const e = a.find(x => x.id === id); if (e) e.image_url = await toDataUrl(photo); LS.set(K.events, a);
+    },
+    /* novinky */
+    async listPosts() { return LS.get('gosko:posts', []).filter(p => p.published !== false); },
+    async allPosts() { return LS.get('gosko:posts', []); },
+    async getPost(id) { return LS.get('gosko:posts', []).find(p => p.id === id) || null; },
+    async savePost(row, photo) {
+      const a = LS.get('gosko:posts', []);
+      const image_url = photo ? await toDataUrl(photo) : row.image_url || null;
+      if (row.id) { const i = a.findIndex(x => x.id === row.id); if (i >= 0) a[i] = { ...a[i], ...row, image_url }; }
+      else a.unshift({ ...row, image_url, id: uid(), created_at: new Date().toISOString(), created: Date.now() });
+      if (!LS.set('gosko:posts', a)) throw new Error('Prehliadač nemá voľné miesto na uloženie.');
+    },
+    async deletePost(id) { LS.set('gosko:posts', LS.get('gosko:posts', []).filter(x => x.id !== id)); },
+
     /* fotky a klipy od komunity */
     async listEventPhotos(event_id) { return LS.get(K.photos, []).filter(p => p.event_id === event_id).map(p => ({ ...p, pending: !p.approved })); },
     async submitEventPhoto(row, photo) {
@@ -206,6 +222,32 @@ async function liveStore(CONFIG) {
     async saveAwards(event_id, list) {
       must(await sb.from('event_awards').delete().eq('event_id', event_id));
       if (list.length) must(await sb.from('event_awards').insert(list.map(a => ({ event_id, name: a.name, rider_name: a.rider_name }))));
+    },
+
+    async setEventImage(id, photo) {
+      const u = (await session()).user.id, path = `${u}/event-${newToken()}.jpg`;
+      must(await sb.storage.from('photos').upload(path, photo, { contentType: 'image/jpeg', upsert: false }));
+      must(await sb.from('community_events').update({ image_url: sb.storage.from('photos').getPublicUrl(path).data.publicUrl }).eq('id', id));
+    },
+    /* novinky */
+    async listPosts() { return must(await sb.from('posts').select('*').eq('published', true).order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(100)).map(created); },
+    async allPosts() { return must(await sb.from('posts').select('*').order('created_at', { ascending: false }).limit(300)).map(created); },
+    async getPost(id) { return must(await sb.from('posts').select('*').eq('id', id).maybeSingle()); },
+    async savePost(row, photo) {
+      const r = { ...row };
+      if (photo) {
+        const u = (await session()).user.id;
+        r.image_path = `${u}/news-${newToken()}.jpg`;
+        must(await sb.storage.from('photos').upload(r.image_path, photo, { contentType: 'image/jpeg', upsert: false }));
+        r.image_url = sb.storage.from('photos').getPublicUrl(r.image_path).data.publicUrl;
+      }
+      const id = r.id; delete r.id; delete r.created; delete r.created_at;
+      must(id ? await sb.from('posts').update(r).eq('id', id) : await sb.from('posts').insert(r));
+    },
+    async deletePost(id) {
+      const row = must(await sb.from('posts').select('image_path').eq('id', id).maybeSingle());
+      if (row?.image_path) await sb.storage.from('photos').remove([row.image_path]);
+      must(await sb.from('posts').delete().eq('id', id));
     },
 
     /* fotky a klipy od komunity */
