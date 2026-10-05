@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "outputDirectory": ".",
+  "regions": [
+    "fra1"
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -107,12 +110,6 @@
   ],
   "functions": {
     "api/**/*.js": {
-      "maxDuration": 30
-    },
-    "api/admin/*.js": {
-      "maxDuration": 60
-    },
-    "api/cron/*.js": {
       "maxDuration": 60
     }
   },

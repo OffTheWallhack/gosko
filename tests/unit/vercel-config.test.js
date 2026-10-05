@@ -148,6 +148,11 @@ describe('vercel.json: CSP', () => {
 });
 
 describe('vercel.json: funkcie a cron', () => {
+  test('functions vzory sa neprekrývajú (Vercel inak build odmietne) a funkcie bežia vo fra1 pri Supabase', () => {
+    assert.deepEqual(Object.keys(config.functions), ['api/**/*.js']);
+    assert.deepEqual(config.regions, ['fra1']);
+  });
+
   test('api/**/*.js má nastavený maxDuration a žiadne `runtime` (verzia Node sa berie z package.json engines)', () => {
     const fn = config.functions?.['api/**/*.js'];
     assert.ok(fn, 'chýba functions["api/**/*.js"]');
