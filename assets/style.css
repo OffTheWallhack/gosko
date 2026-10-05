@@ -1816,3 +1816,23 @@ img.flag{object-fit:cover;font-size:0;overflow:hidden;background:rgba(243,235,22
 .evw-sec .post-card{max-width:420px}
 .evw-body{padding-top:clamp(28px,4vw,48px)}
 .login-help textarea{background:#fff;color:#111;border:2px solid #111;padding:8px}
+
+/* ===== v6: skate kalendár pripnutý pod menu ===== */
+.er-top{position:sticky;top:61px;z-index:25;margin:0;background:rgba(14,13,12,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-dark)}
+.er-top .ticker-in{padding-block:8px}
+.er-top a:not(.er-label){font-size:.74rem}
+.vh{height:calc(100svh - 61px - 36px)}
+.vh-in{padding-bottom:calc(16px + 4svh)}
+.feed-lead{margin:10px 0 0;max-width:52ch}
+@media (max-width:720px){
+  .er-top .ticker-in{padding-block:5px}
+  .er-top a:not(.er-label){font-size:.64rem;padding-inline:10px;gap:5px}
+  .er-label{padding:0 8px;font-size:.58rem}
+  .er img.flag{width:15px;height:11px}
+  .vh{height:calc(100svh - 61px - 28px)}
+  .vh-in{padding-bottom:calc(12px + 3svh)}
+}
+.er-top{border-top:0;transform:none;width:auto;align-items:center}
+.er-top a{text-decoration:none;color:var(--cream);font-family:var(--f-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.er-top a:hover{text-decoration:underline}
+.er-top .er-label{align-self:stretch;display:flex;align-items:center}
