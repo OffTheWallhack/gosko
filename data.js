@@ -176,6 +176,17 @@ export const SEASON_RULES = {
 export const RULES = [];
 export const FAQ = [];
 
+/* Profily jazdcov (všetko voliteľné). Kľúč je meno bez diakritiky, malými písmenami, s pomlčkami.
+     photo:     'img/riders/sebastian.webp'  (štvorcová fotka, aspoň 300 × 300 px; kým chýba, ukáže sa avatar s iniciálami)
+     instagram: 'prezyvka'
+     city:      'Bratislava'
+     look:      { deck: 'black', grip: 'ghost', wheels: 'red', trucks: 'black' }   (vzhľad dosky v rebríčku)
+                deck: cream | black | red | ghosts | poster, grip: black | ghost | red,
+                wheels: cream | red | black, trucks: silver | black | red
+   Príklad:
+     'sebastian-kozmann': { instagram: 'sebo', city: 'Bratislava', look: { deck: 'black', wheels: 'red' } }, */
+export const RIDERS = {};
+
 /* Súkromie jazdcov. Predvolene sa mená ukazujú celé (rovnako ako na Instagrame).
    Ak si rodič alebo jazdec praje skrátené meno, pridaj riadok:
      'marek-kupkovic': 'initial'    ->  na webe sa ukáže „Marek K.“
