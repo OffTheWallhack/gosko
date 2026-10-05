@@ -18,8 +18,8 @@ export const SITE = {
   photoCredit: '',      // autor fotiek, zobrazí sa pod galériou
   /* Video na pozadí úvodky. Krátky klip bez zvuku (10 – 20 s, MP4, ideálne do 8 MB), nahraj ho do priečinka video/.
      Kým je prázdne, pozadie úvodky hrá YouTube vlog nižšie (bez zvuku). */
-  heroVideo: '',        // napr. 'video/hero.mp4'
-  heroPoster: 'img/ba-trick-4.webp',
+  heroVideo: 'video/hero.mp4',
+  heroPoster: 'img/hero-poster.jpg',
   vlog: 'h_ZyZHSvmL4',  // YouTube ID vlogu z eventov
 };
 

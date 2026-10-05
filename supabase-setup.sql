@@ -291,3 +291,18 @@ create policy "Admin spravuje novinky" on public.posts for all to authenticated 
 revoke all on public.posts from anon;
 grant select on public.posts to anon;
 grant select, insert, update, delete on public.posts to authenticated;
+
+-- ---------- Pozvánky pre adminov (admin práva hneď po prvom prihlásení) ----------
+create table if not exists public.admin_invites (email text primary key, created_at timestamptz default now());
+alter table public.admin_invites enable row level security;
+create or replace function public.grant_invited_admin() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.admin_invites i where lower(i.email) = lower(new.email)) then
+    insert into public.admins (user_id) values (new.id) on conflict do nothing;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.grant_invited_admin() from public, anon, authenticated;
+drop trigger if exists on_auth_user_invited_admin on auth.users;
+create trigger on_auth_user_invited_admin after insert on auth.users for each row execute function public.grant_invited_admin();
+-- Pridanie nového admina: insert into public.admin_invites (email) values ('meno@example.com');

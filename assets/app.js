@@ -471,7 +471,8 @@ function pageHome(root) {
 
   /* ---------- 1. hero s videom ---------- */
   let media;
-  if (SITE.heroVideo && !reduced) media = h('video', { class: 'vh-video', src: SITE.heroVideo, poster: SITE.heroPoster, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' });
+  if (SITE.heroVideo && !reduced) media = h('video', { class: 'vh-video', poster: SITE.heroPoster, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
+    h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '.webm'), type: 'video/webm' }), h('source', { src: SITE.heroVideo, type: 'video/mp4' }));
   else {
     media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
     if (SITE.vlog && !reduced) {
@@ -526,6 +527,7 @@ function pageHome(root) {
       h('span', { class: 'mono hs-k' }, 'Kto sme'),
       h('h2', {}, 'Nový organizátor skate eventov na Slovensku'),
       h('p', { class: 'lead' }, 'GOSko je komunitná značka. Robíme pop-up súťaže Game of S.K.A.T.E. po mestách na Slovensku a v Česku, vedieme rebríček jazdcov a staviame vlastný digitálny svet pre skejterov.'),
+      h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí Slovenská Federácia Skateboardingu (občianske združenie v príprave).'),
       h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
     h('div', { class: 'ab-pillars' },
       pillar('#/eventy', '01', 'Eventy', 'Pop-up súťaže po mestách SK a CZ.'),
@@ -1239,6 +1241,7 @@ function pagePartners(root, sub) {
         h('span', { class: 'mono pt-k' }, 'Pre partnerov · sezóna 2026/27'),
         h('h1', { class: 'pt-h' }, 'Séria skate súťaží na Slovensku a v Česku'),
         h('p', { class: 'lead' }, 'GOSko je nový organizátor skate eventov. Komunitná značka, ktorá robí pop-up súťaže Game of S.K.A.T.E., rebríček jazdcov a vlastný digitálny svet.'),
+        h('p', {}, 'Organizačne za projektom stojí Slovenská Federácia Skateboardingu, občianske združenie, ktoré práve zakladáme.'),
         h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#zavolaj', onclick: e => { e.preventDefault(); form.scrollIntoView({ behavior: 'smooth' }); } }, 'Chcem spolupracovať'), h('a', { class: 'btn', href: '#/partneri/mediakit' }, 'Media kit (PDF)')))),
 
     h('section', { class: 'sec' }, h('div', { class: 'wrap pt-three' },

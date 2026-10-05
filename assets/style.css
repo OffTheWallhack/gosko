@@ -1496,3 +1496,4 @@ footer p{font-family:var(--f-letter);font-size:1.25rem;color:var(--cream)}
 .more-sec .qt{padding:22px 40px 22px 18px}
 .more-sec .qt-t{font-size:1.5rem}
 @media (prefers-reduced-motion:reduce){ .vh{position:relative;height:auto;min-height:80svh} .vh-board img,.vh-k .dot{animation:none} }
+.ab-oz{font-size:.78rem;letter-spacing:.04em;opacity:.75;margin-top:.6rem}
