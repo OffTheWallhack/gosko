@@ -309,7 +309,9 @@ describe('grants audit (supabase/checks/grants.sql)', () => {
     // hra (010–012): verejné pohľady bez osobných údajov a katalóg gearu
     const gameSelect = ['clips_public', 'crew_leaderboard', 'crews_public', 'gear', 'loot_public', 'players_public',
       'spot_control', 'spot_crew_scores', 'spot_summary'];
-    assert.deepEqual(tableGrants, [...allowedSelect, ...gameSelect].sort().map(t => ({ table_name: t, privilege_type: 'SELECT' })));
+    // 015 (Robova komunita): schválené profily jazdcov bez user_id, zadania a finalisti triku týždňa
+    const communitySelect = ['rider_profiles_public', 'trick_challenges', 'trick_results'];
+    assert.deepEqual(tableGrants, [...allowedSelect, ...gameSelect, ...communitySelect].sort().map(t => ({ table_name: t, privilege_type: 'SELECT' })));
 
     const colGrants = sqlRows(`select table_name, string_agg(distinct privilege_type, ',') as p
       from information_schema.column_privileges
@@ -318,10 +320,14 @@ describe('grants audit (supabase/checks/grants.sql)', () => {
       group by 1 order by 1`);
     // 014: novinky (posts) číta anon len po stĺpcoch, bez user_id a image_path; riadky obmedzuje RLS (published)
     assert.deepEqual(colGrants, [...['bookings', 'community_events', 'newsletter_subscribers', 'privacy_requests', 'shop_interest']
-      .map(t => ({ table_name: t, p: 'INSERT' })), { table_name: 'posts', p: 'SELECT' }].sort((a, b) => a.table_name.localeCompare(b.table_name)));
+      .map(t => ({ table_name: t, p: 'INSERT' })), { table_name: 'posts', p: 'SELECT' }, { table_name: 'spot_reviews', p: 'SELECT' }].sort((a, b) => a.table_name.localeCompare(b.table_name)));
     const postCols = sqlRows(`select column_name from information_schema.column_privileges
       where grantee = 'anon' and table_schema = 'public' and table_name = 'posts' order by 1`).map(r => r.column_name);
-    assert.deepEqual(postCols, ['author', 'body', 'created_at', 'id', 'image_url', 'link', 'link_label', 'pinned', 'published', 'summary', 'title']);
+    assert.deepEqual(postCols, ['author', 'body', 'created_at', 'event_id', 'id', 'image_url', 'link', 'link_label', 'pinned', 'published', 'summary', 'title']);
+    // 015: hodnotenia spotov (web) číta anon bez user_id
+    const reviewCols = sqlRows(`select column_name from information_schema.column_privileges
+      where grantee = 'anon' and table_schema = 'public' and table_name = 'spot_reviews' order by 1`).map(r => r.column_name);
+    assert.deepEqual(reviewCols, ['created_at', 'spot_key', 'stars', 'tags']);
     const ceCols = sqlRows(`select column_name from information_schema.column_privileges
       where grantee = 'anon' and table_schema = 'public' and table_name = 'community_events' order by 1`).map(r => r.column_name);
     assert.deepEqual(ceCols, ['city', 'contact', 'country', 'date', 'end_date', 'kind', 'link', 'name', 'organizer', 'place', 'prize']);

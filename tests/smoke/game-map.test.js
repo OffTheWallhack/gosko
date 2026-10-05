@@ -119,7 +119,8 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       assert.equal(await page.getAttribute('.g-bust', 'data-level'), '2');
       assert.match(await page.textContent('.g-holo'), /RR drží spot · 145 b/);
       assert.match(await page.textContent('.g-holo'), /LOOT DROP/);
-      assert.match(await page.evaluate(() => location.hash), /^#\/spot\//);
+      // web má skutočné adresy: starý odkaz /#/mapa sa prepíše na /mapa, otvorený spot je /spot/<id>
+      assert.match(await page.evaluate(() => location.pathname), /^\/spot\//);
       await page.click('.g-btn-in');
       await page.waitForSelector('dialog[open]');
       assert.match(await page.textContent('dialog[open]'), /Prihlásenie/);
@@ -198,6 +199,26 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       await page.goto(`${base}/#/spoty`);
       await page.waitForSelector('.spot-list');
       assert.equal(await page.$('body.game-mode'), null, 'mimo hry sa herný režim vypne');
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('skutočné adresy: /mapa, /spot/<id>, herná CREW na /hra/crew, Robove crew na /crew', async () => {
+    const { page, context, errors } = await open('mapa');
+    try {
+      assert.equal(await page.evaluate(() => location.pathname), '/mapa');
+      await page.click('.g-menu-item[data-game-nav="crew"]');
+      await page.waitForSelector('.g-soon');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra/crew');
+      await page.goBack();
+      await page.waitForSelector('[data-spot-id]');
+      assert.equal(await page.evaluate(() => location.pathname), '/mapa');
+      await page.goto(`${base}/crew`);
+      await page.waitForSelector('.crew-grid');
+      assert.equal(await page.$('body.game-mode'), null);
+      await page.goto(`${base}/spot/${SPOTS[0].id}`);
+      await page.waitForSelector('.g-sheet.open .g-holo');
+      assert.equal(await page.textContent('#g-spot-name'), 'Eurovea schody');
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });

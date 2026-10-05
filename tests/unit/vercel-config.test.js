@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createIgnore, matchHeaders } from '../../scripts/dev-server.js';
+import { createIgnore, matchHeaders, matchRewrite } from '../../scripts/dev-server.js';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 // CSP musí povoliť presne ten Supabase projekt, na ktorý ukazuje web (data.js CONFIG).
@@ -40,10 +40,35 @@ describe('vercel.json: základ', () => {
     assert.ok(!config.cleanUrls);
   });
 
-  test('žiadne rewrites ani redirects (hash routing)', () => {
-    assert.equal(config.rewrites, undefined);
+  test('žiadne redirects', () => {
     assert.equal(config.redirects, undefined);
   });
+});
+
+/* Skutočné adresy webu (/eventy, /event/…, /checkin/<token>) vedú na index.html, router v app.js ich rozdelí.
+   Súbory (assets, statické stránky pre zdieľanie) majú na Verceli prednosť pred rewrites. */
+describe('vercel.json: rewrites na index.html', () => {
+  const app = read('assets/app.js');
+  const routes = [...app.matchAll(/^\s*\[\/\^#\\\/([a-z][\w-]*)/gm)].map(m => m[1]);
+
+  test('všetky pravidlá idú na /index.html a sú bez has/missing', () => {
+    assert.ok(config.rewrites?.length);
+    for (const r of config.rewrites) { assert.equal(r.destination, '/index.html'); assert.ok(!r.has && !r.missing); }
+  });
+
+  test('každá stránka z ROUTES v assets/app.js má rewrite', () => {
+    assert.ok(routes.length > 30, `našlo sa len ${routes.length} rout`);
+    for (const seg of new Set(routes)) assert.equal(matchRewrite(config, `/${seg}`), '/index.html', `/${seg}`);
+  });
+
+  for (const p of ['/eventy', '/event/bratislava-2', '/jazdec/marek-kupkovic', '/checkin/0b6f2c1e-1111-4222-8333-444455556666', '/pass/abc-def',
+    '/registracia/potvrdene', '/admin', '/admin/vysledky/bratislava-2', '/hra/profil', '/spot/abc', '/trik-tyzdna/', '/import-passes/eyJh']) {
+    test(`app: ${p}`, () => assert.equal(matchRewrite(config, p), '/index.html'));
+  }
+  for (const p of ['/api/register', '/api/admin/checkin', '/assets/app.js', '/img/logo.webp', '/sw.js', '/data.js', '/chain/', '/supabase/',
+    '/docs/KONTRAKT-REGISTRACIA.md', '/scripts/dev-server.js', '/hub/', '/redirect/', '/eventy.json', '/event/x.js', '/eventyx']) {
+    test(`nie je app: ${p}`, () => assert.equal(matchRewrite(config, p), null));
+  }
 });
 
 describe('vercel.json: cache hlavičky', () => {
@@ -219,7 +244,8 @@ describe('.vercelignore', () => {
       const rel = f.replace(/^\.\//, '');
       if (rel === '' || rel === './') continue;
       assert.equal(ignores(rel), false, `.vercelignore vylučuje ${rel}`);
-      assert.ok(existsSync(join(ROOT, rel)), `chýba súbor ${rel}`);
+      // odkaz na stránku webu (napr. profil, eventy) nie je súbor: rieši ho rewrite na index.html
+      assert.ok(existsSync(join(ROOT, rel)) || matchRewrite(config, `/${rel}`) === '/index.html', `chýba súbor ${rel}`);
     }
   });
 });

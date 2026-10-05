@@ -10,8 +10,10 @@
 //
 // Spustenie: node scripts/dev-server.js   (PORT, HOST sa dajú zmeniť cez prostredie; default 127.0.0.1:3000)
 //
-// Obmedzenia: pravidlá `headers` s `has`/`missing` sa ignorujú, `rewrites`/`redirects`/`cleanUrls` sa
-// nepodporujú (GOSko ich nepoužíva, hash routing). Handler sa pri zmene súboru načíta znova,
+//  - `rewrites` z vercel.json ako na Verceli: až keď pre cestu neexistuje súbor (skutočné adresy webu, napr. /eventy -> /index.html).
+//
+// Obmedzenia: pravidlá `headers`/`rewrites` s `has`/`missing` sa ignorujú, `redirects`/`cleanUrls` sa
+// nepodporujú (GOSko ich nepoužíva). Handler sa pri zmene súboru načíta znova,
 // ale pomocné moduly, ktoré importuje (napr. api/_lib/*), sa znova nenačítajú: po ich zmene server reštartuj.
 
 import http from 'node:http';
@@ -75,6 +77,15 @@ export function matchHeaders(config, pathname) {
     for (const { key, value } of rule.headers ?? []) merged.set(key.toLowerCase(), [key, value]);
   }
   return [...merged.values()];
+}
+
+/** Cieľ prvého pravidla `rewrites`, ktoré sedí na `pathname` (bez `has`/`missing`), inak null. */
+export function matchRewrite(config, pathname) {
+  for (const rule of config?.rewrites ?? []) {
+    if (rule.has?.length || rule.missing?.length) continue;
+    if (sourceToRegExp(rule.source).test(pathname)) return rule.destination;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- .vercelignore
@@ -377,7 +388,7 @@ export function createDevServer({ root = resolve(import.meta.dirname, '..'), log
     return fn;
   }
 
-  async function serveStatic(req, res, pathname) {
+  async function serveStatic(req, res, pathname, rewritten = false) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.setHeader('Allow', 'GET, HEAD');
       return textResponse(res, 405, 'METHOD_NOT_ALLOWED');
@@ -402,7 +413,12 @@ export function createDevServer({ root = resolve(import.meta.dirname, '..'), log
       file = join(root, rel);
       st = await stat(file).catch(() => null);
     } else if (trailingSlash) st = null; // /subor.txt/ nie je súbor
-    if (!st?.isFile()) return textResponse(res, 404, 'NOT_FOUND');
+    if (!st?.isFile()) {
+      // rewrites sa uplatnia, až keď súbor neexistuje (filesystem má na Verceli prednosť)
+      const dest = rewritten ? null : matchRewrite(getConfig(), pathname);
+      if (dest && !dest.startsWith('/api')) return serveStatic(req, res, dest, true);
+      return textResponse(res, 404, 'NOT_FOUND');
+    }
 
     const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
     res.setHeader('ETag', etag);

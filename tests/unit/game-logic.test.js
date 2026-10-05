@@ -192,3 +192,22 @@ describe('návrat do hry po prihlásení odkazom', async () => {
     assert.equal(consumeReturn(now, mem()), '');
   });
 });
+
+describe('skutočné adresy pre hru (web má /mapa, /spot/…, starý tvar #/… platí tiež)', async () => {
+  const { currentRoute, routeUrl } = await import('../../assets/game/return.js');
+  const loc = (pathname, hash = '') => ({ pathname, hash });
+  test('currentRoute: cesta pod base aj starý hash', () => {
+    assert.equal(currentRoute(loc('/spot/abc-1'), '/'), '#/spot/abc-1');
+    assert.equal(currentRoute(loc('/mapa/'), '/'), '#/mapa');
+    assert.equal(currentRoute(loc('/'), '/'), '#/');
+    assert.equal(currentRoute(loc('/gosko/hra/profil'), '/gosko/'), '#/hra/profil');
+    assert.equal(currentRoute(loc('/mapa', '#/spot/x'), '/'), '#/spot/x');
+  });
+  test('routeUrl: #/… na cestu pod base', () => {
+    assert.equal(routeUrl('#/mapa', '/'), '/mapa');
+    assert.equal(routeUrl('#/spot/abc', '/gosko/'), '/gosko/spot/abc');
+  });
+  test('herná crew nekoliduje s Robovou stránkou #/crew', () => {
+    assert.equal(G.GAME_MENU.find(m => m.id === 'crew').href, '#/hra/crew');
+  });
+});

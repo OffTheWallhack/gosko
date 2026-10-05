@@ -5,7 +5,7 @@
    ukáže zoznam spotov. Mapa sa načíta až na tejto stránke (dynamický import, ~1 MB). */
 import { T } from './i18n-sk.js';
 import { OBSTACLES, SPOT_KINDS, isActiveCheckin, pinsFromSummary, prefersReducedMotion, validateNewSpot } from './logic.js';
-import { gameApi, loadPlayer, rememberReturn } from './auth.js';
+import { gameApi, loadPlayer, rememberReturn, currentRoute, routeUrl } from './auth.js';
 import { doCheckIn, doCheckOut, currentPosition } from './checkin.js';
 import { spotSheet } from './spot.js';
 import { achievement, gameShell, h, icon, leaveGame, toast } from './ui.js';
@@ -166,7 +166,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
   const sheetState = row => ({ row, mode: S.player.mode, here: S.open?.spot_id === row.id, myRating: S.myRating });
 
   function login() {
-    rememberReturn(location.hash);
+    rememberReturn(currentRoute());
     ctx.login(async () => {
       await refresh();
       if (S.player.mode === 'onboarding') ctx.go('#/hra/profil');
@@ -176,7 +176,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
   function closeSheet() {
     S.sheet?.close(); S.sheet = null; S.sheetId = null;
     S.temp?.remove(); S.temp = null;
-    if (/^#\/spot\//.test(location.hash)) history.replaceState(null, '', '#/mapa');
+    if (/^#\/spot\//.test(currentRoute())) history.replaceState(null, '', routeUrl('#/mapa'));
   }
 
   async function openSpot(id) {
@@ -185,7 +185,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
     closeSheet();
     S.sheetId = id;
     S.myRating = null;
-    history.replaceState(null, '', `#/spot/${id}`);
+    history.replaceState(null, '', routeUrl(`#/spot/${id}`));
     if (S.map) S.map[reduced ? 'jumpTo' : 'easeTo']({ center: [row.lng, row.lat], zoom: Math.max(S.map.getZoom(), 15), offset: [0, -120] });
     S.sheet = spotSheet(body, {
       ...sheetState(row),

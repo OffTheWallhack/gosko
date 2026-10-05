@@ -3,8 +3,19 @@
 const RETURN_KEY = 'gosko:game-return';
 const RETURN_TTL = 30 * 60_000;
 
+/* Web má skutočné adresy (/mapa, /spot/…) pod <base href>; starý tvar #/mapa platí tiež. */
+export const appBase = () => (typeof document !== 'undefined' ? new URL(document.baseURI).pathname.replace(/[^/]*$/, '') : '/');
+/* Aktuálna stránka v tvare '#/…' (tak ju pozná router v app.js). */
+export function currentRoute(loc = location, base = appBase()) {
+  if (loc.hash.startsWith('#/')) return loc.hash;
+  const p = loc.pathname.startsWith(base) ? loc.pathname.slice(base.length) : '';
+  return '#/' + decodeURI(p).replace(/\/$/, '');
+}
+/* '#/spot/x' -> '/spot/x' (pre history.replaceState) */
+export const routeUrl = (hash, base = appBase()) => base + String(hash).replace(/^#\//, '');
+
 /* Zapamätá si hernú stránku pred prihlásením. */
-export function rememberReturn(hash = location.hash) {
+export function rememberReturn(hash = currentRoute()) {
   try { localStorage.setItem(RETURN_KEY, JSON.stringify({ hash, at: Date.now() })); } catch { /* bez úložiska */ }
 }
 

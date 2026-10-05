@@ -52,7 +52,10 @@ export function mapPublicResults(rows, riders = []) {
 }
 
 const DEMO_API = 'V ukážkovom režime (bez databázy) to nefunguje.';
-const POST_COLS = 'id,created_at,title,summary,body,image_url,link,link_label,author,pinned,published';
+const POST_COLS = 'id,created_at,title,summary,body,image_url,link,link_label,author,pinned,published,event_id';
+/* Kam vedie odkaz z e-mailu (Supabase Auth): koreň webu, nie aktuálna podstránka (/profil, /mapa…).
+   V Supabase stačí mať v Redirect URLs adresu webu. */
+const appRoot = () => (typeof document !== 'undefined' ? new URL('./', document.baseURI).href : location.origin + '/');
 
 function demoStore() {
   const K = { parks: 'gosko:parks', votes: 'gosko:votes', events: 'gosko:community-events', spots: 'gosko:spots',
@@ -74,6 +77,7 @@ function demoStore() {
     onAuth() {},
     async signedIn() { return true; },
     async email() { return ''; },
+    async login() {}, async loginPassword() {}, async verifyCode() {}, async verifyLink() {}, async setPassword() {}, async logout() {},
     async listParks() { return loadParks(); },
     async myVotes() { return new Set(LS.get(K.votes, [])); },
     async submitPark(park) {
@@ -155,6 +159,29 @@ function demoStore() {
     },
     async deletePost(id) { LS.set('gosko:posts', LS.get('gosko:posts', []).filter(x => x.id !== id)); },
 
+    /* profily, triky, hodnotenia: v ukážkovom režime len v prehliadači */
+    async me() { return { id: 'demo', email: '' }; },
+    async riderProfiles() { return LS.get('gosko:rider-profiles', []).filter(r => r.status === 'approved').map(r => ({ ...r, claimed: !!r.user_id })); },
+    async myRiderProfile() { return LS.get('gosko:rider-profiles', []).find(r => r.user_id === 'demo') || null; },
+    async claimRider(slug, fields) { const a = LS.get('gosko:rider-profiles', []); if (a.some(r => r.slug === slug)) throw new Error('taken'); a.push({ slug, user_id: 'demo', status: 'approved', ...fields }); LS.set('gosko:rider-profiles', a); },
+    async saveRiderProfile(slug, fields, photo) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) Object.assign(r, fields, photo ? { photo_url: await toDataUrl(photo) } : {}); LS.set('gosko:rider-profiles', a); },
+    async adminRiderPhoto(slug, photo) { const a = LS.get('gosko:rider-profiles', []); let r = a.find(x => x.slug === slug); if (!r) { r = { slug, status: 'approved' }; a.push(r); } r.photo_url = await toDataUrl(photo); LS.set('gosko:rider-profiles', a); },
+    async pendingRiderClaims() { return LS.get('gosko:rider-profiles', []).filter(r => r.status === 'pending'); },
+    async setRiderStatus(slug, status) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) r.status = status; LS.set('gosko:rider-profiles', a); },
+    async releaseRider(slug) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) r.user_id = null; LS.set('gosko:rider-profiles', a); },
+    async currentChallenge() { return LS.get('gosko:challenge', null) || { id: 'demo', title: 'Kickflip cez niečo', description: 'Kickflip cez prekážku. Pošli klip, vyberieme tri najlepšie a hlasujete.', status: 'open', ends_on: null }; },
+    async pastChallenges() { return []; },
+    async trickResults() { return LS.get('gosko:trick-entries', []).filter(e => e.finalist).map(e => ({ ...e, votes: LS.get('gosko:trick-vote', null) === e.id ? 1 : 0 })); },
+    async myTrickEntries() { return LS.get('gosko:trick-entries', []); },
+    async submitTrick(challenge_id, row, video) { add('gosko:trick-entries', { ...row, challenge_id, finalist: false, video_url: video ? URL.createObjectURL(video) : null }); },
+    async myTrickVote() { return LS.get('gosko:trick-vote', null); },
+    async voteTrick(c, entry_id) { LS.set('gosko:trick-vote', entry_id); },
+    async adminTrickEntries() { return LS.get('gosko:trick-entries', []); },
+    async setFinalist(id, finalist) { const a = LS.get('gosko:trick-entries', []); const e = a.find(x => x.id === id); if (e) e.finalist = finalist; LS.set('gosko:trick-entries', a); },
+    async saveChallenge(row) { LS.set('gosko:challenge', { id: 'demo', ...row }); },
+    async spotRatings() { return LS.get('gosko:spot-ratings', []); },
+    async rateSpot(spot_key, stars, tags) { const a = LS.get('gosko:spot-ratings', []).filter(r => r.spot_key !== spot_key); a.push({ spot_key, stars, tags, user_id: 'demo' }); LS.set('gosko:spot-ratings', a); },
+    async myActivity() { return { photos: 0, spots: LS.get(K.spots, []).length, parks: 0, park_votes: LS.get(K.votes, []).length, tricks: LS.get('gosko:trick-entries', []).length, finalist: 0, trick_votes: LS.get('gosko:trick-vote', null) ? 1 : 0, ratings: LS.get('gosko:spot-ratings', []).length, rider: 0, checkins: 0 }; },
     /* fotky a klipy od komunity */
     async listEventPhotos(event_id) { return LS.get(K.photos, []).filter(p => p.event_id === event_id).map(p => ({ ...p, pending: !p.approved })); },
     async submitEventPhoto(row, photo) {
@@ -186,13 +213,33 @@ async function liveStore(CONFIG) {
     async signedIn() { return !!(await session()); },
     async email() { return (await session())?.user?.email || ''; },
     /* LOGIN_MODE 'magic': kód alebo odkaz z e-mailu */
-    async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } })); },
-    async verifyCode(email, token) { must(await sb.auth.verifyOtp({ email, token, type: 'email' })); },
+    async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: appRoot() } })); },
+    async loginPassword(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },   // Robov názov pre signInPassword
+    async verifyCode(email, token) {
+      token = String(token || '').replace(/\s/g, '');
+      if (!/^\d{6,8}$/.test(token)) throw new Error('code');
+      // prvé prihlásenie je technicky „signup“, ďalšie „email“; skúsime oboje
+      let r = await sb.auth.verifyOtp({ email, token, type: 'email' });
+      if (r.error) r = await sb.auth.verifyOtp({ email, token, type: 'signup' });
+      must(r);
+    },
+    /* Náhradné prihlásenie: človek vloží odkaz z e-mailu alebo adresu, kam ho odkaz hodil (napr. localhost s #access_token=…). */
+    async verifyLink(text) {
+      let u; try { u = new URL(String(text).trim()); } catch { throw new Error('link'); }
+      const hp = new URLSearchParams(u.hash.replace(/^#/, ''));
+      if (hp.get('access_token') && hp.get('refresh_token')) { must(await sb.auth.setSession({ access_token: hp.get('access_token'), refresh_token: hp.get('refresh_token') })); return; }
+      const token = u.searchParams.get('token') || u.searchParams.get('token_hash'), type = u.searchParams.get('type') || 'email';
+      if (token) { must(await sb.auth.verifyOtp({ token_hash: token, type: type === 'magiclink' ? 'email' : type })); return; }
+      const code = u.searchParams.get('code');
+      if (code) { must(await sb.auth.exchangeCodeForSession(code)); return; }
+      throw new Error('link');
+    },
+    async setPassword(password) { must(await sb.auth.updateUser({ password })); },
     /* LOGIN_MODE 'password'. Chyby (AuthApiError s code) prekladá assets/login.js loginErrorMessage. */
     async signInPassword(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
     /* bez session v odpovedi treba potvrdiť e-mail odkazom (Supabase: Confirm email) */
-    async signUp(email, password) { return must(await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })); },
-    async resendConfirmation(email) { must(await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname } })); },
+    async signUp(email, password) { return must(await sb.auth.signUp({ email, password, options: { emailRedirectTo: appRoot() } })); },
+    async resendConfirmation(email) { must(await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: appRoot() } })); },
     async logout() { await sb.auth.signOut(); },
     async listParks() {
       const data = must(await sb.from('parks_ranked').select('*').order('votes', { ascending: false }).limit(300));
@@ -329,6 +376,72 @@ async function liveStore(CONFIG) {
       return { pending: true };
     },
     async inbox(table) { return must(await sb.from(table).select('*').order('created_at', { ascending: false }).limit(2000)).map(created); },
+    /* ---------- profily jazdcov ---------- */
+    async me() { const s = await session(); return s ? { id: s.user.id, email: s.user.email } : null; },
+    /* verejne len schválené profily bez user_id a poznámky (015_main_sync2.sql); claimed = profil už niekto prevzal */
+    async riderProfiles() { return must(await sb.from('rider_profiles_public').select('*').limit(1000)); },
+    async myRiderProfile() { const s = await session(); if (!s) return null; return must(await sb.from('rider_profiles').select('*').eq('user_id', s.user.id).maybeSingle()); },
+    async claimRider(slug, fields) {
+      const { error } = await sb.from('rider_profiles').insert({ slug, status: 'pending', ...fields });   // user_id = auth.uid() dopĺňa databáza
+      /* 23505: profil už niekto prevzal, alebo tento účet už má iný profil (index rider_profiles_user_once) */
+      if (error) { if (error.code === '23505') throw new Error(/user_once/.test(error.message || '') ? 'mine' : 'taken'); throw error; }
+    },
+    async saveRiderProfile(slug, fields, photo) {
+      const s = await session(), r = { ...fields };
+      if (photo) {
+        r.photo_path = `${s.user.id}/rider-${newToken()}.jpg`;
+        must(await sb.storage.from('photos').upload(r.photo_path, photo, { contentType: 'image/jpeg', upsert: false }));
+        r.photo_url = sb.storage.from('photos').getPublicUrl(r.photo_path).data.publicUrl;
+      }
+      must(await sb.from('rider_profiles').update(r).eq('slug', slug));
+    },
+    async adminRiderPhoto(slug, photo) {
+      const path = `riders/${slug}-${newToken().slice(0, 8)}.jpg`;
+      must(await sb.storage.from('photos').upload(path, photo, { contentType: 'image/jpeg', upsert: false }));
+      const photo_url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+      must(await sb.from('rider_profiles').upsert({ slug, photo_url, photo_path: path, status: 'approved' }, { onConflict: 'slug' }));
+    },
+    async pendingRiderClaims() { return must(await sb.from('rider_profiles').select('*').eq('status', 'pending').order('created_at')); },
+    async setRiderStatus(slug, status) { must(await sb.from('rider_profiles').update({ status }).eq('slug', slug)); },
+    async releaseRider(slug) { must(await sb.from('rider_profiles').update({ user_id: null, status: 'approved' }).eq('slug', slug)); },
+
+    /* ---------- trik týždňa ---------- */
+    async currentChallenge() {
+      const list = must(await sb.from('trick_challenges').select('*').order('created_at', { ascending: false }).limit(10));
+      return list.find(c => c.status !== 'closed') || list[0] || null;
+    },
+    async pastChallenges() { return must(await sb.from('trick_challenges').select('*').eq('status', 'closed').order('created_at', { ascending: false }).limit(20)); },
+    async trickResults(challenge_id) { return must(await sb.from('trick_results').select('*').eq('challenge_id', challenge_id).order('created_at')); },
+    async myTrickEntries(challenge_id) { const s = await session(); if (!s) return []; return must(await sb.from('trick_entries').select('*').eq('challenge_id', challenge_id).eq('user_id', s.user.id)); },
+    async submitTrick(challenge_id, row, video) {
+      const s = await session(), r = { ...row, challenge_id };   // user_id dopĺňa databáza
+      if (video) {
+        const ext = (video.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '');
+        r.video_path = `${s.user.id}/trick-${newToken()}.${ext}`;
+        must(await sb.storage.from('clips').upload(r.video_path, video, { contentType: video.type || 'video/mp4', upsert: false }));
+        r.video_url = sb.storage.from('clips').getPublicUrl(r.video_path).data.publicUrl;
+      }
+      must(await sb.from('trick_entries').insert(r));
+    },
+    async myTrickVote(challenge_id) { const s = await session(); if (!s) return null; return must(await sb.from('trick_votes').select('entry_id').eq('challenge_id', challenge_id).eq('user_id', s.user.id).maybeSingle())?.entry_id || null; },
+    async voteTrick(challenge_id, entry_id) {
+      const s = await session();
+      must(await sb.from('trick_votes').delete().eq('challenge_id', challenge_id).eq('user_id', s.user.id));
+      must(await sb.from('trick_votes').insert({ challenge_id, entry_id }));
+    },
+    async adminTrickEntries(challenge_id) { return must(await sb.from('trick_entries').select('*').eq('challenge_id', challenge_id).order('created_at')); },
+    async setFinalist(id, finalist) { must(await sb.from('trick_entries').update({ finalist }).eq('id', id)); },
+    async saveChallenge(row) { const id = row.id; const r = { ...row }; delete r.id; must(id ? await sb.from('trick_challenges').update(r).eq('id', id) : await sb.from('trick_challenges').insert(r)); },
+
+    /* ---------- hodnotenie spotov, XP ---------- */
+    /* hodnotenie skateparkov a spotov na webe (#/spoty). Tabuľka spot_reviews: public.spot_ratings je hodnotenie v hre (010).
+       user_id vidí len prihlásený (aby našiel svoje hodnotenie), anonym dostane len hviezdičky a štítky. */
+    async spotRatings() {
+      const cols = (await session()) ? 'spot_key,stars,tags,user_id' : 'spot_key,stars,tags';
+      return must(await sb.from('spot_reviews').select(cols).limit(5000));
+    },
+    async rateSpot(spot_key, stars, tags) { must(await sb.from('spot_reviews').upsert({ spot_key, stars, tags }, { onConflict: 'spot_key,user_id' })); },
+    async myActivity() { if (!(await session())) return null; const { data, error } = await sb.rpc('my_activity'); if (error) throw error; return data; },
   };
 }
 
@@ -338,11 +451,14 @@ const OFFLINE_MSG = 'Nepodarilo sa spojiť so serverom GOSko. Skontroluj pripoje
 function offlineStore() {
   const down = async () => { throw new UserError(OFFLINE_MSG); };
   const store = { mode: 'offline', message: OFFLINE_MSG, client: null, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
-    async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; } };
+    async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; }, async me() { return null; } };
   for (const k of ['login', 'verifyCode', 'signInPassword', 'signUp', 'resendConfirmation', 'listParks', 'submitPark', 'vote', 'listEvents', 'submitEvent', 'listSpots', 'submitSpot', 'send', 'subscribe',
     'findRegistration', 'checkIn', 'pendingParks', 'pendingEvents', 'pendingSpots', 'pendingEventPhotos', 'approve', 'reject', 'inbox',
     'listResults', 'listOfficialEvents', 'adminCheckin', 'eventRegistrations', 'listAwards', 'listBrackets', 'saveBracket', 'deleteBracket', 'saveResults', 'deleteResults', 'saveAwards', 'listEventPhotos', 'submitEventPhoto',
-    'setEventImage', 'listPosts', 'allPosts', 'getPost', 'savePost', 'deletePost'])
+    'setEventImage', 'listPosts', 'allPosts', 'getPost', 'savePost', 'deletePost',
+    'loginPassword', 'verifyLink', 'setPassword', 'riderProfiles', 'myRiderProfile', 'claimRider', 'saveRiderProfile', 'adminRiderPhoto', 'pendingRiderClaims',
+    'setRiderStatus', 'releaseRider', 'currentChallenge', 'pastChallenges', 'trickResults', 'myTrickEntries', 'submitTrick', 'myTrickVote', 'voteTrick',
+    'adminTrickEntries', 'setFinalist', 'saveChallenge', 'spotRatings', 'rateSpot', 'myActivity'])
     store[k] = down;
   return store;
 }

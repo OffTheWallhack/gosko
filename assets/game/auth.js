@@ -2,7 +2,7 @@
    (game_me). Po kliknutí na odkaz v e-maile sa web otvorí na úvode; return.js vráti hráča späť do hry. */
 import { createGameApi } from './api.js';
 import { playerMode } from './logic.js';
-export { rememberReturn, consumeReturn } from './return.js';
+export { rememberReturn, consumeReturn, currentRoute, routeUrl } from './return.js';
 
 let cached = null;
 /* Jedna inštancia API na store (Supabase klient je v store.client). Bez klienta (demo, offline) null. */

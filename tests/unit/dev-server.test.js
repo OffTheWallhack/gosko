@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 
 const DEV = pathToFileURL(join(import.meta.dirname, '..', '..', 'scripts', 'dev-server.js')).href;
 const {
-  createDevServer, createIgnore, sourceToRegExp, matchHeaders, parseEnv, resolveApiRoute,
+  createDevServer, createIgnore, sourceToRegExp, matchHeaders, matchRewrite, parseEnv, resolveApiRoute,
 } = await import(DEV);
 
 // ---------- čisté funkcie ----------
@@ -173,6 +173,7 @@ before(async () => {
       { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
       { source: '/assets/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
     ],
+    rewrites: [{ source: '/((?:eventy|event|hidden)(?:/[^.]*)?)', destination: '/index.html' }],
   }));
   put('.vercelignore', 'secret.txt\n/hidden/\n*.sql\n!keep.sql\n.env*\n');
   put('index.html', '<!doctype html><title>fixture</title>');
@@ -191,6 +192,7 @@ before(async () => {
   put('.env.example', 'X=');
   put('other.txt', 'plain');
   put('docs/readme.md', 'dokumentacia');
+  put('event/zdielany/index.html', '<!doctype html><title>stranka pre zdielanie</title>');
 
   put('api/hello.js', `export default (req, res) => res.status(200).json({ ok: true, method: req.method, query: req.query });`);
   put('api/echo.js', `export default (req, res) => res.status(201).json({ body: req.body, type: typeof req.body, ct: req.headers['content-type'] ?? null });`);
@@ -291,6 +293,33 @@ describe('statické súbory', () => {
     const res = await fetch(base + '/neexistuje.js');
     assert.equal(res.status, 404);
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+  });
+});
+
+describe('rewrites (skutočné adresy webu)', () => {
+  test('matchRewrite: prvé zhodné pravidlo, has/missing sa preskočí', () => {
+    const cfg = { rewrites: [{ source: '/x', has: [{ type: 'header', key: 'a' }], destination: '/no' }, { source: '/x', destination: '/yes' }] };
+    assert.equal(matchRewrite(cfg, '/x'), '/yes');
+    assert.equal(matchRewrite(cfg, '/y'), null);
+    assert.equal(matchRewrite(null, '/x'), null);
+  });
+
+  test('cesta bez súboru ide na index.html s hlavičkami pôvodnej cesty', async () => {
+    for (const p of ['/eventy', '/eventy/', '/event/bratislava-2', '/event/a/b']) {
+      const res = await fetch(base + p);
+      assert.equal(res.status, 200, p);
+      assert.match(await res.text(), /<title>fixture<\/title>/, p);
+      assert.equal(res.headers.get('x-test-all'), '1');
+    }
+  });
+
+  test('existujúci súbor má prednosť pred rewrite', async () => {
+    const res = await fetch(base + '/event/zdielany/');
+    assert.match(await res.text(), /stranka pre zdielanie/);
+  });
+
+  test('súbory, /api a cesty mimo pravidiel ostávajú 404; .vercelignore má prednosť', async () => {
+    for (const p of ['/event/x.js', '/eventyx', '/api/neexistuje', '/hidden/a.txt']) assert.equal((await fetch(base + p)).status, 404, p);
   });
 });
 

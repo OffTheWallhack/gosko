@@ -306,3 +306,23 @@ revoke execute on function public.grant_invited_admin() from public, anon, authe
 drop trigger if exists on_auth_user_invited_admin on auth.users;
 create trigger on_auth_user_invited_admin after insert on auth.users for each row execute function public.grant_invited_admin();
 -- Pridanie nového admina: insert into public.admin_invites (email) values ('meno@example.com');
+
+-- =====================================================================
+-- Komunita (2026-10): profily jazdcov, trik týždňa, hodnotenie spotov, XP
+-- (na živej databáze už spustené; tu pre prehľad a novú inštaláciu)
+-- =====================================================================
+create table if not exists public.rider_profiles (
+ slug text primary key, user_id uuid references auth.users on delete set null,
+ status text not null default 'pending' check (status in ('pending','approved','rejected')),
+ photo_url text, photo_path text, instagram text, city text, stance text check (stance in ('regular','goofy')),
+ fav_trick text, home_spot text, crew text, bio text check (char_length(bio) <= 400), note text,
+ created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+-- RLS: verejne len schválené; jazdec si nárokuje (pending) a upravuje svoj riadok; trigger rider_profile_guard mu nedovolí zmeniť status; admin všetko.
+create table if not exists public.trick_challenges (id uuid primary key default gen_random_uuid(), created_at timestamptz default now(), title text not null, description text, status text not null default 'open' check (status in ('open','voting','closed')), ends_on date);
+create table if not exists public.trick_entries (id uuid primary key default gen_random_uuid(), created_at timestamptz default now(), challenge_id uuid references public.trick_challenges on delete cascade, user_id uuid default auth.uid(), name text not null, instagram text, clip_url text, video_url text, video_path text, finalist boolean not null default false);
+create table if not exists public.trick_votes (challenge_id uuid references public.trick_challenges on delete cascade, entry_id uuid references public.trick_entries on delete cascade, user_id uuid default auth.uid(), created_at timestamptz default now(), primary key (challenge_id, user_id));
+-- view trick_results = finalisti + počet hlasov (anon môže čítať). Bucket 'clips' (video do 30 MB).
+-- master-gosko: tabuľka sa volá spot_reviews, lebo public.spot_ratings je hodnotenie spotov v hre (010_game_core.sql).
+-- RLS, granty, trik týždňa a my_activity() dopĺňa supabase/migrations/015_main_sync2.sql.
+create table if not exists public.spot_reviews (spot_key text not null, user_id uuid not null default auth.uid(), stars smallint not null check (stars between 1 and 5), tags text[] not null default '{}', created_at timestamptz default now(), primary key (spot_key, user_id));
+-- funkcia my_activity(): počty aktivít prihláseného používateľa pre XP a odznaky.

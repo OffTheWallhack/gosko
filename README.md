@@ -29,7 +29,7 @@ icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim (základ)
-supabase/migrations/  migrácie 001–014 nad supabase-setup.sql (registrácia v2, výsledky, NFT, hra, novinky)
+supabase/migrations/  migrácie 001–015 nad supabase-setup.sql (registrácia v2, výsledky, NFT, hra, novinky, komunita)
 supabase/checks/      grants.sql: audit práv anon/authenticated (iba čítanie)
 chain/                kontrakt GoskoPass (Hardhat), lokálny deploy
 vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
@@ -162,7 +162,11 @@ a hash CSP, a že nič z `.vercelignore` (`/supabase-setup.sql`, `/README.md`, `
 nie je verejné. Preview za Vercel Authentication potrebuje navyše `VERCEL_AUTOMATION_BYPASS_SECRET`
 (Project Settings → Deployment Protection → Protection Bypass for Automation).
 
-### Stránky (hash routy)
+### Stránky
+
+Web má skutočné adresy (`/eventy`, `/checkin/<token>`); staré odkazy `#/eventy` sa prepíšu na `/eventy`.
+Na Verceli ich na `index.html` posiela `rewrites` vo `vercel.json` (zoznam stránok musí sedieť s `ROUTES`
+v `assets/app.js`, stráži to `tests/unit/vercel-config.test.js`). Tabuľka uvádza adresy v starom tvare.
 
 | Route | Čo je tam |
 |---|---|
@@ -192,8 +196,10 @@ Všetko v **SQL Editore** projektu, po jednom súbore, v tomto poradí:
 8. `supabase/migrations/010_game_core.sql` až `013_game_consent.sql` (hra Ghoskate)
 9. `supabase/migrations/014_main_sync.sql` (z Robovej main: kalendár `end_date`, `prize` a fotka eventu, novinky `posts`,
    pozvánky adminov `admin_invites`; admin z pozvánky až po potvrdení e-mailu)
-10. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`), voliteľne `supabase-seed-events.sql` (skate kalendár)
-11. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
+10. `supabase/migrations/015_main_sync2.sql` (z Robovej main PR #6–#9: profil jazdca, trik týždňa, hodnotenie
+    spotov `spot_reviews`, XP `my_activity()`, článok k eventu `posts.event_id`, bucket `clips`; viď `docs/ZLUCENIE-MAIN.md`)
+11. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`), voliteľne `supabase-seed-events.sql` (skate kalendár)
+12. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
 
 Každá migrácia je v transakcii a dá sa spustiť znova. Po opätovnom spustení 001 treba znova spustiť 002 až 005
 (001 odoberá všetky práva).
@@ -417,3 +423,43 @@ jeden hlas). Registrácie, eventy a formuláre idú bez prihlásenia.
 - `SEASONS`: po skončení sezóny `finished: true`, šampióni sa ukážu v Sieni slávy.
 
 Ak máš Supabase už nastavený zo staršej verzie, spusti v SQL Editore len časť súboru `supabase-setup.sql` od riadku „Výsledky, pavúky, ocenenia“ po „Prístupy“, a potom nové riadky `grant` na konci.
+
+## Prihlasovanie (Supabase Auth) – raz nastav v Supabase
+
+Aby odkaz v prihlasovacom e-maile viedol späť na web (a nie na `localhost:3000`):
+
+1. Supabase → **Authentication → URL Configuration**
+   - **Site URL:** `https://offthewallhack.github.io/gosko/` (master-gosko: adresa nasadenia, napr. `https://gosko-master.vercel.app/`)
+   - **Redirect URLs:** pridaj `https://offthewallhack.github.io/gosko/**` (master-gosko: `https://gosko-master.vercel.app/**`).
+     Odkaz z e-mailu vedie vždy na koreň webu, nie na podstránku (`assets/store.js`, `appRoot`).
+2. (Voliteľné) **Authentication → Emails → Magic Link** a **Confirm signup**: do textu pridaj `{{ .Token }}`, potom príde v e-maile aj 6-miestny kód.
+
+Po prvom prihlásení si v **Môj profil** (`#/profil`) nastav heslo, ďalej sa prihlasuješ e-mailom a heslom bez čakania na e-mail.
+(master-gosko má `CONFIG.LOGIN_MODE = 'password'`: prihlásenie aj nový účet sú rovno e-mailom a heslom, v profile sa heslo dá zmeniť.)
+Kým Site URL nie je nastavená, v prihlasovacom okne je náhradná možnosť: skopírovať adresu, kam ťa odkaz hodil, a vložiť ju.
+
+**Admin:** nový admin = jeho e-mail do tabuľky `admin_invites` (SQL: `insert into public.admin_invites (email) values ('meno@example.com');`).
+Pri prvom prihlásení dostane admin práva automaticky. Ak už účet má, pridaj ho aj priamo:
+`insert into public.admins (user_id) select id from auth.users where email = 'meno@example.com';`
+
+## Event hub (`hub/`)
+
+Samostatná stránka so skate a board eventmi doma aj vo svete: `https://offthewallhack.github.io/gosko/hub/`.
+Číta rovnaké dáta ako kalendár na webe (tabuľka `community_events`) plus GOSko eventy z `data.js`.
+Názov je pracovný: zmeníš ho v `hub/hub.js` (`BRAND.name`) a v `hub/index.html` (`<title>`).
+
+## Skutočné adresy a náhľady pri zdieľaní
+
+Web má adresy ako `/gosko/eventy`, `/gosko/event/zilina-2026`, `/gosko/jazdec/…` (staré `#/` odkazy fungujú ďalej).
+Pre každý event, jazdca, článok a sekciu sa generuje statická stránka s náhľadom (nadpis, popis, fotka) pre Google, WhatsApp, Instagram.
+Generuje ich `scripts/build-pages.mjs`; spúšťa sa samo cez GitHub Actions (`.github/workflows/pages.yml`) po každej zmene a každé 3 hodiny.
+Adresu webu berie skript z `<meta name="gosko:base-url">` v `index.html` (alebo z env `SITE_URL`) a podľa nej nastaví `<base href>`
+v stránkach. master-gosko beží v koreni domény (`<base href="/">`). Bez siete: `POSTS_FILE=posty.json node scripts/build-pages.mjs`.
+Na Verceli dynamické adresy (napr. `/checkin/<token>`, `/profil`) rieši `rewrites` vo `vercel.json`.
+
+## Komunita
+
+- **Trik týždňa** (`/trik-tyzdna`): zadanie a fázy riadiš v admine (posielanie → výber 3 finalistov → hlasovanie → víťaz).
+- **Profil jazdca:** jazdec klikne „Som to ja“, v admine ho schváliš, potom si sám doplní fotku a info. Fotku jazdca môžeš nahrať aj v admine.
+- **Crew:** zoznam v `data.js` (`CREWS`). **Spot mesiaca:** `SITE.spotOfMonth` v `data.js`. **Discord:** `SITE.discord`.
+- **XP a odznaky:** počítajú sa automaticky z aktivity (check-in, triky, spoty, parky, hodnotenia).

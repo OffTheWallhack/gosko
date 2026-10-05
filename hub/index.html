@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Hub · skate a board eventy doma aj vo svete</title>
+<meta name="description" content="Skate a board eventy na Slovensku, v Česku aj vo svete na jednom mieste. Súťaže, jamy, festivaly, dátumy a prize pooly.">
+<meta name="theme-color" content="#efe9df">
+<link rel="icon" href="../img/ghost.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="hub.css">
+</head>
+<body>
+<header class="hb-top">
+  <a class="hb-brand" href="./"><span class="hb-name" data-brand>EVENT HUB</span><span class="hb-beta">beta</span></a>
+  <nav class="hb-links">
+    <a href="#kalendar">Kalendár</a>
+    <a href="../eventy?pridat=1">Pridať event</a>
+    <a class="hb-gosko" href="../">by GOSko <img src="../img/ghost.svg" alt="" width="18" height="20"></a>
+  </nav>
+</header>
+<main id="app">
+  <section class="hb-hero">
+    <p class="hb-k">Skate · board · doma aj vo svete</p>
+    <h1><span data-brand>EVENT HUB</span></h1>
+    <p class="hb-lead">Všetky skate a board eventy na jednom mieste. Súťaže, jamy, festivaly aj svetové série. S dátumom, vlajkou, mestom a prize poolom.</p>
+    <ul class="hb-stats" id="stats"><li><b>…</b><span>eventov</span></li></ul>
+  </section>
+  <section class="hb-feat" id="featured" hidden></section>
+  <section class="hb-cal" id="kalendar">
+    <div class="hb-controls">
+      <input id="q" type="search" placeholder="Hľadaj event, mesto, krajinu, organizátora…" aria-label="Hľadať">
+      <div class="hb-chips" id="region" role="group" aria-label="Región"></div>
+      <div class="hb-chips" id="time" role="group" aria-label="Čas"></div>
+    </div>
+    <nav class="hb-months" id="months" aria-label="Mesiace"></nav>
+    <div id="list" class="hb-list"><p class="hb-empty">Načítavam eventy…</p></div>
+  </section>
+</main>
+<footer class="hb-foot">
+  <p><b data-brand>EVENT HUB</b> zbiera eventy z verejných zdrojov a od komunity. Organizátorom nie sme, pri každom evente je odkaz na zdroj. Si organizátor alebo ti chýba event? <a href="../eventy?pridat=1">Pridaj ho</a>, schválime ho zvyčajne do 24 hodín.</p>
+  <p class="hb-small">Projekt od <a href="../">GOSko</a> · Slovenská Federácia Skateboardingu (o. z. v príprave)</p>
+</footer>
+<script type="module" src="hub.js"></script>
+</body>
+</html>

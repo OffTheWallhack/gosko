@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<!-- web beží v koreni domény; relatívne odkazy (eventy, assets/…) sa rátajú od / aj na /event/… -->
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pre partnerov | GOSko</title>
+<meta name="description" content="Spolupráca s GOSko: čísla, plán a ako sa pridať.">
+<link rel="canonical" href="https://gosko.sk/partneri/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GOSko">
+<meta property="og:locale" content="sk_SK">
+<meta property="og:title" content="Pre partnerov | GOSko">
+<meta property="og:description" content="Spolupráca s GOSko: čísla, plán a ako sa pridať.">
+<meta property="og:url" content="https://gosko.sk/partneri/">
+<meta property="og:image" content="https://gosko.sk/img/og/ba-podium.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0e0d0c">
+<!-- Verejná adresa webu. Sociálne siete potrebujú absolútne URL, preto je https://gosko.sk vypísaná aj nižšie;
+     pri zmene domény ju zmeň v celom bloku (a v redirect/index.html) a pregeneruj stránky: node scripts/build-pages.mjs -->
+<meta name="gosko:base-url" content="https://gosko.sk">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GOSko">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;600&family=Pirata+One&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<!-- three.js (1,3 MB) sa stiahne až na stránkach s 3D (dynamický import board.js / park.js / mascot.js). integrity = SHA-384 súborov z npm three@0.160.0. -->
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"},"integrity":{"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js":"sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ","https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/SVGLoader.js":"sha384-9bjPxggmiDnjr/OACK/AtBAq85KJBJ8uSxAccTaM1brUeoDRXfcC1wAo3l6hRsfZ"}}</script>
+<style>
+  .skip-link{position:absolute;left:12px;top:-60px;z-index:1000;padding:10px 16px;background:#F3EBDD;color:#111;font-weight:800;text-decoration:none;border-radius:6px}
+  .skip-link:focus{top:12px}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Preskočiť na obsah</a>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="GOSko, úvod"><img class="brand-ghost" src="img/ghost.svg" alt="" width="48" height="54"><img src="img/gosko-wordmark.svg" alt="" width="72" height="30"><span>GOSko</span></a>
+    <nav class="nav" aria-label="Hlavné menu">
+      <a href="eventy" data-nav="eventy">Eventy</a>
+      <a href="rebricek" data-nav="rebricek">Rebríček</a>
+      <a href="komunita" data-nav="komunita">Komunita</a>
+      <a href="mapa" data-nav="mapa">Mapa</a>
+    </nav>
+    <div class="top-right">
+      <a class="acct" id="acct" href="profil"><img src="img/ghost.svg" alt="" width="20" height="22"><span>Prihlásiť</span></a>
+      <button class="menu-btn" id="menu-open" type="button" aria-haspopup="dialog">Menu</button>
+    </div>
+  </div>
+</header>
+
+<dialog id="menu" aria-label="Menu">
+  <button class="x" type="button" data-close aria-label="Zavrieť menu">✕</button>
+  <div class="menu-groups">
+    <nav aria-label="GOSko">
+      <p class="mono">GOSko</p>
+      <a href="./">Úvod</a>
+      <a href="eventy">Eventy</a>
+      <a href="rebricek">Rebríček a jazdci</a>
+      <a href="novinky">Novinky</a>
+      <a href="hub/">Skate kalendár (event hub)</a>
+    </nav>
+    <nav aria-label="Komunita">
+      <p class="mono">Komunita</p>
+      <a href="komunita">Komunita a Discord</a>
+      <a href="trik-tyzdna">Trik týždňa</a>
+      <a href="crew">Crew</a>
+      <a href="mapa">Mapa spotov (hra)</a>
+      <a href="spoty">Skateparky a hodnotenia</a>
+    </nav>
+    <nav aria-label="Hraj sa">
+      <p class="mono">Hraj sa</p>
+      <a href="doska">Navrhni si dosku</a>
+      <a href="parky">Postav si skatepark</a>
+      <a href="shop">Shop</a>
+    </nav>
+    <nav aria-label="Info">
+      <p class="mono">Info</p>
+      <a href="o-nas">Kto sme</a>
+      <a href="rodicia">Pre rodičov (U16)</a>
+      <a href="partneri">Pre partnerov</a>
+      <a href="profil">Môj profil</a>
+      <a href="pravidla" data-rules-link hidden>Pravidlá</a>
+      <a href="pass" data-pass-link hidden>Môj pass</a>
+    </nav>
+  </div>
+</dialog>
+
+<nav class="tabbar" aria-label="Rýchle menu">
+  <a href="./" data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"/></svg><span>Domov</span></a>
+  <a href="eventy" data-tab="eventy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Eventy</span></a>
+  <a href="rebricek" data-tab="rebricek"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V12h4v9M10 21V5h4v16M16 21v-6h4v6"/></svg><span>Rebríček</span></a>
+  <a href="komunita" data-tab="komunita"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c.8-3.3 3.2-5 6-5s5.2 1.7 6 5M12 17c.9-1.4 2.3-2 4-2 2.8 0 5.2 1.7 6 5"/></svg><span>Komunita</span></a>
+  <a href="profil" data-tab="profil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21v-9a7 7 0 0114 0v9l-2.3-1.6L14.3 21 12 19.4 9.7 21l-2.4-1.6z"/><circle cx="9.5" cy="11" r="1"/><circle cx="14.5" cy="11" r="1"/></svg><span>Profil</span></a>
+</nav>
+<main id="main" tabindex="-1"><div class="wrap seo-pre"><h1>Pre partnerov</h1><p>Spolupráca s GOSko: čísla, plán a ako sa pridať.</p></div></main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-mark"><img class="fm-ghost" src="img/ghost.svg" alt="" width="36" height="40"><img class="fm-word" src="img/gosko-wordmark.svg" alt="GOSko" width="72" height="30"></div>
+    <p>GOSko robí komunita pre komunitu. Game of S.K.A.T.E. súťaže po Slovensku.<br><small>Slovenská Federácia Skateboardingu, o. z. (v príprave)</small></p>
+    <div class="foot-cols">
+      <nav aria-label="GOSko"><b class="mono">GOSko</b><a href="eventy">Eventy</a><a href="rebricek">Rebríček</a><a href="sien-slavy">Sieň slávy</a><a href="novinky">Novinky</a><a href="hub/">Event hub</a></nav>
+      <nav aria-label="Komunita"><b class="mono">Komunita</b><a href="komunita">Discord a komunita</a><a href="trik-tyzdna">Trik týždňa</a><a href="crew">Crew</a><a href="mapa">Mapa spotov</a></nav>
+      <nav aria-label="Info"><b class="mono">Info</b><a href="o-nas">Kto sme</a><a href="rodicia">Pre rodičov</a><a href="partneri">Pre partnerov</a><a href="rebricek/pravidla">Pravidlá rebríčka</a><a href="sukromie">Ochrana súkromia</a><a href="profil">Môj profil</a></nav>
+      <div class="foot-act"><button class="btn small" id="footer-news" type="button">Odber noviniek</button><a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a></div>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>
