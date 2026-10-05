@@ -488,13 +488,13 @@ function pageHome(root) {
     .then(c => heroBoard.append(h('img', { src: c.toDataURL('image/png'), alt: '' }))).catch(err => console.error(err));
   const heroIn = h('div', { class: 'wrap vh-in' },
     h('span', { class: 'mono vh-k' }, h('span', { class: 'dot', 'aria-hidden': 'true' }), `Sezóna ${SITE.season} · Slovensko a Česko`),
-    h('h1', { class: 'vh-logo' }, h('img', { src: 'img/gosko-wordmark-cream.svg', alt: 'GOSko', width: 520, height: 217 })),
+    h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-ghost', src: 'img/ghost.svg', alt: '', width: 120, height: 135 }), h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
     h('p', { class: 'vh-tag letterg' }, 'Game of S.K.A.T.E. po Slovensku'),
     h('div', { class: 'vh-cta' },
       next?.registration ? h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(next) }, 'Chcem jazdiť', h('span', { 'aria-hidden': 'true' }, '→')) : null,
       h('a', { class: 'btn solid', href: '#/eventy' }, 'Eventy'),
       h('a', { class: 'btn', href: '#/rebricek' }, 'Rebríček')),
-    next ? h('p', { class: 'mono vh-next' }, `Ďalší stop: ${next.city}, ${next.date ? fmtDate(next.date) : next.when || 'čoskoro'}`) : null);
+    h('p', { class: 'mono vh-next' }, h('span', {}, 'Ďalší stop:'), ' ', h('b', {}, 'coming soon')));
   const links = [
     ['#/rebricek', 'Pozri si rebríček najlepších jazdcov'], ['#/eventy', 'Pozri, aké ďalšie eventy plánujeme'], ['#/jazdci', 'Spoznaj GOSko skejterov!'],
     ['#/mapa', 'Poznáš nejaký skate spot? Pridaj ho na mapu!'], ['#/parky', 'Vytvor si svoj vlastný skatepark :D'], ['#/shop', 'Chceš nás podporiť? Merch a e-shop'],
@@ -520,19 +520,11 @@ function pageHome(root) {
   }); };
   if (!reduced) addEventListener('scroll', onScroll, { passive: true });
 
-  /* ---------- 2. kto sme ---------- */
-  const pillar = (href, n, t, d) => h('a', { class: 'pl', href }, h('span', { class: 'pl-n mono' }, n), h('span', { class: 'pl-t' }, t), h('span', { class: 'pl-d' }, d), h('span', { class: 'pl-a', 'aria-hidden': 'true' }, '→'));
-  const about = h('section', { class: 'hs about', id: 'kto-sme' }, h('div', { class: 'wrap ab-grid' },
-    h('div', { class: 'ab-copy' },
-      h('span', { class: 'mono hs-k' }, 'Kto sme'),
-      h('h2', {}, 'Nový organizátor skate eventov na Slovensku'),
-      h('p', { class: 'lead' }, 'GOSko je komunitná značka. Robíme pop-up súťaže Game of S.K.A.T.E. po mestách na Slovensku a v Česku, vedieme rebríček jazdcov a staviame vlastný digitálny svet pre skejterov.'),
-      h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí Slovenská Federácia Skateboardingu (občianske združenie v príprave).'),
-      h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
-    h('div', { class: 'ab-pillars' },
-      pillar('#/eventy', '01', 'Eventy', 'Pop-up súťaže po mestách SK a CZ.'),
-      pillar('#/rebricek', '02', 'Rebríček a web', 'Body, výsledky a profil každého jazdca.'),
-      pillar('#/mapa', '03', 'Komunita', 'Mapa spotov, parky a klipy.'))));
+  /* ---------- kto sme (krátko, celé na #/o-nas) ---------- */
+  const about = h('section', { class: 'hs about-teaser' }, h('div', { class: 'wrap at-grid' },
+    h('div', {}, h('span', { class: 'mono hs-k' }, 'Kto sme'), h('h2', {}, 'Komunita, ktorá robí skate eventy')),
+    h('div', {}, h('p', { class: 'lead' }, 'GOSko robí pop-up súťaže Game of S.K.A.T.E. po Slovensku a v Česku, vedie rebríček jazdcov a stavia vlastný digitálny svet pre skejterov.'),
+      h('a', { class: 'btn small', href: '#/o-nas' }, 'Viac o nás', h('span', { 'aria-hidden': 'true' }, '→')))));
 
   /* ---------- 3. eventy ---------- */
   const goskoEvents = [...EVENTS].sort((a, b) => (a.status === 'next' ? -1 : 0) - (b.status === 'next' ? -1 : 0) || (b.date || '').localeCompare(a.date || ''));
@@ -541,16 +533,19 @@ function pageHome(root) {
     const t = todayStr(), up = list.filter(e => !e.pending && (e.end_date || e.date) >= t).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
     calBox.replaceChildren(...(up.length ? up.map(e => { const p = parseDate(e.date); return h('li', {},
       h('span', { class: 'cm-d' }, h('b', {}, p.d), h('small', {}, MON[p.m - 1])), flag(e.country),
-      h('span', { class: 'cm-t' }, h('b', {}, e.name), h('small', {}, [e.city, e.country].filter(Boolean).join(', '))),
+      h('span', { class: 'cm-t' }, h('b', {}, e.name), h('small', {}, [e.city, e.country, e.organizer ? 'org. ' + e.organizer : null].filter(Boolean).join(' · '))),
       e.link ? h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Info') : null); }) : [h('li', { class: 'empty' }, 'Kalendár doplníme.')]));
   }).catch(() => calBox.replaceChildren(h('li', { class: 'empty' }, 'Kalendár sa nepodarilo načítať.')));
   const eventsSec = h('section', { class: 'hs events-sec', id: 'eventy' }, h('div', { class: 'wrap' },
-    h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Eventy'), h('h2', {}, 'Čo sme odjazdili a čo chystáme')), h('a', { class: 'btn small', href: '#/eventy' }, 'Všetky eventy', h('span', { 'aria-hidden': 'true' }, '→'))),
+    h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Naše eventy'), h('h2', {}, 'GOSko Game of S.K.A.T.E.')), h('a', { class: 'btn small', href: '#/eventy' }, 'Všetky eventy', h('span', { 'aria-hidden': 'true' }, '→'))),
     h('div', { class: 'gk-grid' }, goskoEvents.map(goskoEventCard)),
     h('div', { class: 'ev-two' },
-      h('div', { class: 'plan-mini' }, h('h3', { class: 'mono' }, 'Plán 2026/27'),
+      h('div', { class: 'plan-mini' }, h('h3', { class: 'mono' }, 'Náš plán 2026/27'),
         h('ol', {}, PLAN.map(p => h('li', { class: (p.red ? 'red' : '') + (p.dark ? ' dark' : '') }, h('span', { class: 'mono' }, p.when), h('b', {}, p.title), h('small', {}, p.place))))),
-      h('div', { class: 'cal-box' }, h('div', { class: 'cal-head' }, h('h3', { class: 'mono' }, 'Kalendár skate eventov'), h('a', { class: 'linkish', href: '#/eventy' }, 'Celý kalendár →')), calBox))));
+      h('div', { class: 'cal-box' },
+        h('div', { class: 'cal-head' }, h('h3', { class: 'mono' }, 'Skate kalendár'), h('a', { class: 'linkish', href: '#/eventy' }, 'Celý kalendár →')),
+        h('p', { class: 'cal-note' }, 'Ďalšie skate eventy doma aj vo svete. Organizujú ich iní, my ich len zbierame na jednom mieste, aby ti nič neuteklo.'),
+        calBox))));
 
   /* ---------- 4. rebríček a ľudia ---------- */
   const top = standings('open'), crew = riders();
@@ -655,7 +650,7 @@ function pageHome(root) {
   say();
   const boardSec = h('section', { class: 'hs board-sec2', id: 'doska' }, h('div', { class: 'wrap bs-grid' },
     h('div', { class: 'bs-copy' },
-      h('span', { class: 'mono hs-k' }, 'Tvoja doska'),
+      h('span', { class: 'mono hs-k' }, 'Tvoja 3D doska'),
       h('h2', {}, 'Postav si dosku a skús trik'),
       h('p', { class: 'lead' }, 'Každý GOSko event nechá na doske nálepku. Vyber si scénu, uprav dosku a zahraj si S.K.A.T.E.: za päť písmen dostaneš nálepku navyše.'),
       game),
@@ -692,7 +687,7 @@ function pageHome(root) {
     newsletterInline('home'),
     h('div', { class: 'news-ghosts', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('img', { src: 'img/ghost.svg', alt: '' }), h('img', { src: 'img/ghost.svg', alt: '' }))));
 
-  const after = h('div', { class: 'after-hero' }, about, eventsSec, rankSec, boardSec, newsSec, tvSec, moreSec, ps, news);
+  const after = h('div', { class: 'after-hero' }, boardSec, eventsSec, rankSec, newsSec, tvSec, moreSec, about, ps, news);
   root.append(hero, after);
   return () => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); boardP.then(a => a()); };
 }
@@ -848,7 +843,7 @@ async function pageEvents(root) {
   const TEX = ['img/ba-trick-1.webp', 'img/ba-trick-3.webp', 'img/ba-trick-5.webp', 'img/ba-boards.webp'];
   const cover = e => e.image_url
     ? h('span', { class: 'ec-img' }, h('img', { src: e.image_url, alt: '', loading: 'lazy' }))
-    : h('span', { class: 'ec-img gen', style: `--tex:url(${TEX[hashStr(e.name) % TEX.length]})` }, h('span', { class: 'ec-city' }, e.city || ''));
+    : h('span', { class: 'ec-img gen', style: `--tex:url(${TEX[hashStr(e.name) % TEX.length]})` }, h('span', { class: 'ec-city' + ((e.city || '').length > 9 ? ' long' : '') }, e.city || ''));
   const daysOf = e => e.date ? dayDiff(e.date, lastDay(e)) + 1 : 0;
   const icsBtn = e => e.date && lastDay(e) >= today ? h('button', { class: 'btn small', type: 'button', onclick: () => downloadIcs({ title: e.title, date: e.date, end: lastDay(e), place: [e.place, e.city].filter(Boolean).join(', '), url: e.link }) }, 'Do kalendára') : null;
   const badges = e => h('div', { class: 'ev-badges' },
@@ -885,6 +880,8 @@ async function pageEvents(root) {
       h('section', { class: 'ev-sec gk' },
         h('div', { class: 'sec-head' }, h('h2', {}, 'GOSko eventy'), h('span', { class: 'mono lead' }, 'Naša séria Game of S.K.A.T.E.')),
         h('div', { class: 'gk-grid' }, gosko.map(goskoEventCard))),
+      h('div', { class: 'ev-divider' }, h('span', { class: 'mono hs-k' }, 'Skate kalendár'), h('h2', {}, 'Ďalšie eventy doma a vo svete'),
+        h('p', { class: 'lead' }, 'Tieto eventy neorganizujeme. Robia ich iné crew, skateshopy a federácie a my ich zbierame na jednom mieste, aby ti nič neuteklo.')),
       h('div', { class: 'controls ev-when' }, chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; })),
       h('section', { class: 'ev-sec' },
         h('div', { class: 'sec-head' }, h('h2', {}, 'Slovensko a Česko'), h('span', { class: 'mono lead' }, `${local.length} ${plural(local.length, 'event', 'eventy', 'eventov')}`)),
@@ -898,7 +895,7 @@ async function pageEvents(root) {
       h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === get()), onclick: ev => { set(v); g.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c === ev.currentTarget))); render(); } }, t)));
     return g;
   };
-  root.append(pageHead('Eventy', 'Naše GOSko zastávky, skate eventy na Slovensku a v Česku aj veľké súťaže vo svete. Poznáš event, ktorý tu chýba? Pridaj ho.',
+  root.append(pageHead('Eventy', 'Hore naše GOSko zastávky. Pod nimi skate kalendár: eventy iných organizátorov na Slovensku, v Česku aj vo svete. Poznáš event, ktorý tu chýba? Pridaj ho.',
     h('button', { class: 'btn primary', type: 'button', onclick: addEventDialog }, 'Pridať event')),
     h('div', { class: 'wrap page-body' }, list));
   render();
@@ -1770,6 +1767,23 @@ function pageHall(root) {
   root.append(pageHead('Sieň slávy', 'Víťazi eventov a šampióni sezón. História sa tu nemaže.'), h('div', { class: 'wrap page-body' }, hallEl()));
 }
 
+function pageAbout(root) {
+  const pillar = (href, n, t, d) => h('a', { class: 'pl', href }, h('span', { class: 'pl-n mono' }, n), h('span', { class: 'pl-t' }, t), h('span', { class: 'pl-d' }, d), h('span', { class: 'pl-a', 'aria-hidden': 'true' }, '→'));
+  root.append(pageHead('Kto sme', 'Nový organizátor skate eventov na Slovensku. Komunitná značka, ktorá robí skate pre skejterov.'),
+    h('div', { class: 'wrap page-body' },
+      h('section', { class: 'about ab-grid' },
+        h('div', { class: 'ab-copy' },
+          h('p', { class: 'lead' }, 'GOSko je komunitná značka. Robíme pop-up súťaže Game of S.K.A.T.E. po mestách na Slovensku a v Česku, vedieme rebríček jazdcov a staviame vlastný digitálny svet pre skejterov.'),
+          h('p', {}, 'Začali sme v roku 2026 v Bratislave, nasledovala Žilina na Shred Feste. V novembri štartuje pilot novej sezóny a v roku 2027 chceme obísť krajské mestá a prvý stop v Česku.'),
+          h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí Slovenská Federácia Skateboardingu (občianske združenie v príprave).'),
+          h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
+        h('div', { class: 'ab-pillars' },
+          pillar('#/eventy', '01', 'Eventy', 'Pop-up súťaže po mestách SK a CZ.'),
+          pillar('#/rebricek', '02', 'Rebríček a jazdci', 'Body, výsledky a profil každého jazdca.'),
+          pillar('#/mapa', '03', 'Komunita', 'Mapa spotov, parky a klipy.'),
+          pillar('#/partneri', '04', 'Pre partnerov', 'Čo robíme a ako sa môžete pridať.')))));
+}
+
 function pageRules(root) {
   const any = RULES.length > 0 || FAQ.length > 0;
   root.append(pageHead('Pravidlá', any ? 'Ako sa hrá GOSko a čo treba vedieť.' : 'Pravidlá a odpovede na časté otázky dopĺňame.'));
@@ -2006,6 +2020,7 @@ const ROUTES = [
   [/^#\/admin\/scan$/, pageScan, ''],
   [/^#\/admin\/vysledky(?:\/([\w-]+))?$/, pageAdminResults, ''],
   [/^#\/pravidla$/, pageRules, 'pravidla'],
+  [/^#\/o-nas$/, pageAbout, 'o-nas'],
   [/^#\/sien-slavy$/, root => pageStandings(root, 'sien-slavy'), 'rebricek'],
   [/^#\/partner\/([\w-]+)$/, pagePartner, 'partneri'],
   [/^#\/tv\/([\w-]+)(?:\/(\w+))?$/, pageTv, ''],
