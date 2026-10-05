@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://offthewallhack.github.io/gosko/sitemap.xml

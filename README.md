@@ -188,3 +188,17 @@ Pri prvom prihlásení dostane admin práva automaticky. Ak už účet má, prid
 Samostatná stránka so skate a board eventmi doma aj vo svete: `https://offthewallhack.github.io/gosko/hub/`.
 Číta rovnaké dáta ako kalendár na webe (tabuľka `community_events`) plus GOSko eventy z `data.js`.
 Názov je pracovný: zmeníš ho v `hub/hub.js` (`BRAND.name`) a v `hub/index.html` (`<title>`).
+
+## Skutočné adresy a náhľady pri zdieľaní
+
+Web má adresy ako `/gosko/eventy`, `/gosko/event/zilina-2026`, `/gosko/jazdec/…` (staré `#/` odkazy fungujú ďalej).
+Pre každý event, jazdca, článok a sekciu sa generuje statická stránka s náhľadom (nadpis, popis, fotka) pre Google, WhatsApp, Instagram.
+Generuje ich `scripts/build-pages.mjs`; spúšťa sa samo cez GitHub Actions (`.github/workflows/pages.yml`) po každej zmene a každé 3 hodiny.
+Pri zmene domény: uprav `SITE_URL` v skripte a `<base href>` v `index.html`.
+
+## Komunita
+
+- **Trik týždňa** (`/trik-tyzdna`): zadanie a fázy riadiš v admine (posielanie → výber 3 finalistov → hlasovanie → víťaz).
+- **Profil jazdca:** jazdec klikne „Som to ja“, v admine ho schváliš, potom si sám doplní fotku a info. Fotku jazdca môžeš nahrať aj v admine.
+- **Crew:** zoznam v `data.js` (`CREWS`). **Spot mesiaca:** `SITE.spotOfMonth` v `data.js`. **Discord:** `SITE.discord`.
+- **XP a odznaky:** počítajú sa automaticky z aktivity (check-in, triky, spoty, parky, hodnotenia).
