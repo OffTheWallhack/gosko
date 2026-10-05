@@ -122,6 +122,29 @@ function demoStore() {
     },
     async deletePost(id) { LS.set('gosko:posts', LS.get('gosko:posts', []).filter(x => x.id !== id)); },
 
+    /* profily, triky, hodnotenia: v ukážkovom režime len v prehliadači */
+    async me() { return { id: 'demo', email: '' }; },
+    async riderProfiles() { return LS.get('gosko:rider-profiles', []); },
+    async myRiderProfile() { return LS.get('gosko:rider-profiles', []).find(r => r.user_id === 'demo') || null; },
+    async claimRider(slug, fields) { const a = LS.get('gosko:rider-profiles', []); if (a.some(r => r.slug === slug)) throw new Error('taken'); a.push({ slug, user_id: 'demo', status: 'approved', ...fields }); LS.set('gosko:rider-profiles', a); },
+    async saveRiderProfile(slug, fields, photo) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) Object.assign(r, fields, photo ? { photo_url: await toDataUrl(photo) } : {}); LS.set('gosko:rider-profiles', a); },
+    async adminRiderPhoto(slug, photo) { const a = LS.get('gosko:rider-profiles', []); let r = a.find(x => x.slug === slug); if (!r) { r = { slug, status: 'approved' }; a.push(r); } r.photo_url = await toDataUrl(photo); LS.set('gosko:rider-profiles', a); },
+    async pendingRiderClaims() { return LS.get('gosko:rider-profiles', []).filter(r => r.status === 'pending'); },
+    async setRiderStatus(slug, status) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) r.status = status; LS.set('gosko:rider-profiles', a); },
+    async releaseRider(slug) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) r.user_id = null; LS.set('gosko:rider-profiles', a); },
+    async currentChallenge() { return LS.get('gosko:challenge', null) || { id: 'demo', title: 'Kickflip cez niečo', description: 'Kickflip cez prekážku. Pošli klip, vyberieme tri najlepšie a hlasujete.', status: 'open', ends_on: null }; },
+    async pastChallenges() { return []; },
+    async trickResults() { return LS.get('gosko:trick-entries', []).filter(e => e.finalist).map(e => ({ ...e, votes: LS.get('gosko:trick-vote', null) === e.id ? 1 : 0 })); },
+    async myTrickEntries() { return LS.get('gosko:trick-entries', []); },
+    async submitTrick(challenge_id, row, video) { add('gosko:trick-entries', { ...row, challenge_id, finalist: false, video_url: video ? URL.createObjectURL(video) : null }); },
+    async myTrickVote() { return LS.get('gosko:trick-vote', null); },
+    async voteTrick(c, entry_id) { LS.set('gosko:trick-vote', entry_id); },
+    async adminTrickEntries() { return LS.get('gosko:trick-entries', []); },
+    async setFinalist(id, finalist) { const a = LS.get('gosko:trick-entries', []); const e = a.find(x => x.id === id); if (e) e.finalist = finalist; LS.set('gosko:trick-entries', a); },
+    async saveChallenge(row) { LS.set('gosko:challenge', { id: 'demo', ...row }); },
+    async spotRatings() { return LS.get('gosko:spot-ratings', []); },
+    async rateSpot(spot_key, stars, tags) { const a = LS.get('gosko:spot-ratings', []).filter(r => r.spot_key !== spot_key); a.push({ spot_key, stars, tags, user_id: 'demo' }); LS.set('gosko:spot-ratings', a); },
+    async myActivity() { return { photos: 0, spots: LS.get(K.spots, []).length, parks: 0, park_votes: LS.get(K.votes, []).length, tricks: LS.get('gosko:trick-entries', []).length, finalist: 0, trick_votes: LS.get('gosko:trick-vote', null) ? 1 : 0, ratings: LS.get('gosko:spot-ratings', []).length, rider: 0, checkins: 0 }; },
     /* fotky a klipy od komunity */
     async listEventPhotos(event_id) { return LS.get(K.photos, []).filter(p => p.event_id === event_id).map(p => ({ ...p, pending: !p.approved })); },
     async submitEventPhoto(row, photo) {
@@ -285,6 +308,66 @@ async function liveStore(CONFIG) {
       return { pending: true };
     },
     async inbox(table) { return must(await sb.from(table).select('*').order('created_at', { ascending: false }).limit(2000)).map(created); },
+    /* ---------- profily jazdcov ---------- */
+    async me() { const s = await session(); return s ? { id: s.user.id, email: s.user.email } : null; },
+    async riderProfiles() { return must(await sb.from('rider_profiles').select('*').limit(1000)); },
+    async myRiderProfile() { const s = await session(); if (!s) return null; return must(await sb.from('rider_profiles').select('*').eq('user_id', s.user.id).maybeSingle()); },
+    async claimRider(slug, fields) {
+      const s = await session();
+      const { error } = await sb.from('rider_profiles').insert({ slug, user_id: s.user.id, status: 'pending', ...fields });
+      if (error) { if (error.code === '23505') throw new Error('taken'); throw error; }
+    },
+    async saveRiderProfile(slug, fields, photo) {
+      const s = await session(), r = { ...fields };
+      if (photo) {
+        r.photo_path = `${s.user.id}/rider-${newToken()}.jpg`;
+        must(await sb.storage.from('photos').upload(r.photo_path, photo, { contentType: 'image/jpeg', upsert: false }));
+        r.photo_url = sb.storage.from('photos').getPublicUrl(r.photo_path).data.publicUrl;
+      }
+      must(await sb.from('rider_profiles').update(r).eq('slug', slug));
+    },
+    async adminRiderPhoto(slug, photo) {
+      const path = `riders/${slug}-${newToken().slice(0, 8)}.jpg`;
+      must(await sb.storage.from('photos').upload(path, photo, { contentType: 'image/jpeg', upsert: false }));
+      const photo_url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+      must(await sb.from('rider_profiles').upsert({ slug, photo_url, photo_path: path, status: 'approved' }, { onConflict: 'slug' }));
+    },
+    async pendingRiderClaims() { return must(await sb.from('rider_profiles').select('*').eq('status', 'pending').order('created_at')); },
+    async setRiderStatus(slug, status) { must(await sb.from('rider_profiles').update({ status }).eq('slug', slug)); },
+    async releaseRider(slug) { must(await sb.from('rider_profiles').update({ user_id: null, status: 'approved' }).eq('slug', slug)); },
+
+    /* ---------- trik týždňa ---------- */
+    async currentChallenge() {
+      const list = must(await sb.from('trick_challenges').select('*').order('created_at', { ascending: false }).limit(10));
+      return list.find(c => c.status !== 'closed') || list[0] || null;
+    },
+    async pastChallenges() { return must(await sb.from('trick_challenges').select('*').eq('status', 'closed').order('created_at', { ascending: false }).limit(20)); },
+    async trickResults(challenge_id) { return must(await sb.from('trick_results').select('*').eq('challenge_id', challenge_id).order('created_at')); },
+    async myTrickEntries(challenge_id) { const s = await session(); if (!s) return []; return must(await sb.from('trick_entries').select('*').eq('challenge_id', challenge_id).eq('user_id', s.user.id)); },
+    async submitTrick(challenge_id, row, video) {
+      const s = await session(), r = { ...row, challenge_id, user_id: s.user.id };
+      if (video) {
+        const ext = (video.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '');
+        r.video_path = `${s.user.id}/trick-${newToken()}.${ext}`;
+        must(await sb.storage.from('clips').upload(r.video_path, video, { contentType: video.type || 'video/mp4', upsert: false }));
+        r.video_url = sb.storage.from('clips').getPublicUrl(r.video_path).data.publicUrl;
+      }
+      must(await sb.from('trick_entries').insert(r));
+    },
+    async myTrickVote(challenge_id) { const s = await session(); if (!s) return null; return must(await sb.from('trick_votes').select('entry_id').eq('challenge_id', challenge_id).eq('user_id', s.user.id).maybeSingle())?.entry_id || null; },
+    async voteTrick(challenge_id, entry_id) {
+      const s = await session();
+      must(await sb.from('trick_votes').delete().eq('challenge_id', challenge_id).eq('user_id', s.user.id));
+      must(await sb.from('trick_votes').insert({ challenge_id, entry_id, user_id: s.user.id }));
+    },
+    async adminTrickEntries(challenge_id) { return must(await sb.from('trick_entries').select('*').eq('challenge_id', challenge_id).order('created_at')); },
+    async setFinalist(id, finalist) { must(await sb.from('trick_entries').update({ finalist }).eq('id', id)); },
+    async saveChallenge(row) { const id = row.id; const r = { ...row }; delete r.id; must(id ? await sb.from('trick_challenges').update(r).eq('id', id) : await sb.from('trick_challenges').insert(r)); },
+
+    /* ---------- hodnotenie spotov, XP ---------- */
+    async spotRatings() { return must(await sb.from('spot_ratings').select('spot_key,stars,tags,user_id').limit(5000)); },
+    async rateSpot(spot_key, stars, tags) { const s = await session(); must(await sb.from('spot_ratings').upsert({ spot_key, stars, tags, user_id: s.user.id }, { onConflict: 'spot_key,user_id' })); },
+    async myActivity() { if (!(await session())) return null; const { data, error } = await sb.rpc('my_activity'); if (error) throw error; return data; },
   };
 }
 

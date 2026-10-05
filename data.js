@@ -21,6 +21,9 @@ export const SITE = {
   heroVideo: 'video/hero.mp4',
   heroPoster: 'img/hero-poster.jpg',
   vlog: 'h_ZyZHSvmL4',  // YouTube ID vlogu z eventov
+  discord: '',          // pozvánka na Discord komunitu, napr. 'https://discord.gg/xxxx' (kým je prázdne, ukáže sa „čoskoro“)
+  spotOfMonth: 'Skatepark Liptovský Mikuláš',   // spot mesiaca = presný názov parku zo SKATEPARKS
+  spotOfMonthNote: 'Nový betónový park pod Tatrami. Hladký povrch, poriadne lajny a pokoj od davov. Ak ste tam ešte neboli, je čas.',
 };
 
 /* Bodovanie do rebríčka podľa umiestnenia. Body sa rátajú len za Game of Skate. */
@@ -226,3 +229,13 @@ export const RIDERS = {};
      'marek-kupkovic': 'initial'    ->  na webe sa ukáže „Marek K.“
    Kľúč je meno bez diakritiky malými písmenami, slová spojené pomlčkou. */
 export const RIDER_PRIVACY = {};
+
+/* Skate crew. Členov priradíš v profile jazdca (políčko crew = id crew) alebo tu v members (mená ako v rebríčku).
+   instagram doplň bez @. organizer = ako sa crew píše pri eventoch v kalendári (spojí ich eventy). */
+export const CREWS = [
+  { id: 'gosko', name: 'GOSko crew', city: 'Bratislava', instagram: 'g.o.s.ko', organizer: 'GOSko', about: 'Partia, ktorá robí Game of S.K.A.T.E. po Slovensku. Eventy, rebríček a tento web.', members: [] },
+  { id: '3style', name: '3Style Academy', city: 'Bratislava', instagram: '3styleacademy.eu', organizer: '3Style', about: 'Akadémia akčných športov, tréningy a tábory pre mladých jazdcov.', members: [] },
+  { id: 'tlakerz', name: 'Tlakerz', city: '', instagram: '', organizer: 'Tlakerz', about: 'Skate crew. Popis doplníme.', members: [] },
+  { id: 'cube', name: 'Cube Skateshop', city: 'Sládkovičovo', instagram: '', organizer: 'CubeSkateshop.sk', about: 'Skateshop a organizátor Cube Skate Day.', members: [] },
+  { id: 'hangair', name: 'Hangair', city: 'Bratislava', instagram: '', organizer: 'Hangair', about: 'Akadémia akčných športov vo Vajnoroch, vnútorný aj vonkajší park.', members: [] },
+];

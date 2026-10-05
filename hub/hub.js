@@ -57,7 +57,7 @@ function badges(e) {
 function row(e) {
   const p = pd(e.date), q = pd(last(e));
   const dd = !p ? '?' : q && (q.d !== p.d || q.m !== p.m) ? (q.m === p.m ? `${p.d}–${q.d}` : `${p.d}.–${q.d}.`) : String(p.d);
-  const link = e.ours ? `../#/event/${e.gid}` : safe(e.link);
+  const link = e.ours ? `../event/${e.gid}` : safe(e.link);
   return h('article', { class: 'ev' + (e.ours ? ' ours' : '') + (e.date <= today && last(e) >= today ? ' live' : '') + (last(e) < today ? ' past' : ''), id: 'e-' + e.id },
     h('div', { class: 'ev-d' }, h('b', { class: dd.length > 3 ? 'long' : '' }, dd), h('span', {}, p ? MON[p.m - 1] + (q && q.m !== p.m ? '–' + MON[q.m - 1] : '') : '')),
     h('div', { class: 'ev-f' }, flag(e.country)),
@@ -101,7 +101,7 @@ function featured() {
   if (!n) return;
   const g = { gid: n.id, name: n.name, city: n.city, date: n.date };
   const el = $('#featured'); el.hidden = false;
-  el.replaceChildren(h('a', { class: 'ft', href: `../#/event/${g.gid}` },
+  el.replaceChildren(h('a', { class: 'ft', href: `../event/${g.gid}` },
     h('span', { class: 'ft-k' }, 'Featured · domáca séria'), h('b', {}, g.name), h('span', {}, g.date ? `${g.city} · ${g.date}` : `${g.city} · coming soon`), h('span', { class: 'ft-go' }, 'Otvoriť →')));
 }
 async function load() {
