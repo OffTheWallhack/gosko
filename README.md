@@ -29,7 +29,7 @@ icons/                ikony appky
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim (základ)
-supabase/migrations/  migrácie 001–006 nad supabase-setup.sql (registrácia v2, výsledky, NFT)
+supabase/migrations/  migrácie 001–014 nad supabase-setup.sql (registrácia v2, výsledky, NFT, hra, novinky)
 supabase/checks/      grants.sql: audit práv anon/authenticated (iba čítanie)
 chain/                kontrakt GoskoPass (Hardhat), lokálny deploy
 vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
@@ -37,6 +37,8 @@ vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
 api/                  Vercel funkcie (registrácia, passy, admin, NFT, cron)
 scripts/dev-server.js lokálny server s rovnakými hlavičkami a routovaním /api ako na Verceli
 tests/                unit, api, integračné, smoke a lokálne e2e testy
+supabase-seed-events.sql  skate eventy doma a vo svete do kalendára (sezóna 2026)
+video/                video na úvodke (WebM + MP4)
 ```
 
 ## 1. Nasadenie na Vercel
@@ -187,8 +189,11 @@ Všetko v **SQL Editore** projektu, po jednom súbore, v tomto poradí:
 6. `supabase/migrations/005_results_clear_nft.sql` (vyhodený jazdec alebo zmazaná kategória vynuluje výsledok aj na chaine)
 7. `supabase/migrations/006_privacy.sql` (opravy z bezpečnostného auditu: rodič pri registrácii, platnosť odkazu pre rodiča,
    `riderRef` pre každý token, `riders_public` bez mesta, `registrations_admin` pre admin výsledkov, práva na nové funkcie)
-8. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`)
-9. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
+8. `supabase/migrations/010_game_core.sql` až `013_game_consent.sql` (hra Ghoskate)
+9. `supabase/migrations/014_main_sync.sql` (z Robovej main: kalendár `end_date`, `prize` a fotka eventu, novinky `posts`,
+   pozvánky adminov `admin_invites`; admin z pozvánky až po potvrdení e-mailu)
+10. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`), voliteľne `supabase-seed-events.sql` (skate kalendár)
+11. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
 
 Každá migrácia je v transakcii a dá sa spustiť znova. Po opätovnom spustení 001 treba znova spustiť 002 až 005
 (001 odoberá všetky práva).
@@ -315,6 +320,41 @@ to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
 
 V admine potom schvaľuješ parky, eventy a spoty od komunity a vidíš registrácie,
 odber noviniek, objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
+
+## Stavebnica parku
+
+Na PC: prekážku vyber klikom alebo ju myšou potiahni rovno na plochu. Položenú prekážku chytíš
+a presunieš, R otočí, Delete zmaže, Ctrl+D skopíruje, Ctrl+Z/Ctrl+Y späť/znova.
+Pravé tlačidlo otáča pohľad, koliesko približuje (najprv klikni do plochy). Na mobile sa prekážka
+chytí podržaním prsta. Plocha má tri veľkosti a prekážky sa dajú prefarbiť.
+
+## Kalendár eventov
+
+Eventy od komunity a svetové/domáce skate eventy sú v Supabase v tabuľke `community_events`
+(schválené sa ukážu v kalendári). Súbor `supabase-seed-events.sql` ich vloží znova, ak treba
+(duplicitné sa nevložia). Ďalšie pridáš cez „Pridať event“ a schváliš v admine.
+Pri evente môže byť aj posledný deň (`end_date`) a prize pool (`prize`). Vlajka sa ukáže podľa krajiny.
+
+## Novinky a články (bez programovania)
+
+1. Otvor `#/admin` a prihlás sa e-mailom (účet musí byť admin, postup je vyššie).
+2. Klikni **+ Pridať novinku**, vyplň nadpis, pár viet, prípadne fotku a odkaz, a daj **Zverejniť**.
+3. Novinka sa hneď ukáže v časti **Novinky**, na úvodke aj v bežiacom páse. Upraviť alebo zmazať ju vieš v admine.
+
+Ďalšieho admina pridáš rovnako ako seba (SQL príkaz vyššie s jeho e-mailom).
+
+## Video na úvodke
+
+Nahraj krátky klip bez zvuku (10 – 20 s, MP4, do ~8 MB) do priečinka `video/` a v `data.js` vyplň
+`SITE.heroVideo: 'video/hero.mp4'`. Kým je prázdne, na pozadí hrá YouTube vlog (`SITE.vlog`).
+
+## Fotky k eventom v kalendári
+
+V admine v časti **Fotky k eventom v kalendári** pri evente vyber fotku. Bez fotky sa ukáže grafika s názvom mesta.
+
+## Skateparky na mape
+
+Zoznam je v `data.js` v `SKATEPARKS`. Poloha je orientačná, presné súradnice skopíruješ z Google Maps.
 
 ## Newsletter
 

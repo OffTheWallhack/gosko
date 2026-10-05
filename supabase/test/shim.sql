@@ -55,6 +55,8 @@ create table if not exists auth.users (
   email text,
   created_at timestamptz not null default now()
 );
+-- Supabase: e-mail potvrdený (odkaz, kód, alebo automaticky pri autoconfirm); 014 z neho dáva admina z pozvánky
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
 
 create or replace function auth.uid() returns uuid
 language sql stable as $$

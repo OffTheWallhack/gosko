@@ -64,6 +64,7 @@ describe('vercel.json: cache hlavičky', () => {
   test('/img/* a /icons/* môžu držať deň v cache', () => {
     assert.match(headersFor('/img/logo.webp')['cache-control'], /public, max-age=86400/);
     assert.match(headersFor('/icons/icon-192.png')['cache-control'], /public, max-age=86400/);
+    assert.match(headersFor('/video/hero.mp4')['cache-control'], /public, max-age=86400/);
   });
 
   test('nikde immutable (názvy súborov nemajú hash)', () => {
@@ -125,6 +126,12 @@ describe('vercel.json: CSP', () => {
   test('style-src', () => has('style-src', "'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'));
   test('font-src', () => has('font-src', 'https://fonts.gstatic.com'));
   test('img-src', () => has('img-src', "'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://tile.openstreetmap.org', SUPABASE_ORIGIN));
+  /* úvodka a kalendár (Robova main): vlajky krajín z flagcdn.com, video na pozadí je z vlastnej domény (default-src 'self') */
+  test('img-src: vlajky v kalendári (flagcdn.com)', () => has('img-src', 'https://flagcdn.com'));
+  test('video na úvodke: media-src nie je nastavené, platí default-src self', () => {
+    assert.ok(!csp.has('media-src'), 'media-src by prepísal default-src');
+    has('default-src', "'self'");
+  });
   test('connect-src', () => has('connect-src', "'self'", SUPABASE_ORIGIN, 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'));
   test('frame-src', () => has('frame-src', 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'));
   // herná mapa (assets/game/map.js): MapLibre GL + OpenFreeMap (štýl, dlaždice, písma a sprite z jedného hostu)
@@ -190,13 +197,14 @@ describe('vercel.json: funkcie a cron', () => {
 describe('.vercelignore', () => {
   const ignores = createIgnore(read('.vercelignore'));
 
-  for (const p of ['README.md', 'supabase/migrations/001_hardening.sql', 'supabase-setup.sql', 'tests/unit/ranking.test.js', 'chain/contracts/GoskoPass.sol',
+  for (const p of ['README.md', 'supabase/migrations/001_hardening.sql', 'supabase/migrations/014_main_sync.sql', 'supabase-setup.sql', 'supabase-seed-events.sql', 'tests/unit/ranking.test.js', 'chain/contracts/GoskoPass.sol',
     'scripts/dev-server.js', 'docs/KONTRAKT-REGISTRACIA.md', '.workflow/session.json', 'redirect/index.html', '.env', '.env.example', '.env.local',
     'zakladatelia.csv', 'Downloads/GOSko registrácie.xlsx', 'export.tsv']) {
     test(`vylúčené: ${p}`, () => assert.equal(ignores(p), true));
   }
 
   for (const p of ['index.html', 'sw.js', 'data.js', 'manifest.webmanifest', 'assets/app.js', 'assets/style.css', 'img/logo.webp', 'icons/icon-192.png',
+    'video/hero.mp4', 'video/hero.webm', 'img/hero-poster.jpg', 'img/ghost.svg',
     'vercel.json', 'package.json', 'package-lock.json', 'api/register.js', 'api/_lib/db.js', 'api/nft/metadata/[id].js']) {
     test(`nevylúčené: ${p}`, () => assert.equal(ignores(p), false));
   }

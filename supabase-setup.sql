@@ -71,7 +71,10 @@ create table public.community_events (
   link text check (char_length(link) <= 300),
   organizer text check (char_length(organizer) <= 60),
   contact text check (char_length(contact) <= 120),   -- nezverejňuje sa
-  approved boolean not null default false
+  end_date date,                                      -- posledný deň viacdňového eventu
+  prize text check (char_length(prize) <= 60),        -- prize pool, napr. '500 € + ceny'
+  approved boolean not null default false,
+  constraint community_events_end_after_start check (end_date is null or end_date >= date)
 );
 alter table public.community_events enable row level security;
 create policy "Ktokoľvek pošle event" on public.community_events for insert to anon, authenticated with check (approved = false);
@@ -79,7 +82,7 @@ create policy "Admin vidí eventy" on public.community_events for select using (
 create policy "Admin schvaľuje eventy" on public.community_events for update using (public.is_admin());
 
 create view public.community_events_public as
-  select id, created_at, name, date, city, place, country, kind, link, organizer
+  select id, created_at, name, date, city, place, country, kind, link, organizer, end_date, prize
   from public.community_events where approved;
 
 -- ---------- Formuláre ----------
@@ -265,3 +268,41 @@ grant select, insert, delete on public.votes to authenticated;
 grant select, update on public.community_events to authenticated;
 grant select on public.registrations, public.bookings, public.shop_interest to authenticated;
 grant execute on function public.is_admin(), public.park_is_approved(uuid) to anon, authenticated;
+
+-- ---------- Novinky a články (spravuje admin na webe) ----------
+create table if not exists public.posts (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  user_id uuid default auth.uid(),
+  title text not null check (char_length(title) between 1 and 120),
+  summary text check (char_length(summary) <= 300),
+  body text check (char_length(body) <= 20000),
+  image_url text check (char_length(image_url) <= 500),
+  image_path text check (char_length(image_path) <= 300),
+  link text check (char_length(link) <= 300),
+  link_label text check (char_length(link_label) <= 40),
+  author text check (char_length(author) <= 60),
+  pinned boolean not null default false,
+  published boolean not null default true
+);
+alter table public.posts enable row level security;
+create policy "Novinky vidí každý" on public.posts for select using (published or public.is_admin());
+create policy "Admin spravuje novinky" on public.posts for all to authenticated using (public.is_admin()) with check (public.is_admin());
+revoke all on public.posts from anon;
+grant select on public.posts to anon;
+grant select, insert, update, delete on public.posts to authenticated;
+
+-- ---------- Pozvánky pre adminov (admin práva hneď po prvom prihlásení) ----------
+create table if not exists public.admin_invites (email text primary key, created_at timestamptz default now());
+alter table public.admin_invites enable row level security;
+create or replace function public.grant_invited_admin() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.admin_invites i where lower(i.email) = lower(new.email)) then
+    insert into public.admins (user_id) values (new.id) on conflict do nothing;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.grant_invited_admin() from public, anon, authenticated;
+drop trigger if exists on_auth_user_invited_admin on auth.users;
+create trigger on_auth_user_invited_admin after insert on auth.users for each row execute function public.grant_invited_admin();
+-- Pridanie nového admina: insert into public.admin_invites (email) values ('meno@example.com');

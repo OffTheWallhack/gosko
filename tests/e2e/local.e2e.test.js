@@ -135,7 +135,9 @@ function patchedDataJs() {
   const out = src
     .replace(/SUPABASE_URL: '[^']*'/, `SUPABASE_URL: '${GATE}'`)
     .replace(/SUPABASE_ANON_KEY: '[^']*'/, `SUPABASE_ANON_KEY: '${stack.jwt('anon')}'`)
-    .replace(/NFT_CONTRACT_ADDRESS: '[^']*'/, `NFT_CONTRACT_ADDRESS: '${S.contract}'`);
+    .replace(/NFT_CONTRACT_ADDRESS: '[^']*'/, `NFT_CONTRACT_ADDRESS: '${S.contract}'`)
+    // Turnstile beží z challenges.cloudflare.com, ktoré je tu zablokované; API má prázdny TURNSTILE_SECRET_KEY
+    .replace(/TURNSTILE_SITE_KEY: '[^']*'/, "TURNSTILE_SITE_KEY: ''");
   assert.notEqual(out, src);
   assert.ok(!out.includes('supabase.co'), 'v upravenom data.js nesmie ostať produkčný Supabase');
   return out;

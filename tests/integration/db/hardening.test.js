@@ -316,8 +316,15 @@ describe('grants audit (supabase/checks/grants.sql)', () => {
       where grantee = 'anon' and table_schema = 'public'
         and table_name not in (select table_name from information_schema.role_table_grants where grantee = 'anon' and table_schema = 'public')
       group by 1 order by 1`);
-    assert.deepEqual(colGrants, ['bookings', 'community_events', 'newsletter_subscribers', 'privacy_requests', 'shop_interest']
-      .map(t => ({ table_name: t, p: 'INSERT' })));
+    // 014: novinky (posts) číta anon len po stĺpcoch, bez user_id a image_path; riadky obmedzuje RLS (published)
+    assert.deepEqual(colGrants, [...['bookings', 'community_events', 'newsletter_subscribers', 'privacy_requests', 'shop_interest']
+      .map(t => ({ table_name: t, p: 'INSERT' })), { table_name: 'posts', p: 'SELECT' }].sort((a, b) => a.table_name.localeCompare(b.table_name)));
+    const postCols = sqlRows(`select column_name from information_schema.column_privileges
+      where grantee = 'anon' and table_schema = 'public' and table_name = 'posts' order by 1`).map(r => r.column_name);
+    assert.deepEqual(postCols, ['author', 'body', 'created_at', 'id', 'image_url', 'link', 'link_label', 'pinned', 'published', 'summary', 'title']);
+    const ceCols = sqlRows(`select column_name from information_schema.column_privileges
+      where grantee = 'anon' and table_schema = 'public' and table_name = 'community_events' order by 1`).map(r => r.column_name);
+    assert.deepEqual(ceCols, ['city', 'contact', 'country', 'date', 'end_date', 'kind', 'link', 'name', 'organizer', 'place', 'prize']);
 
     const forbiddenCols = sqlRows(`select table_name, column_name from information_schema.column_privileges
       where grantee in ('anon', 'authenticated') and table_schema = 'public' and privilege_type = 'INSERT'

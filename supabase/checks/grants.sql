@@ -15,7 +15,7 @@ with rel as (
 pii as (
   select unnest(array['riders', 'rider_private', 'registrations', 'registrations_legacy', 'nft_tokens', 'audit_log',
     'rate_limits', 'admins', 'newsletter_subscribers', 'bookings', 'shop_interest', 'privacy_requests',
-    'community_events', 'spots', 'event_photos', 'parks', 'votes']) as relname
+    'community_events', 'spots', 'event_photos', 'parks', 'votes', 'admin_invites']) as relname
 ),
 table_acl as (
   select r.relname, r.relkind, r.relrowsecurity, a.grantee, a.privilege_type
