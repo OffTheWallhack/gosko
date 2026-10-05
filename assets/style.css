@@ -2026,3 +2026,19 @@ a.cm-card:hover{transform:translateY(-3px);border-color:var(--cream)}
 @media (max-width:760px){ .onb{bottom:calc(78px + env(safe-area-inset-bottom,0px));left:10px} .onb-ghost{width:48px} }
 .tk .evw-h{margin-top:34px}
 .tk-mine{margin-top:20px}
+
+/* ===== v8: video ako pevné pozadie úvodky ===== */
+.vbg{position:fixed;inset:0;z-index:0;background:var(--black);pointer-events:none;transition:opacity .35s}
+.vbg.off{opacity:0;visibility:hidden}
+.vbg .vh-video,.vbg .vh-poster,.vbg .vh-yt{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vbg-dim{position:absolute;inset:0;background:var(--black);opacity:0;will-change:opacity}
+/* žiadne systémové tlačidlo play cez video */
+.vbg video::-webkit-media-controls,.vbg video::-webkit-media-controls-start-playback-button,.vbg video::-webkit-media-controls-overlay-play-button,.vbg video::-webkit-media-controls-panel{display:none!important;-webkit-appearance:none;opacity:0}
+.vh{position:relative;z-index:1;background:none}
+.after-hero{background:none;box-shadow:none}
+.after-clear{position:relative;z-index:1}
+.after-clear .hs{border-top:0}
+.after-clear .sw{background:none;border-color:rgba(243,235,221,.18)}
+.after-clear .sw-st img{filter:drop-shadow(0 4px 3px rgba(0,0,0,.6)) drop-shadow(0 18px 24px rgba(0,0,0,.55))}
+.after-solid{position:relative;z-index:1;background:var(--grain-light),var(--mottle),var(--black);box-shadow:0 -40px 60px rgba(14,13,12,.9)}
+.vh .vh-shade{background:linear-gradient(90deg,rgba(14,13,12,.72) 0%,rgba(14,13,12,.3) 45%,rgba(14,13,12,0) 75%),linear-gradient(180deg,rgba(14,13,12,.4) 0%,rgba(14,13,12,0) 25%)}
