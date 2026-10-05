@@ -545,7 +545,7 @@ function newsRotator(next) {
 /* pás eventov s vlajkami (spodok hero) */
 function eventRoller() {
   const inner = h('div', { class: 'ticker-in' });
-  const nav = h('nav', { class: 'ticker vh-ticker er', 'aria-label': 'Skate eventy doma a vo svete' },
+  const nav = h('nav', { class: 'ticker er er-top', 'aria-label': 'Skate eventy doma a vo svete' },
     h('a', { class: 'er-label mono', href: 'hub/' }, 'Skate kalendár'), h('div', { class: 'er-track' }, inner));
   const fill = list => {
     const gk = EVENTS.filter(e => e.status === 'next').map(e => ({ ours: true, name: e.name, country: 'Slovensko', label: 'coming soon', href: '#/event/' + e.id }));
@@ -740,7 +740,7 @@ function pageHome(root) {
     rot.el);
   const hero = h('header', { class: 'vh' },
     h('div', { class: 'vh-media' }, media), h('div', { class: 'vh-shade', 'aria-hidden': 'true' }),
-    mascotSlot, heroIn, eventRoller());
+    mascotSlot, heroIn);
   let raf = 0;
   const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
     raf = 0; const p = Math.min(1, scrollY / (innerHeight * .75));
@@ -752,8 +752,8 @@ function pageHome(root) {
   if (!reduced) addEventListener('scroll', onScroll, { passive: true });
 
   const studio = boardStudio();
-  const after = h('div', { class: 'after-hero' }, stickerWall(), studio.el, skaterSection(), eventWidget(), partnersStrip());
-  root.append(hero, after);
+  const after = h('div', { class: 'after-hero' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
+  root.append(eventRoller(), hero, after);
   return () => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); rot.stop(); stopMascot(); studio.cleanup(); };
 }
 
@@ -767,10 +767,10 @@ function pageBoard(root) {
    SPOLOČNÁ PÄTIČKA: novinky + features, GOSko TV, kto sme, newsletter
    ===================================================================== */
 const FEATURES = [
-  { href: '#/parky', k: 'Hra · 3D', t: 'Postav si skatepark', d: 'Poskladaj park z rámp, railov a ledgov. Najlepšie podľa hlasov idú do top 10.', img: 'img/ba-trick-1.webp' },
-  { href: '#/doska', k: '3D garáž', t: 'Navrhni si dosku', d: 'Farby, grip, kolieska a nálepky z GOSko eventov. Pri stene, v jazde aj vo voľnom pohľade.', img: 'img/ba-deck.webp' },
-  { href: '#/mapa', k: 'Komunita', t: 'Mapa spotov', d: 'Skateparky a spoty po Slovensku. Poznáš ďalší? Pridaj ho na mapu.', img: 'img/ba-trick-5.webp' },
-  { href: '#/partneri/zavolaj', k: 'Pre mestá a firmy', t: 'Zavolaj si GOSko', d: 'Pop-up Game of S.K.A.T.E. vo vašom meste, na festivale alebo firemnej akcii.', img: 'img/ba-mc.webp' },
+  { href: '#/parky', k: 'Hra · 3D', t: 'Postav si skatepark', d: 'Rampy, raily, ledge. Poskladaj park snov, najlepšie idú do top 10.', img: 'img/ba-trick-1.webp' },
+  { href: '#/doska', k: '3D garáž', t: 'Navrhni si dosku', d: 'Tvoja doska, tvoje farby, nálepky z eventov. V 3D, pri stene aj v jazde.', img: 'img/ba-deck.webp' },
+  { href: '#/mapa', k: 'Komunita', t: 'Mapa spotov', d: 'Poznáš spot, o ktorom nikto nevie? Teraz už bude.', img: 'img/ba-trick-5.webp' },
+  { href: '#/partneri/zavolaj', k: 'Pre mestá a firmy', t: 'Zavolaj si GOSko', d: 'Prinesieme Game of S.K.A.T.E. do tvojho mesta, na festival alebo firemnú akciu.', img: 'img/ba-mc.webp' },
 ];
 const featureCard = (f, i) => h('a', { class: 'ft-card ' + (i % 2 ? 'cream' : 'red'), href: f.href },
   h('span', { class: 'ft-img' }, h('img', { src: f.img, alt: '', loading: 'lazy' })),
@@ -787,7 +787,7 @@ function siteFeed() {
   const tv = last && tvScene({ videoId: last.video?.youtubeId, title: `${last.name}: video`, photos, stamp: `${last.city} ${last.season}`, onPhoto: lightbox, controls: false });
   return h('div', { class: 'site-feed' },
     h('section', { class: 'hs feed-sec' }, h('div', { class: 'wrap' },
-      h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Čo je nové'), h('h2', {}, 'Novinky a veci na vyskúšanie')),
+      h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Čo sa deje + čo si vyskúšať'), h('h2', {}, 'Fresh zo scény'), h('p', { class: 'lead feed-lead' }, 'Novinky z GOSka a veci, pri ktorých sa zasekneš na hodinu.')),
         h('a', { class: 'btn small', href: '#/novinky' }, 'Všetky novinky', h('span', { 'aria-hidden': 'true' }, '→'))),
       grid)),
     tv ? h('section', { class: 'sec tv-sec' }, h('div', { class: 'wrap' },
