@@ -1,7 +1,7 @@
 /* Stará CRT telka na skate ledgi.
-   Video sa spustí samo (bez zvuku, kým človek neťukne). Ťuknutie na telku ukáže náhodnú fotku,
-   ďalšie ťuknutie pustí video so zvukom, a tak dokola. Okolo telky sú prilepené polaroidy. */
-import { deco } from './deco.js';
+   Video sa spustí samo bez zvuku (prehliadače inak nedovolia). Pod obrazovkou je ovládací pás:
+   video, fotka, zvuk a hlasitosť. Gombíky na boku tiež fungujú: VOL pridáva hlasitosť, TUNE prepína.
+   Ťuknutie na obrazovku prepína video a fotku. Okolo telky sú prilepené polaroidy. */
 
 const el = (tag, props = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -29,7 +29,7 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
   if (!hasVideo && !hasPhotos) return null;
 
   let state = 'off';            // off | poster | video | photo
-  let lastPhoto = -1, iframe = null, box = null, started = false, inView = false;
+  let lastPhoto = -1, iframe = null, box = null, started = false, inView = false, muted = true, vol = 100;
 
   const content = el('div', { class: 'crt-content' });
   const photoLayer = el('div', { class: 'crt-photo-layer', 'aria-hidden': 'true' });
@@ -44,10 +44,24 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
     el('div', { class: 'crt-fx', 'aria-hidden': 'true' }),
     osdCh, osdPlay, osdStamp, hit);
 
-  // ovládanie na boku je len na ozdobu: gombíky sa točia a ťuknutie prepína ako na obrazovke
-  const knobs = [el('div', { class: 'crt-knob' }, el('span', {}, 'VOL')), el('div', { class: 'crt-knob' }, el('span', {}, 'TUNE'))];
-  const panel = el('div', { class: 'crt-panel', 'aria-hidden': 'true' },
-    el('div', { class: 'crt-grille' }), knobs[0], knobs[1], el('span', { class: 'crt-led' }));
+  // gombíky na boku: VOL pridáva hlasitosť, TUNE prepína video a fotku
+  const knobVol = el('button', { type: 'button', class: 'crt-knob', 'aria-label': 'Hlasitosť' }, el('span', {}, 'VOL'));
+  const knobTune = el('button', { type: 'button', class: 'crt-knob', 'aria-label': 'Prepnúť video a fotku' }, el('span', {}, 'TUNE'));
+  const panel = el('div', { class: 'crt-panel' }, el('div', { class: 'crt-grille', 'aria-hidden': 'true' }), knobVol, knobTune, el('span', { class: 'crt-led', 'aria-hidden': 'true' }));
+  const turn = k => { k.style.transform = `rotate(${(k._a = (k._a || 0) + 60)}deg)`; };
+
+  // ovládací pás pod telkou
+  const bVideo = el('button', { type: 'button', class: 'tvc-btn', 'aria-pressed': 'false' }, el('span', { 'aria-hidden': 'true' }, '▶'), 'Video');
+  const bPhoto = el('button', { type: 'button', class: 'tvc-btn', 'aria-pressed': 'false' }, el('span', { 'aria-hidden': 'true' }, '◼'), 'Fotka');
+  const bSound = el('button', { type: 'button', class: 'tvc-btn tvc-sound', 'aria-pressed': 'false' }, el('span', { 'aria-hidden': 'true' }, '🔇'), 'Zapnúť zvuk');
+  const bDown = el('button', { type: 'button', class: 'tvc-btn tvc-sq', 'aria-label': 'Stíšiť' }, '−');
+  const bUp = el('button', { type: 'button', class: 'tvc-btn tvc-sq', 'aria-label': 'Zosilniť' }, '+');
+  const meter = el('span', { class: 'tvc-meter', 'aria-hidden': 'true' }, ...Array.from({ length: 10 }, () => el('i')));
+  const bar = el('div', { class: 'tv-controls', role: 'group', 'aria-label': 'Ovládanie telky' },
+    hasVideo ? bVideo : null, hasPhotos ? bPhoto : null,
+    hasVideo ? el('span', { class: 'tvc-vol' }, bSound, bDown, meter, bUp) : null);
+  if (!hasVideo || !hasPhotos) bar.classList.add('single');
+
   const root = el('div', { class: 'crt', role: 'group', 'aria-label': `Televízor: ${title}` },
     el('div', { class: 'crt-antenna', 'aria-hidden': 'true' }),
     el('div', { class: 'crt-body' }, el('div', { class: 'crt-bezel' }, screen), panel),
@@ -70,6 +84,23 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
       photo: [hasVideo ? 'Ťukni a pustí sa video' : 'Ťukni a ukáže sa ďalšia fotka', hasVideo ? '❚❚ PAUSE' : '▶ PLAY', 'Zobrazená fotka z eventu.'],
     }[state] || ['Televízor', '', ''];
     hit.setAttribute('aria-label', aria); osdPlay.textContent = osd; live.textContent = say;
+    bVideo.setAttribute('aria-pressed', String(state === 'video' || state === 'poster'));
+    bPhoto.setAttribute('aria-pressed', String(state === 'photo'));
+    syncSound();
+  }
+  function syncSound() {
+    const on = !muted && vol > 0;
+    bSound.setAttribute('aria-pressed', String(on));
+    bSound.firstChild.textContent = on ? '🔊' : '🔇';
+    bSound.lastChild.textContent = on ? 'Zvuk zapnutý' : 'Zapnúť zvuk';
+    [...meter.children].forEach((b, i) => b.classList.toggle('on', on && i < Math.round(vol / 10)));
+  }
+  function setSound(nextVol, nextMuted) {
+    vol = Math.max(0, Math.min(100, nextVol)); muted = nextMuted;
+    if (state !== 'video') { if (hasPhotos) screen.classList.remove('show-photo'); if (iframe) cmd('playVideo'); else buildVideo({ muted }); state = 'video'; }
+    cmd('setVolume', [vol]); cmd(muted || !vol ? 'mute' : 'unMute');
+    flash(muted || !vol ? 'MUTE' : 'VOL ' + '▮'.repeat(Math.round(vol / 10)) + '▯'.repeat(10 - Math.round(vol / 10)));
+    label();
   }
 
   function buildVideo({ muted }) {
@@ -82,6 +113,8 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
       content.replaceChildren(box);
     }
     box.classList.remove('paused'); box.querySelector('.crt-play')?.remove(); box.append(iframe);
+    // po načítaní prehrávača nastaví hlasitosť (naplno, kým ju človek nestíši)
+    iframe.addEventListener('load', () => { setTimeout(() => { cmd('setVolume', [vol]); if (!muted) cmd('unMute'); }, 400); });
   }
   function showPoster() {
     box = el('div', { class: 'crt-video paused' },
@@ -99,28 +132,31 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
 
   function toggle() {
     if (state === 'off') return;
-    if (state === 'poster') { buildVideo({ muted: false }); state = 'video'; }
+    if (state === 'poster') { muted = false; buildVideo({ muted: false }); state = 'video'; }
     else if (state === 'video') {
       if (hasPhotos) { blip(); showPhoto(); cmd('pauseVideo'); state = 'photo'; flash('FOTKA'); }
-      else { cmd('unMute'); cmd('playVideo'); }
+      else setSound(vol || 100, false);
     } else if (state === 'photo') {
       blip();
       if (hasVideo) {
         screen.classList.remove('show-photo');
-        if (iframe) { cmd('unMute'); cmd('playVideo'); } else buildVideo({ muted: false });
+        if (iframe) { cmd('playVideo'); if (!muted) { cmd('setVolume', [vol]); cmd('unMute'); } } else buildVideo({ muted });
         state = 'video'; flash('VIDEO');
       } else showPhoto();
     }
     label();
   }
-  hit.addEventListener('click', toggle);
-  panel.addEventListener('click', e => {
-    const k = e.target.closest('.crt-knob');
-    if (k) k.style.transform = `rotate(${(k._a = (k._a || 0) + 70)}deg)`;
-    toggle();
-  });
+  hit.addEventListener('click', () => { if (state === 'off') boot(); else toggle(); });
+  knobTune.addEventListener('click', () => { turn(knobTune); if (state === 'off') boot(); else toggle(); });
+  knobVol.addEventListener('click', () => { turn(knobVol); if (!hasVideo) return; if (state === 'off') boot(); setSound(muted ? 40 : vol >= 100 ? 0 : vol + 20, false); });
+  bVideo.addEventListener('click', () => { if (state === 'off') boot(); if (state === 'photo' || state === 'poster') toggle(); });
+  bPhoto.addEventListener('click', () => { if (state === 'off') boot(); if (state === 'photo') { blip(); showPhoto(); } else if (state === 'video') toggle(); else { showPhoto(); state = 'photo'; label(); } });
+  bSound.addEventListener('click', () => { if (state === 'off') boot(); setSound(muted || !vol ? 100 : vol, !(muted || !vol)); });
+  bDown.addEventListener('click', () => { if (state === 'off') boot(); setSound(vol - 10, false); });
+  bUp.addEventListener('click', () => { if (state === 'off') boot(); setSound(vol + 10, false); });
 
   function boot() {
+    if (started) return;
     started = true;
     screen.classList.remove('off'); screen.classList.add('booting'); root.classList.add('is-on');
     setTimeout(() => screen.classList.remove('booting'), 800);
@@ -143,7 +179,7 @@ export function crtTv({ videoId, title = 'Video z eventu', photos = [], stamp = 
     });
   } else boot();
 
-  return root;
+  return el('div', { class: 'crt-unit' }, root, bar);
 }
 
 /* Polaroid: prilepená fotka, ťuknutím sa otvorí na celú obrazovku. */
@@ -159,20 +195,20 @@ export function polaroidStrip(photos, onPhoto, { count = 8 } = {}) {
   if (!photos.length) return null;
   const pick = shuffle(photos).slice(0, count);
   const strip = el('div', { class: 'fun-strip', role: 'list' }, pick.map((p, i) => polaroid(p, i, photos, onPhoto)));
-  return el('div', { class: 'fun-wrap' }, strip, deco('burst', 'fun-deco'));
+  return el('div', { class: 'fun-wrap' }, strip);
 }
 
 /* Celá scéna: telka na ledgi + polaroidy (na mobile ako pás pod ňou). */
 export function tvScene({ videoId, title, photos = [], stamp = '', polaroids = true, onPhoto }) {
-  const tv = crtTv({ videoId, title, photos, stamp });
-  if (!tv) return null;
+  const unit = crtTv({ videoId, title, photos, stamp });
+  if (!unit) return null;
+  const [tv, controls] = unit.children;
   const pols = photos.slice(0, 8);
   const ledge = el('div', { class: 'crt-ledge', 'aria-hidden': 'true' });
-  ledge.append(deco('burst', 'crt-deco'));
   const stage = el('div', { class: 'scene-stage' },
     polaroids ? el('div', { class: 'pol-wall pol-left' }, pols.slice(0, 3).map((p, i) => polaroid(p, i, photos, onPhoto, `p${i + 1}`))) : null,
     el('div', { class: 'crt-wrap' }, tv, ledge),
     polaroids ? el('div', { class: 'pol-wall pol-right' }, pols.slice(3, 6).map((p, i) => polaroid(p, i + 3, photos, onPhoto, `p${i + 4}`))) : null);
-  return el('div', { class: 'tv-scene' + (polaroids ? '' : ' plain') }, stage,
+  return el('div', { class: 'tv-scene' + (polaroids ? '' : ' plain') }, stage, controls,
     polaroids && pols.length ? el('div', { class: 'pol-strip', role: 'list' }, pols.map((p, i) => polaroid(p, i, photos, onPhoto))) : null);
 }
