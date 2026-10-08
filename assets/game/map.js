@@ -11,6 +11,7 @@ import { spotSheet } from './spot.js';
 import { clipSheet } from './clips.js';
 import { clipList } from './feed.js';
 import { turfSlot } from './crew.js';
+import { lootSlot } from './loot.js';
 import { achievement, gameShell, h, icon, leaveGame, toast } from './ui.js';
 import { loadCss } from '../qr.js';
 import { UserError } from '../util.js';
@@ -192,7 +193,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
     if (S.map) S.map[reduced ? 'jumpTo' : 'easeTo']({ center: [row.lng, row.lat], zoom: Math.max(S.map.getZoom(), 15), offset: [0, -120] });
     S.sheet = spotSheet(body, {
       ...sheetState(row),
-      slots: [turfSlot(api, row.id, S.cfg.control_min_points), clipsSlot(row)],
+      slots: [row.loot_active && lootSlot(api, row, S.player), turfSlot(api, row.id, S.cfg.control_min_points), clipsSlot(row)].filter(Boolean),
       onClose: closeSheet,
       onLogin: login,
       onProfile: () => ctx.go('#/hra/profil'),

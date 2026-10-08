@@ -2868,7 +2868,6 @@ const GAME_PAGES = new Set();   // herné stránky majú vlastné menu: bez pás
 const gamePage = name => { const page = async (root, ...args) => (await import('./game/index.js'))[name](root, {
   store, login: loginDialog, loginMode: LOGIN_MODE, go, rerender: route, setOnAuth: fn => { onAuthChange = fn; }, events: EVENTS, apiBase: API,
 }, ...args); GAME_PAGES.add(page); return page; };
-const gameSoon = which => { const page = async root => (await import('./game/index.js')).pageSoon(root, {}, which); GAME_PAGES.add(page); return page; };
 
 /* [regex cesty v tvare '#/…', stránka(root, ...skupiny z regexu), aktívna položka menu]. Nové stránky pridaj sem.
    Adresa /eventy aj starý odkaz /#/eventy vedú na '#/eventy' (route() nižšie). Skutočné adresy na Verceli: vercel.json rewrites. */
@@ -2901,7 +2900,8 @@ const ROUTES = [
   [/^#\/hra\/feed$/, gamePage('pageFeed'), 'hra'],
   [/^#\/hra\/crew$/, gamePage('pageCrew'), 'hra'],   // herná crew; #/crew sú Robove crew z data.js
   [/^#\/hra\/crew\/pridat\/([A-Za-z0-9]{8})$/, gamePage('pageCrew'), 'hra'],   // pozvánka odkazom
-  [/^#\/hra\/loadout$/, gameSoon('loadout'), 'hra'],
+  [/^#\/hra\/loadout$/, gamePage('pageLoadout'), 'hra'],
+  [/^#\/hra\/admin$/, gamePage('pageLootAdmin'), 'hra'],   // admin hry: loot dropy, odkaz na moderáciu klipov
   [/^#\/pass$/, pagePasses, ''],
   [/^#\/checkin\/([\w-]+)$/, pageCheckin, ''],
   [/^#\/import-passes\/([\w-]+)(?:\?to=(.*))?$/, pageImportPasses, ''],

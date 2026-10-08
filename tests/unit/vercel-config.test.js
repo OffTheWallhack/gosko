@@ -211,6 +211,14 @@ describe('vercel.json: funkcie a cron', () => {
     for (const [pattern, cfg] of Object.entries(config.functions)) assert.equal(cfg.runtime, undefined, `${pattern}: runtime v vercel.json vyžaduje balík s verziou, nie nodejs22.x`);
   });
 
+  test('najviac 12 funkcií v api/ (limit Vercel Hobby); súbory a priečinky s _ nie sú funkcie', async () => {
+    const { readdirSync, statSync } = await import('node:fs');
+    const walk = d => readdirSync(join(ROOT, d)).filter(f => !f.startsWith('_') && !f.startsWith('.'))
+      .flatMap(f => (statSync(join(ROOT, d, f)).isDirectory() ? walk(`${d}/${f}`) : f.endsWith('.js') ? [`${d}/${f}`] : []));
+    const fns = walk('api');
+    assert.ok(fns.length <= 12, `${fns.length} funkcií: ${fns.join(', ')}`);
+  });
+
   test('package.json má engines.node na 22', () => {
     const engines = JSON.parse(read('package.json')).engines?.node;
     assert.match(engines ?? '', /22|>=\s*22/);

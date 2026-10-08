@@ -7,7 +7,7 @@ const SHELL = ['./', 'index.html', 'data.js', 'assets/style.css', 'assets/app.js
   /* hra Ghoskate; MapLibre (assets/vendor/maplibre-gl-6.12.0, ~1,2 MB) sa uloží do cache až pri prvom otvorení mapy */
   'assets/game/index.js', 'assets/game/map.js', 'assets/game/spot.js', 'assets/game/checkin.js', 'assets/game/onboarding.js', 'assets/game/pages.js',
   'assets/game/api.js', 'assets/game/auth.js', 'assets/game/return.js', 'assets/game/logic.js', 'assets/game/ui.js', 'assets/game/i18n-sk.js', 'assets/game/game.css',
-  'assets/game/clips.js', 'assets/game/feed.js', 'assets/game/crew.js',
+  'assets/game/clips.js', 'assets/game/feed.js', 'assets/game/crew.js', 'assets/game/loot.js', 'assets/game/loadout.js',
   'img/logo.webp', 'img/ghost.svg', 'img/gosko-wordmark.svg', 'img/gosko-wordmark-cream.svg', 'img/gosko-wordmark-plain.svg', 'img/hero-poster.jpg', 'img/sticker-cut.webp',
   'icons/icon-192.png', 'manifest.webmanifest',
   /* Ghoskate ako samostatná appka na /hra: vlastný manifest a ikony */

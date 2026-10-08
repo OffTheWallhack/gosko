@@ -28,6 +28,29 @@ testy cez `node:test`.
 - `tokenURI(id)` = `baseURI + id`, kde `baseURI` = `${PUBLIC_BASE_URL}/api/nft/metadata/`.
 - Kontrakt nie je upgradovateľný. Oprava chyby = nový deploy a nová adresa v `NFT_CONTRACT_ADDRESS`.
 
+## GoskoLoot (odmeny z hry Ghoskate)
+
+Neprenosný (soulbound) ERC-1155 pre odmeny z hry Ghoskate. Jeden claim z databázy (`loot_claims.id`)
+vydá práve jeden kus. Na chaine nie sú žiadne osobné údaje, iba `claimRef = keccak256(utf8(loot_claims.id))`.
+Skompilované ABI je v [`abi/GoskoLoot.json`](abi/GoskoLoot.json) (commituje sa, test kontroluje zhodu).
+Typy (id): 1 ghost drop, 2 park pass, 3 trick card, 4 crew/founder, 5 partner stamp. `name()` = "GOSko Loot",
+`symbol()` = "GLOOT", `uri` je šablóna s `{id}`.
+
+| Funkcia | Kto | Čo robí |
+|---|---|---|
+| `mint(to, id, claimRef)` | MINTER_ROLE | vydá 1 kus typu `id`; rovnaký `claimRef` druhýkrát revertuje `AlreadyMinted()`, nepovolený typ `TypeDisabled()`, nulová adresa `ZeroAddress()`; uloží `typeOfClaim` a `holderOfClaim`, emituje `LootMinted` |
+| `revoke(claimRef)` | MINTER_ROLE | spáli kus daného claimu a uvoľní `claimRef` (dá sa znova mintnúť); funguje aj počas pauzy |
+| `burn(id)` | držiteľ | právo na výmaz: držiteľ si sám spáli jeden svoj kus; `claimRef` zostáva obsadený, kým ho nezruší `revoke` |
+| `setTypeEnabled(id, enabled)` | DEFAULT_ADMIN_ROLE | povolí alebo zakáže mint typu (1 až 5 sú povolené od začiatku) |
+| `setURI(uri)` | DEFAULT_ADMIN_ROLE | nová šablóna URI, emituje `BatchMetadataUpdate(0, max)` |
+| `pause()` / `unpause()` | DEFAULT_ADMIN_ROLE | pauza zastaví `mint`; `revoke` a `burn` idú ďalej |
+
+- **Soulbound (ERC-5192):** `locked(id)` vráti vždy `true`. Každý `safeTransferFrom` a `safeBatchTransferFrom`
+  medzi dvoma adresami aj `setApprovalForAll` revertuje `Soulbound()`. Povolený je iba mint a burn.
+- Konštruktor: `(admin, minter, uri)`. Kontrakt nie je upgradovateľný.
+- **Nasadzuje sa zatiaľ len lokálne** (`npx hardhat node`), na testnet ani mainnet nie. Mint z API je
+  vypnutý, kým nie je nastavená `LOOT_CONTRACT_ADDRESS`.
+
 ## Inštalácia a testy
 
 ```bash
@@ -40,7 +63,7 @@ npx hardhat test nodejs --gas-stats   # navyše tabuľka spotreby plynu
 Po každej zmene kontraktu pregeneruj ABI a commitni ho spolu s kontraktom:
 
 ```bash
-npm run abi    # zapíše abi/GoskoPass.json
+npm run abi    # zapíše abi/GoskoPass.json aj abi/GoskoLoot.json
 ```
 
 ## Lokálny deploy

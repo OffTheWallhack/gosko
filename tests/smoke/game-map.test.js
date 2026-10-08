@@ -72,7 +72,13 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
     await context.route('**/*', async route => {
       const req = route.request();
       const url = new URL(req.url());
-      if (url.hostname === '127.0.0.1') return route.continue();
+      if (url.hostname === '127.0.0.1') {
+        if (scenario.local && url.pathname.startsWith('/api/')) {
+          const done = scenario.local(url.pathname, req, (body, status = 200) => route.fulfill({ status, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+          if (done) return done;
+        }
+        return route.continue();
+      }
       if (url.host !== SUPABASE_HOST) { blocked.add(url.hostname); return route.abort(); }
       hits.push(`${req.method()} ${url.pathname}`);
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
@@ -196,8 +202,8 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       await page.waitForSelector('.g-feed .g-hint');
       assert.match(await page.textContent('.g-feed'), /Zatiaľ žiadne klipy/);
       await page.goto(`${base}/hra/loadout`);
-      await page.waitForSelector('.g-soon');
-      assert.match(await page.textContent('.g-soon'), /LOADOUT/);
+      await page.waitForFunction(() => /svoju dosku a odmeny/.test(document.querySelector('.g-page')?.textContent || ''));
+      assert.equal(await page.getAttribute('.g-menu-item[data-game-nav="loadout"]', 'aria-current'), 'page');
       await page.click('.g-menu-item[data-game-nav="board"]');
       await page.waitForSelector('.g-board .g-hint');
       assert.equal(await page.evaluate(() => location.pathname), '/hra/rebricek');
@@ -444,6 +450,100 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
     try {
       await page.waitForFunction(() => /RR vedie 145 : 90 nad GG/.test(document.querySelector('.g-spot-turf')?.textContent || ''));
       assert.equal(await page.$$eval('.g-turf li', els => els.length), 2);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  const GEAR = [
+    { id: 'gosko-ghost', name: 'Duch GOSko', kind: 'sticker', description: 'Prvá nálepka.', how_to_unlock: 'Máš ju od začiatku.', event_id: null },
+    { id: 'ghost-drop', name: 'Ghost drop', kind: 'sticker', description: 'Z loot dropu.', how_to_unlock: 'Vyjazdi loot drop: check-in, overený klip na spote a kód odmeny.', event_id: null },
+  ];
+  const DROP = { id: 'd0000000-0000-4000-8000-000000000001', spot_id: SPOTS[0].id, title: 'Ghost drop', description: null, partner: 'Skateshop',
+    starts_at: new Date(Date.now() - 3600_000).toISOString(), ends_at: null, tiers: [{ tier: 1, label: 'Top 3', up_to: 3, reward: 'Doska', gear_id: 'ghost-drop' }], capacity: 3, claimed: 1, remaining: 2 };
+  const lootRoute = (calls, state) => (p, req, json) => {
+    if (p === '/rest/v1/loot_public') return json([DROP]);
+    if (p === '/rest/v1/rpc/claim_loot') { calls.push(['claim_loot', req.postDataJSON()]); return state.claimError ? json({ message: state.claimError }, 400) : json({ drop_id: DROP.id, tier: 1, rank: 2, label: 'Top 3', reward: 'Doska', gear_id: 'ghost-drop', reward_code: 'GHOST-42' }); }
+    if (p === '/rest/v1/gear') return json(GEAR);
+    if (p === '/rest/v1/unlocked_gear') return json([{ gear_id: 'gosko-ghost', source: 'starter' }]);
+    if (p === '/rest/v1/rpc/my_loot') return json(state.loot || []);
+    if (p === '/rest/v1/rpc/set_loadout') { calls.push(['set_loadout', req.postDataJSON()]); return json(req.postDataJSON().p_config); }
+    if (p === '/rest/v1/rpc/set_nft_consent') { calls.push(['set_nft_consent', req.postDataJSON()]); return json({ nft_consent: req.postDataJSON().p_on }); }
+    if (p === '/rest/v1/rpc/is_admin') return json(Boolean(state.admin));
+    return null;
+  };
+
+  test('LOOT na karte spotu: tiery a vyzdvihnutie ukáže kód; NEED_CLIP_ON_SPOT má jasnú hlášku', async () => {
+    const calls = [], state = { claimError: 'NEED_CLIP_ON_SPOT' };
+    const { page, context, errors } = await open(`hra/spot/${SPOTS[0].id}`, { signedIn: true, me: PLAYER_ME, route: lootRoute(calls, state) });
+    try {
+      await page.waitForSelector('.g-sheet.open .g-drop-card .g-btn-in');
+      assert.match(await page.textContent('.g-drop-card'), /1\. až 3\.: Doska \(Top 3\)/);
+      assert.match(await page.textContent('.g-drop-card'), /2 z 3 odmien ostáva/);
+      await page.click('.g-drop-card .g-btn-in');
+      await page.waitForFunction(() => /overený klip/.test(document.querySelector('.g-drop-card .g-msg')?.textContent || ''));
+      state.claimError = null;
+      await page.click('.g-drop-card .g-btn-in');
+      await page.waitForSelector('.g-reward .g-code');
+      assert.equal(await page.textContent('.g-reward .g-code'), 'GHOST-42');
+      assert.deepEqual(calls.filter(c => c[0] === 'claim_loot').map(c => c[1]), [{ p_drop: DROP.id }, { p_drop: DROP.id }]);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('LOADOUT: vlastná nálepka sa dá nalepiť, zamknutá je silueta s popisom, uloženie dosky, súhlas s NFT, odmena s kódom', async () => {
+    const calls = [], state = { loot: [{ claim_id: 'cl1', drop_id: DROP.id, spot_id: SPOTS[0].id, title: 'Ghost drop', partner: 'Skateshop', tier: 1, label: 'Top 3', reward: 'Doska', reward_code: 'GHOST-42', gear_id: null, rank: 2, claimed_at: new Date().toISOString(), nft_type: null, nft_status: null }] };
+    const { page, context, errors } = await open('hra', { signedIn: true, me: { ...PLAYER_ME, nft_consent: false, board_config: {} }, route: lootRoute(calls, state) });
+    try {
+      await page.click('.g-menu-item[data-game-nav="loadout"]');
+      await page.waitForSelector('.g-gear-list .g-gear');
+      assert.match(await page.textContent('.g-gear.placed'), /Duch GOSko/, 'bez uloženej dosky sú nalepené vlastné nálepky');
+      const locked = await page.$('.g-gear.locked');
+      assert.match(await locked.textContent(), /Vyjazdi loot drop/);
+      assert.equal(await locked.$('button'), null, 'zamknutú nálepku nejde nalepiť');
+      await page.click('.g-gear.placed button');
+      await page.waitForFunction(() => !document.querySelector('.g-gear.placed'));
+      await page.click('.g-gear:not(.locked) button');
+      await page.click('.g-loadout .g-btn-in');
+      await page.waitForFunction(() => /Doska je uložená/.test(document.querySelector('.g-toasts')?.textContent || ''));
+      assert.deepEqual(calls.find(c => c[0] === 'set_loadout')[1].p_config.stickers, ['gosko-ghost']);
+      assert.equal(await page.textContent('.g-rewards .g-code'), 'GHOST-42');
+      await page.check('.g-nft input[type="checkbox"]');
+      await page.waitForFunction(() => /Súhlas s NFT je zapnutý/.test(document.querySelector('.g-toasts')?.textContent || ''));
+      assert.deepEqual(calls.find(c => c[0] === 'set_nft_consent')[1], { p_on: true });
+      assert.equal(await page.$('a[href="#/hra/admin"]'), null, 'odkaz na admina len pre admina');
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('ADMIN /hra/admin: bez admina zákaz; admin založí drop s tiermi cez /api/admin/loot', async () => {
+    const calls = [], state = { admin: false };
+    const posted = [];
+    const local = (p, req, json) => {
+      if (p !== '/api/admin/loot') return null;
+      if (req.method() === 'POST') { posted.push(req.postDataJSON()); return json({ ok: true, id: DROP.id, capacity: 3 }, 201); }
+      return json({ ok: true, drops: posted.length ? [{ id: DROP.id, spot_id: SPOTS[0].id, spot_name: SPOTS[0].name, title: 'Ghost drop', active: true, nft_type: 1, tiers: [{ up_to: 3 }], claimed: 0 }] : [] });
+    };
+    const { page, context, errors } = await open('hra', { signedIn: true, me: PLAYER_ME, route: lootRoute(calls, state), local });
+    try {
+      await page.goto(`${base}/hra/admin`);
+      await page.waitForFunction(() => /Sem môže len admin/.test(document.querySelector('.g-page')?.textContent || ''));
+      state.admin = true;
+      await page.goto(`${base}/hra/admin`);
+      await page.waitForSelector('form.g-card-form select[name="spot_id"]');
+      await page.selectOption('select[name="spot_id"]', SPOTS[0].id);
+      await page.fill('input[name="title"]', 'Ghost drop');
+      await page.selectOption('select[name="nft_type"]', '1');
+      const rows = await page.$$('.g-tier-row');
+      await rows[0].$eval('[name=code]', (e) => { e.value = 'TOP3'; });
+      await rows[1].$eval('[name=code]', (e) => { e.value = 'TOP50'; });
+      await rows[0].$eval('[name=reward]', (e) => { e.value = 'Doska'; });
+      await page.click('form.g-card-form button[type="submit"]');
+      await page.waitForSelector('.g-drop-list li strong');
+      assert.equal(posted.length, 1);
+      assert.equal(posted[0].spot_id, SPOTS[0].id);
+      assert.equal(posted[0].nft_type, 1);
+      assert.deepEqual(posted[0].tiers.map(t => [t.label, t.up_to, t.code]), [['Top 3', 3, 'TOP3'], ['Top 50', 50, 'TOP50']]);
+      assert.match(await page.textContent('.g-drop-list'), /0 z 3 vyzdvihnutých/);
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });

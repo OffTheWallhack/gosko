@@ -219,3 +219,67 @@ export function turfLine(rows, minPoints = 100) {
   if (a.points === b.points) return T.crew.turfTie(a.tag, b.tag, a.points);
   return T.crew.turfLead(a.tag, a.points, b.points, b.tag);
 }
+
+/* ---------- loot a loadout (012, 018) ---------- */
+export const MAX_BOARD_STICKERS = 8;   // assets/board.js MAX_STICKERS
+const STICKER_KINDS = ['sticker', 'badge'];
+/* Gear -> nálepka pre assets/board.js (stickerCanvas). */
+export const gearSticker = g => (g.kind === 'badge' ? { kind: 'round', title: g.name } : { kind: 'band', title: g.name, sub: 'Ghoskate' });
+
+/* Katalóg + odomknuté -> { owned, locked, placed }. Nalepiť sa dá len vlastná nálepka, najviac 8.
+   Bez uloženého zoznamu (config.stickers chýba) sú nalepené všetky vlastné. */
+export function loadoutState(catalog, unlockedIds, config = {}) {
+  const have = new Set(unlockedIds || []);
+  const stickers = (catalog || []).filter(g => STICKER_KINDS.includes(g.kind));
+  const owned = stickers.filter(g => have.has(g.id));
+  const locked = stickers.filter(g => !have.has(g.id));
+  const ownedIds = new Set(owned.map(g => g.id));
+  const wanted = Array.isArray(config?.stickers) ? config.stickers : owned.map(g => g.id);
+  const placed = [...new Set(wanted)].filter(id => ownedIds.has(id)).slice(0, MAX_BOARD_STICKERS);
+  return { owned, locked, placed };
+}
+
+/* Čo sa uloží cez set_loadout: vzhľad (kľúče z board.js) a nalepené nálepky. */
+export function loadoutConfig(look = {}, stickers = []) {
+  const out = {};
+  for (const k of ['deck', 'grip', 'wheels', 'trucks']) if (typeof look[k] === 'string' && /^[a-z]{1,20}$/.test(look[k])) out[k] = look[k];
+  return { ...out, stickers: [...stickers].slice(0, MAX_BOARD_STICKERS) };
+}
+
+/* Tiery dropu ako vety: „1. až 3.: Doska (Top 3)“. */
+export function tierLines(tiers) {
+  let from = 1;
+  return [...(tiers || [])].sort((a, b) => a.up_to - b.up_to).map(t => {
+    const range = t.up_to > from ? `${from}. až ${t.up_to}.` : `${t.up_to}.`;
+    from = t.up_to + 1;
+    return `${range}: ${t.reward ? `${t.reward} (${t.label})` : t.label}`;
+  });
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/* Formulár admina (rovnaké pravidlá ako api/admin/loot.js parseDropInput, rozhoduje server). */
+export function validateLootDrop({ spot_id, title, tiers = [], ...rest } = {}) {
+  const errors = {};
+  if (!UUID_RE.test(String(spot_id || ''))) errors.spot_id = T.lootAdmin.errSpot;
+  const t = clean(title);
+  if (!t || t.length > 80) errors.title = T.lootAdmin.errTitle;
+  let prev = 0;
+  const out = tiers.map((x, i) => {
+    const up = Number(x.up_to);
+    const tier = { label: clean(x.label), up_to: up, reward: clean(x.reward) || null, code: clean(x.code), gear_id: x.gear_id || null };
+    if (!tier.label || tier.label.length > 40) errors[`tiers.${i}.label`] = T.lootAdmin.errLabel;
+    if (!Number.isInteger(up) || up <= prev || up > 100000) errors[`tiers.${i}.up_to`] = T.lootAdmin.errUpTo; else prev = up;
+    if (!tier.code || tier.code.length > 100) errors[`tiers.${i}.code`] = T.lootAdmin.errCode;
+    return tier;
+  });
+  if (!out.length || out.length > 10) errors.tiers = T.lootAdmin.errTiers;
+  return { errors, value: { ...rest, spot_id, title: t, tiers: out } };
+}
+
+/* Stav GoskoLoot NFT pri odmene ('' = drop bez NFT). */
+export function nftLabel(r) {
+  if (!r?.nft_type) return '';
+  if (r.nft_status === 'minted') return T.loot.nftMinted;
+  if (r.nft_status === 'failed' || r.nft_status === 'pending') return T.loot.nftPending;
+  return T.loot.nftAvailable;
+}

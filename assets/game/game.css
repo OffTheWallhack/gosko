@@ -217,8 +217,7 @@ body.game-mode main{background:var(--black)}
 .g-view .g-page>*{max-width:640px;margin-left:auto;margin-right:auto}
 .g-page-head h1{margin:0 0 6px;font-size:clamp(1.8rem,8vw,2.6rem);text-transform:uppercase;text-shadow:3px 3px 0 var(--red)}
 .g-page-head p{margin:0 0 18px;color:var(--muted-dark)}
-.g-profile,.g-soon{margin-top:8px}
-.g-soon-ico{width:48px;height:48px;color:var(--spray);float:right}
+.g-profile{margin-top:8px}
 .g-ghost{display:block;margin:0 auto 10px}
 .g-board{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:8px}
 .g-board-row{display:grid;grid-template-columns:40px auto 1fr auto;gap:10px;align-items:center;padding:10px 12px;background:var(--asphalt-2);border-left:4px solid var(--cream)}
@@ -316,3 +315,41 @@ body.game-mode main{background:var(--black)}
 .g-turf-tag{font-stretch:75%;font-weight:900;color:var(--crew)}
 .g-turf-bar{height:10px;background:linear-gradient(90deg,var(--crew) var(--w),#2a2436 var(--w));transform:skewX(-18deg)}
 .g-turf-pts{font-size:.85rem;color:var(--muted-dark)}
+
+/* ---------- loot a loadout (018) ---------- */
+.g-spot-loot{margin-top:14px;display:grid;gap:10px}
+.g-drop-card{padding:12px;background:var(--black);border:2px dashed var(--spray)}
+.g-drop-card p{margin:6px 0;font-size:.88rem}
+.g-drop-head{display:flex;gap:10px;align-items:center}
+.g-drop-head .g-ico{color:var(--spray);width:28px;height:28px}
+.g-drop-head strong{display:block;color:var(--spray)}
+.g-drop-head small{color:var(--muted-dark)}
+.g-tiers{margin:8px 0;padding-left:18px;font-size:.88rem}
+.g-reward{margin:10px 0;padding:12px;border:3px solid var(--ice);background:var(--asphalt)}
+.g-reward-title{display:block;color:var(--ice);font-size:1.3rem;text-transform:uppercase}
+.g-reward-code{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.g-reward-code .g-label{margin:0}
+.g-loadout{display:grid;gap:12px}
+.g-board-stage{position:relative;height:min(52vh,420px);background:radial-gradient(circle at 50% 40%,#2a2436,#0d0b12 70%);border:2px solid var(--asphalt-3)}
+.g-board3d{display:block;width:100%;height:100%;touch-action:none}
+.g-board-stage .g-hint{padding:20px;text-align:center}
+.g-look{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.g-gear-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
+.g-gear{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:8px 10px;background:var(--asphalt-2);border:2px solid var(--asphalt-3)}
+.g-gear.placed{border-color:var(--spray)}
+.g-gear-art{display:grid;place-items:center;width:48px;height:48px;border-radius:8px;background:var(--cream);color:var(--black);border:3px solid var(--black);
+  font-stretch:125%;font-weight:900;font-size:1.3rem;transform:rotate(-4deg);box-shadow:2px 3px 0 rgba(0,0,0,.6)}
+.g-gear-art.badge{border-radius:50%;background:var(--red);color:var(--cream)}
+.g-gear.locked .g-gear-art{background:#0d0b12;color:#4a4258;border-style:dashed;border-color:#4a4258;filter:grayscale(1);box-shadow:none}
+.g-gear.locked strong{color:var(--muted-dark)}
+.g-gear-txt{min-width:0}
+.g-gear-txt strong{display:block}
+.g-gear-txt small{color:var(--muted-dark);font-size:.8rem}
+.g-rewards{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.g-reward-meta small{display:block;color:var(--muted-dark)}
+.g-tier-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;align-items:end;margin:0 0 10px;padding:10px;border:2px solid var(--asphalt-3)}
+.g-drop-list{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:8px}
+.g-drop-list li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:10px 12px;background:var(--asphalt-2);border-left:4px solid var(--spray)}
+.g-drop-list li.off{border-left-color:var(--asphalt-3);opacity:.75}
+.g-drop-list small{grid-column:1;color:var(--muted-dark)}
+.g-drop-list button{grid-column:2;grid-row:1 / span 2}

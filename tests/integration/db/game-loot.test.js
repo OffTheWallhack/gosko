@@ -145,7 +145,7 @@ describe('claim_loot', () => {
     assert.equal(mine.body.length, 1);
     assert.equal(mine.body[0].drop_id, drop);
     assert.equal(mine.body[0].reward_code, 'GEAR-SECRET');
-    const unlocked = await rest('/unlocked_gear?select=gear_id,source', { as: 'authenticated', sub: p.id });
+    const unlocked = await rest('/unlocked_gear?select=gear_id,source&source=neq.starter', { as: 'authenticated', sub: p.id });
     assert.deepEqual(unlocked.body, [{ gear_id: gear, source: 'loot' }]);
   });
 });
@@ -176,7 +176,8 @@ describe('grant_event_gear', () => {
          insert into public.gear (id, name, kind, event_id) values ('${gear}', 'Nálepka za event', 'sticker', '${event}');`);
     return { event, gear };
   }
-  const gearOf = player => sqlRows(`select gear_id, source from public.unlocked_gear where player_id = '${player.id}' order by gear_id`);
+  // štartovnú nálepku (018) má každý hráč, tu ide len o nálepky za event
+  const gearOf = player => sqlRows(`select gear_id, source from public.unlocked_gear where player_id = '${player.id}' and source <> 'starter' order by gear_id`);
 
   test('check-in at a GOSko event grants the event sticker to the linked player', () => {
     const { event, gear } = eventWithGear();

@@ -1,24 +1,11 @@
-/* Ďalšie herné stránky: REBRÍČEK crews (crew_leaderboard, vlastná crew zvýraznená), stránka „čoskoro“
+/* Ďalšie herné stránky: REBRÍČEK crews (crew_leaderboard, vlastná crew zvýraznená)
    a potvrdenie súhlasu rodiča s hrou (#/hra/potvrdene, presmerovanie z /api/consent). */
 import { T } from './i18n-sk.js';
 import { gameApi } from './auth.js';
 import { loadGameCss } from './map.js';
-import { gameShell, h, icon, leaveGame } from './ui.js';
+import { gameShell, h, leaveGame } from './ui.js';
 
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
-
-export async function pageSoon(root, ctx, which) {
-  const { body } = gameShell(root, which);
-  await loadGameCss();
-  body.append(h('div', { class: 'g-page' },
-    h('article', { class: 'g-holo g-soon' }, h('div', { class: 'g-holo-in' },
-      icon(which, 'g-ico g-soon-ico'),
-      h('span', { class: 'g-sticker' }, T.soon.tag),
-      h('h1', { class: 'g-holo-name wide' }, T.menu[which]),
-      h('p', {}, T.soon[which]),
-      h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-ghost', href: '#/hra' }, T.soon.back))))));
-  return leaveGame;
-}
 
 export async function pageCrewBoard(root, ctx) {
   const { body } = gameShell(root, 'board');

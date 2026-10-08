@@ -30,11 +30,12 @@ export function createGameApi({ sb, apiBase = '', fetch = browserFetch }) {
     return must(out);
   };
   const token = async () => (await sb.auth.getSession()).data.session?.access_token || '';
-  const api = async (method, body) => {
+  const call = async (path, method, body) => {
     const t = await token();
     if (!t) throw new UserError('Prihlásenie vypršalo. Prihlás sa znova.');
-    return apiRequest(fetch, `${apiBase}/api/game/link-rider`, { method, body, token: t });
+    return apiRequest(fetch, `${apiBase}${path}`, { method, body, token: t });
   };
+  const api = (method, body) => call('/api/game/link-rider', method, body);
   let cfgCache = null;
 
   return {
@@ -109,6 +110,20 @@ export function createGameApi({ sb, apiBase = '', fetch = browserFetch }) {
     kickMember: playerId => rpc('kick_crew_member', { p_player: playerId }),
     rotateInvite: () => rpc('rotate_invite_code'),
     async spotTurf(spotId) { return must(await sb.from('spot_crew_scores').select('crew_id,tag,color,points').eq('spot_id', spotId).order('points', { ascending: false }).limit(5)); },
+    /* loot a loadout (012, 018) */
+    async lootForSpot(spotId) {
+      return must(await sb.from('loot_public').select('id,spot_id,title,description,partner,starts_at,ends_at,tiers,capacity,claimed,remaining').eq('spot_id', spotId).order('starts_at'));
+    },
+    claimLoot: dropId => rpc('claim_loot', { p_drop: dropId }),
+    myLoot: () => rpc('my_loot'),
+    async gearCatalog() { return must(await sb.from('gear').select('id,name,kind,description,how_to_unlock,event_id').order('created_at')); },
+    async myGear() { return must(await sb.from('unlocked_gear').select('gear_id,source,unlocked_at')).map(r => r.gear_id); },
+    setLoadout: config => rpc('set_loadout', { p_config: config }),
+    setNftConsent: on => rpc('set_nft_consent', { p_on: on }),
+    mintLootNft: dropId => call('/api/game/loot-nft', 'POST', { drop_id: dropId }),
+    adminLoot: () => call('/api/admin/loot', 'GET'),
+    adminCreateLoot: body => call('/api/admin/loot', 'POST', body),
+    adminSetLootActive: (id, active) => call('/api/admin/loot', 'PATCH', { id, active }),
     /* onboarding (api/game/link-rider.js) */
     linkStatus: () => api('GET'),
     link: body => api('POST', body),

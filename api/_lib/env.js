@@ -42,6 +42,8 @@ export function readEnv(src = process.env) {
     NFT_CONTRACT_ADDRESS: s('NFT_CONTRACT_ADDRESS'),
     MINTER_PRIVATE_KEY: s('MINTER_PRIVATE_KEY'),
     NFT_CUSTODY_ADDRESS: s('NFT_CUSTODY_ADDRESS'),
+    // GoskoLoot (hra Ghoskate, Task 6): prázdne = mint odmien vypnutý; RPC_URL, MINTER_PRIVATE_KEY a custody zdieľa s GoskoPass
+    LOOT_CONTRACT_ADDRESS: s('LOOT_CONTRACT_ADDRESS'),
     CRON_SECRET: s('CRON_SECRET'),
     RATE_LIMIT_PER_10MIN: int(src.RATE_LIMIT_PER_10MIN, 5),
     NODE_ENV,
@@ -50,6 +52,7 @@ export function readEnv(src = process.env) {
 }
 
 export const nftEnabled = env => Boolean(env.NFT_CONTRACT_ADDRESS);
+export const lootEnabled = env => Boolean(env.LOOT_CONTRACT_ADDRESS);
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const PRIVATE_KEY = /^0x[0-9a-fA-F]{64}$/;
@@ -67,6 +70,11 @@ export function validateEnv(env) {
     if (!PRIVATE_KEY.test(env.MINTER_PRIVATE_KEY)) p.push('MINTER_PRIVATE_KEY chýba alebo nemá tvar 0x + 64 hex');
     if (!env.RPC_URL) p.push('RPC_URL chýba');
     if (env.NFT_CUSTODY_ADDRESS && !ADDRESS.test(env.NFT_CUSTODY_ADDRESS)) p.push('NFT_CUSTODY_ADDRESS nie je platná adresa');
+  }
+  if (lootEnabled(env)) {
+    if (!ADDRESS.test(env.LOOT_CONTRACT_ADDRESS)) p.push('LOOT_CONTRACT_ADDRESS nie je platná adresa');
+    if (!PRIVATE_KEY.test(env.MINTER_PRIVATE_KEY)) p.push('MINTER_PRIVATE_KEY chýba alebo nemá tvar 0x + 64 hex (potrebuje ho aj GoskoLoot)');
+    if (!env.RPC_URL) p.push('RPC_URL chýba (potrebuje ho aj GoskoLoot)');
   }
   return p;
 }
