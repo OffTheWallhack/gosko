@@ -3,12 +3,13 @@
 import { T } from './i18n-sk.js';
 import { ageAt, U16_LIMIT } from '../register.js';
 
-/* Spodné menu appky Ghoskate (/hra). FEED a LOADOUT sú zatiaľ „čoskoro“ na /hra/feed a /hra/loadout, mimo menu. */
+/* Spodné menu appky Ghoskate (/hra). Profil je v hornej lište (ui.js gameShell). */
 export const GAME_MENU = [
   { id: 'map', label: T.menu.map, href: '#/hra' },
+  { id: 'feed', label: T.menu.feed, href: '#/hra/feed' },
   { id: 'crew', label: T.menu.crew, href: '#/hra/crew' },   // #/crew je Robova stránka crew z data.js
   { id: 'board', label: T.menu.board, href: '#/hra/rebricek' },
-  { id: 'profile', label: T.menu.profile, href: '#/hra/profil' },
+  { id: 'loadout', label: T.menu.loadout, href: '#/hra/loadout' },
 ];
 
 /* ---------- vzdialenosť ---------- */
@@ -129,4 +130,59 @@ export function validateNewSpot({ name, kind, city, obstacles = [], note = '' } 
   const parts = [obs.length ? `${T.newSpot.obstaclesLabel}: ${obs.map(o => T.obstacles[o]).join(', ')}.` : '', clean(note)].filter(Boolean);
   const p_description = parts.join(' ').slice(0, 400) || null;
   return { errors, value: { p_name, p_kind: kind, p_city, p_description } };
+}
+
+/* ---------- klipy (016) ---------- */
+/* Odkaz na klip: IG (p, reel, tv), TikTok (video, vm/vt skratka), YouTube (watch, shorts, youtu.be), iba https.
+   Rovnaké pravidlá ako game_embed_url v databáze (tá rozhoduje). { platform, id, url } alebo null. */
+const EMBED_Q = '(?:[?&#][A-Za-z0-9_=&%.+-]*)?$';
+const EMBED_RE = [
+  ['youtube', new RegExp('^https://(?:www\\.|m\\.)?youtube\\.com/(?:watch\\?v=|shorts/)([A-Za-z0-9_-]{11})' + EMBED_Q), m => `https://www.youtube.com/watch?v=${m[1]}`, m => m[1]],
+  ['youtube', new RegExp('^https://youtu\\.be/([A-Za-z0-9_-]{11})' + EMBED_Q), m => `https://www.youtube.com/watch?v=${m[1]}`, m => m[1]],
+  ['instagram', new RegExp('^https://(?:www\\.)?instagram\\.com/(?:[A-Za-z0-9._]{1,30}/)?(p|reels?|tv)/([A-Za-z0-9_-]{5,40})/?' + EMBED_Q),
+    m => `https://www.instagram.com/${m[1] === 'reels' ? 'reel' : m[1]}/${m[2]}/`, m => m[2]],
+  ['tiktok', new RegExp('^https://(?:www\\.|m\\.)?tiktok\\.com/@([A-Za-z0-9._]{2,24})/video/([0-9]{8,25})/?' + EMBED_Q), m => `https://www.tiktok.com/@${m[1]}/video/${m[2]}`, m => m[2]],
+  ['tiktok', /^https:\/\/(?:vm|vt)\.tiktok\.com\/([A-Za-z0-9]{5,20})\/?$/, m => `https://vm.tiktok.com/${m[1]}/`, m => m[1]],
+];
+export function parseEmbed(url) {
+  const u = typeof url === 'string' ? url.trim() : '';
+  if (!u || u.length > 300) return null;
+  for (const [platform, re, norm, id] of EMBED_RE) {
+    const m = re.exec(u);
+    if (m) return { platform, id: id(m), url: norm(m) };
+  }
+  return null;
+}
+
+const VIDEO_EXT = { 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' };
+export const PHOTO_SOURCE_MAX_MB = 30;   // originál pred zmenšením; po zmenšení platí photo_max_mb
+/* Kontrola súboru pred nahratím: { kind, ext, duration (celé sekundy), error ('' = ok) }.
+   Fotka sa vždy zmenší na JPEG (canvas zahodí EXIF aj polohu). Dĺžku videa zistí prehliadač. */
+export function validateMedia({ type, size, duration } = {}, cfg) {
+  const t = String(type || '').toLowerCase();
+  if (t.startsWith('image/')) {
+    if (!(size <= PHOTO_SOURCE_MAX_MB * 1024 * 1024)) return { kind: 'photo', ext: 'jpg', duration: null, error: T.clips.errPhotoBig(PHOTO_SOURCE_MAX_MB) };
+    return { kind: 'photo', ext: 'jpg', duration: null, error: '' };
+  }
+  const ext = VIDEO_EXT[t];
+  if (!ext) return { kind: null, ext: null, duration: null, error: T.clips.errType };
+  if (!(size <= cfg.video_max_mb * 1024 * 1024)) return { kind: 'video', ext, duration: null, error: T.clips.errVideoBig(cfg.video_max_mb) };
+  const sec = Math.round(Number(duration));
+  if (!Number.isFinite(Number(duration)) || sec < 1) return { kind: 'video', ext, duration: null, error: T.clips.errDuration };
+  if (sec > cfg.video_max_seconds) return { kind: 'video', ext, duration: sec, error: T.clips.errVideoLong(sec, cfg.video_max_seconds) };
+  return { kind: 'video', ext, duration: sec, error: '' };
+}
+
+/* Čas klipu po slovensky: teraz, pred 5 min, pred 3 h, včera, pred 2 dňami, potom dátum. */
+export function timeAgo(iso, now = Date.now()) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const s = Math.max(0, (now - t) / 1000);
+  if (s < 60) return 'teraz';
+  if (s < 3600) return `pred ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `pred ${Math.floor(s / 3600)} h`;
+  if (s < 2 * 86400) return 'včera';
+  if (s < 7 * 86400) return `pred ${Math.floor(s / 86400)} dňami`;
+  const d = new Date(t);
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
 }

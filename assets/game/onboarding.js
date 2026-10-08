@@ -19,9 +19,33 @@ function profileCard(player, api, ctx) {
     h('h1', { class: 'g-holo-name wide' }, `@${me.username}`),
     h('p', { class: 'g-holo-city cond' }, [me.city, me.stance && T.onboarding[me.stance]].filter(Boolean).join(' · ')),
     player.mode === 'browse' && h('p', { class: 'g-msg warn' }, T.banner.browse),
+    mediaConsent(me, api),
     h('div', { class: 'g-actions' },
       h('a', { class: 'g-btn g-btn-in', href: '#/hra' }, T.onboarding.toMap),
       h('button', { class: 'g-btn g-btn-ghost', type: 'button', onclick: async () => { await api.logout(); ctx.go('#/hra'); } }, T.onboarding.logout))));
+}
+
+/* Súhlas s fotkami a videami (016): U16 ho dostane iba od rodiča, odvolať ho vie sám. 16+ ho nepotrebuje. */
+function mediaConsent(me, api) {
+  if (!me.can_write) return null;
+  const box = h('div', { class: 'g-consent', role: 'group', 'aria-label': T.profile.mediaTitle });
+  const render = () => {
+    if (me.can_publish && !me.media_consent) { box.replaceChildren(); box.hidden = true; return; }   // 16+
+    box.hidden = false;
+    const btn = h('button', { class: 'g-btn g-btn-small', type: 'button' }, me.media_consent ? T.profile.mediaWithdraw : T.profile.mediaAsk);
+    btn.addEventListener('click', async () => {
+      if (me.media_consent && !confirm(T.profile.mediaWithdrawConfirm)) return;
+      btn.disabled = true;
+      try {
+        if (me.media_consent) { await api.withdrawMedia(); me.media_consent = false; me.can_publish = false; toast(T.profile.mediaWithdrawn); render(); }
+        else { const r = await api.resendGuardian(); toast(r.guardian_mail_sent ? T.profile.mediaAsked : T.onboarding.doneGuardianFail, { kind: r.guardian_mail_sent ? 'ok' : 'err' }); }
+      } catch (err) { toast(err instanceof UserError ? err.message : T.err.UNKNOWN, { kind: 'err' }); } finally { if (btn.isConnected) btn.disabled = false; }
+    });
+    box.replaceChildren(h('span', { class: 'g-label' }, T.profile.mediaTitle),
+      h('p', {}, me.media_consent ? T.profile.mediaOn : T.profile.mediaOff), btn);
+  };
+  render();
+  return box;
 }
 
 function onboardingForm(status, api, done) {
@@ -93,7 +117,7 @@ function onboardingForm(status, api, done) {
 
 /* ctx: { store, login(after), loginMode ('password' | 'magic'), go(hash), apiBase, rerender() } */
 export async function pageOnboarding(root, ctx) {
-  const { body } = gameShell(root, '');
+  const { body } = gameShell(root, 'profile');
   await loadGameCss();
   const page = h('div', { class: 'g-page' });
   body.append(page);

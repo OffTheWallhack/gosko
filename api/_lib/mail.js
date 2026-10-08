@@ -130,10 +130,11 @@ export function passResendMail({ eventName, eventDate, eventCity, passUrl }) {
 // aby rodič v e-maile aj na webe videl to isté. Súhlas s eventom hru neodomyká (013).
 export const GAME_CONSENT_SCOPE = [
   'check-in na skate spotoch: hra overí polohu telefónu len v okamihu check-inu (do 150 m od spotu), polohu neukladáme, verejne je vidieť iba počet ľudí na spote, nie kto,',
-  'nahrávanie klipov: fotky a videá z jazdenia na spotoch sú verejné v hre pod hráčskym menom,',
   'členstvo v crew: hráč môže založiť crew alebo sa pridať do crew iných hráčov,',
   'hodnotenie a hlásenia o stave spotov.',
 ];
+// Fotky a videá sú samostatný súhlas (016): rodič ho na stránke zaškrtne zvlášť, hráč ho vie odvolať v profile.
+export const GAME_MEDIA_CONSENT = 'Klipy, teda fotky a videá z jazdenia, budú verejné v hre pod hráčskym menom, uvidí ich každý, kto hru otvorí.';
 
 export function gameGuardianMail({ guardianName, riderName, username, consentUrl }) {
   const blocks = [
@@ -141,6 +142,7 @@ export function gameGuardianMail({ guardianName, riderName, username, consentUrl
     `jazdec ${riderName} sa prihlásil do hry GOSko Ghoskate s hráčskym menom ${username}.`,
     'Hráč mladší ako 16 rokov môže hru len prezerať, kým rodič alebo zákonný zástupca nepotvrdí súhlas. Súhlas s registráciou na GOSko event hru neodomyká, rozhodujete o nej zvlášť.',
     `Súhlasom povoľujete:\n${GAME_CONSENT_SCOPE.map(s => `- ${s}`).join('\n')}`,
+    `Zvlášť sa pýtame na súhlas s fotkami a videami. ${GAME_MEDIA_CONSENT} Na stránke ho zaškrtnete samostatne, nie je povinný, bez neho hráč nemôže nahrávať klipy.`,
     'Hráčske meno je verejné, celé meno, vek ani e-mail sa v hre nezobrazujú.',
     { href: consentUrl, label: 'Potvrdiť súhlas s hrou' },
     'Ak o hre neviete, e-mail ignorujte. Bez súhlasu hráč nemôže robiť check-in, nahrávať klipy ani byť v crew.',

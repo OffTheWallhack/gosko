@@ -6,11 +6,12 @@
 // Dva druhy tokenu: registrácia na event (registrations.guardian_token) a hra (player_guardian.token,
 // api/game/link-rider.js). Stránka ukáže rozsah podľa druhu; POST skúsi confirm_guardian a pri
 // neznámom tokene confirm_player_guardian -> 302 na #/hra/potvrdene. Súhlas s eventom hru neodomyká.
+// Herná stránka má zvlášť nezaškrtnuté políčko pre fotky a videá (media=1 -> p_media, 016).
 import { baseDeps } from './_lib/deps.js';
 import { allowMethods, queryOf, readBody, redirect, sendRaw } from './_lib/http.js';
 import { eq } from './_lib/db.js';
 import { isUuid } from './_lib/validate.js';
-import { GAME_CONSENT_SCOPE, confirmationMail, escapeHtml, formatDateSk } from './_lib/mail.js';
+import { GAME_CONSENT_SCOPE, GAME_MEDIA_CONSENT, confirmationMail, escapeHtml, formatDateSk } from './_lib/mail.js';
 import { audit } from './_lib/audit.js';
 import { createChain } from './_lib/chain.js';
 import { createNft } from './_lib/nft.js';
@@ -72,6 +73,10 @@ ${GAME_CONSENT_SCOPE.map(s => `<li>${escapeHtml(s)}</li>`).join('\n')}
 <p style="margin:0 0 16px">Hráčske meno je verejné, celé meno, vek ani e-mail sa v hre nezobrazujú.</p>
 <form method="post" action="/api/consent" style="margin:0 0 16px">
 <input type="hidden" name="token" value="${escapeHtml(token)}">
+<label style="display:flex;gap:10px;align-items:flex-start;margin:0 0 16px;padding:12px;border:2px solid #111111;background:#fff">
+<input type="checkbox" name="media" value="1" style="width:22px;height:22px;margin:2px 0 0;flex:none">
+<span><strong>Súhlas s fotkami a videami (nepovinné).</strong> ${escapeHtml(GAME_MEDIA_CONSENT)} Bez tohto súhlasu hráč nemôže nahrávať klipy, ostatná hra funguje.</span>
+</label>
 <button type="submit" style="width:100%;padding:14px 18px;border:0;background:#A01D21;color:#F3EBDD;font-size:18px;font-weight:900;cursor:pointer">Potvrdzujem súhlas</button>
 </form>
 <p style="margin:0;font-size:14px;color:#444">Ak o hre neviete, stránku zatvorte. Bez súhlasu hráč nemôže robiť check-in, nahrávať klipy ani byť v crew.</p>`);
@@ -163,10 +168,10 @@ export function createHandler(deps) {
     return sendRaw(res, 200, 'text/html; charset=utf-8', gameConsentPage({ token, username: player.username }), PAGE_HEADERS);
   }
 
-  async function confirmGame(token, res) {
+  async function confirmGame(token, media, res) {
     let out;
     try {
-      out = await db.rpc('confirm_player_guardian', { p_token: token });
+      out = await db.rpc('confirm_player_guardian', { p_token: token, p_media: media });
     } catch (err) {
       if (clientError(err)) return redirect(res, bad());
       log.error('[consent] confirm_player_guardian zlyhal', err?.code, err?.message);
@@ -174,7 +179,7 @@ export function createHandler(deps) {
     }
     const playerId = (Array.isArray(out) ? out[0] : out)?.player_id;
     if (!playerId) return redirect(res, bad());
-    await audit(db, { action: 'guardian_confirm_game', entity: 'player', entity_id: playerId }, log);
+    await audit(db, { action: 'guardian_confirm_game', entity: 'player', entity_id: playerId, data: { media } }, log);
     return redirect(res, gameOk());
   }
 
@@ -188,7 +193,7 @@ export function createHandler(deps) {
       const out = await db.rpc('confirm_guardian', { p_token: token });
       reg = Array.isArray(out) ? out[0] : out;
     } catch (err) {
-      if (clientError(err)) return confirmGame(token, res);
+      if (clientError(err)) return confirmGame(token, body?.media === '1' || body?.media === true, res);
       log.error('[consent] confirm_guardian zlyhal', err?.code, err?.message);
       return unavailable(res);
     }

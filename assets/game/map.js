@@ -8,6 +8,8 @@ import { OBSTACLES, SPOT_KINDS, isActiveCheckin, pinsFromSummary, prefersReduced
 import { gameApi, loadPlayer, rememberReturn, currentRoute, routeUrl } from './auth.js';
 import { doCheckIn, doCheckOut, currentPosition } from './checkin.js';
 import { spotSheet } from './spot.js';
+import { clipSheet } from './clips.js';
+import { clipList } from './feed.js';
 import { achievement, gameShell, h, icon, leaveGame, toast } from './ui.js';
 import { loadCss } from '../qr.js';
 import { UserError } from '../util.js';
@@ -189,6 +191,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
     if (S.map) S.map[reduced ? 'jumpTo' : 'easeTo']({ center: [row.lng, row.lat], zoom: Math.max(S.map.getZoom(), 15), offset: [0, -120] });
     S.sheet = spotSheet(body, {
       ...sheetState(row),
+      slots: [clipsSlot(row)],
       onClose: closeSheet,
       onLogin: login,
       onProfile: () => ctx.go('#/hra/profil'),
@@ -223,6 +226,35 @@ export async function pageGameMap(root, ctx, spotId = null) {
     if (S.player.mode === 'play') {
       api.myRating(id).then(v => { if (S.sheetId === id && v) { S.myRating = v; S.sheet?.update({ myRating: v }); } }).catch(() => {});
     }
+  }
+
+  /* Klipy zo spotu na karte: zoznam (clips_public) a tlačidlo Pridať klip (hráč so súhlasmi, 016). */
+  function clipsSlot(row) {
+    const { mode, me } = S.player;
+    const list = clipList(api, { spotId: row.id, player: S.player, empty: T.feed.spotEmpty, limit: 6 });
+    const canPublish = mode === 'play' && me?.can_publish;
+    const head = h('div', { class: 'g-spot-sec-head' }, h('h3', { class: 'g-label' }, T.feed.spotTitle),
+      canPublish && h('button', { class: 'g-btn g-btn-small', type: 'button', onclick: () => openClipForm(row) }, T.clips.add));
+    const note = mode === 'play' && !canPublish ? h('p', { class: 'g-hint' }, T.clips.needConsent, ' ', h('a', { href: '#/hra/profil' }, T.hud.profile)) : null;
+    list.load();
+    return h('section', { class: 'g-spot-clips' }, head, note, list.el);
+  }
+
+  function openClipForm(row) {
+    closeSheet();
+    history.replaceState(null, '', routeUrl(`#/hra/spot/${row.id}`));
+    const form = clipSheet(body, {
+      spot: row, api, me: S.player.me, cfg: S.cfg,
+      onClose: () => { form.close(); S.sheet = null; openSpot(row.id); },
+      onDone: async res => {
+        form.close(); S.sheet = null;
+        toast(res.verified ? T.clips.doneVerified : T.clips.done);
+        await refresh();
+        openSpot(row.id);
+      },
+    });
+    S.sheet = { close: () => form.close(), update() {}, message() {} };
+    S.sheetId = null;
   }
 
   function addSpotAt(lngLat) {

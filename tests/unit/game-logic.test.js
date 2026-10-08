@@ -172,9 +172,9 @@ describe('texty hry', () => {
     const walk = o => Object.values(o).flatMap(v => (typeof v === 'string' ? [v] : typeof v === 'object' && v ? walk(v) : []));
     for (const s of walk(T)) assert.doesNotMatch(s, LONG_DASH, s);
   });
-  test('spodné menu appky Ghoskate: MAPA · CREW · REBRÍČEK · PROFIL, všetko pod #/hra', () => {
-    assert.deepEqual(G.GAME_MENU.map(m => m.label), ['MAPA', 'CREW', 'REBRÍČEK', 'PROFIL']);
-    assert.deepEqual(G.GAME_MENU.map(m => m.href), ['#/hra', '#/hra/crew', '#/hra/rebricek', '#/hra/profil']);
+  test('spodné menu appky Ghoskate: MAPA · FEED · CREW · REBRÍČEK · LOADOUT, všetko pod #/hra (profil je hore)', () => {
+    assert.deepEqual(G.GAME_MENU.map(m => m.label), ['MAPA', 'FEED', 'CREW', 'REBRÍČEK', 'LOADOUT']);
+    assert.deepEqual(G.GAME_MENU.map(m => m.href), ['#/hra', '#/hra/feed', '#/hra/crew', '#/hra/rebricek', '#/hra/loadout']);
   });
 });
 

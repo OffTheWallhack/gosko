@@ -3,7 +3,7 @@
 // Súbežné behy (napr. iný worktree): GOSKO_TEST_DB a GOSKO_TEST_PORT zvolia inú DB a port.
 import { spawn, execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { readFileSync, writeFileSync, openSync, closeSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, openSync, closeSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,9 @@ const PG_ENV = {
   PGDATABASE: DB_NAME,
   PGOPTIONS: '-c client_min_messages=warning',
 };
+
+// Posledná migrácia (číslo NNN z supabase/migrations/NNN_*.sql), predvolený stav testovacej DB.
+export const LATEST = readdirSync(join(ROOT, 'supabase', 'migrations')).filter(f => /^\d{3}_.*\.sql$/.test(f)).sort().at(-1).slice(0, 3);
 
 // Pevné testovacie identity (auth.users). Admin je aj v public.admins.
 export const ADMIN_ID = '00000000-0000-4000-8000-00000000a001';
@@ -47,8 +50,8 @@ export function jwt(role, sub, extra = {}) {
   return `${data}.${sig}`;
 }
 
-/** Zmaže a znova vytvorí gosko_test (scripts/test-db.sh). until: '001' … '015' (default všetko + seed). */
-export function resetDb({ until = '015' } = {}) {
+/** Zmaže a znova vytvorí gosko_test (scripts/test-db.sh). until: '001' … LATEST (default všetko + seed). */
+export function resetDb({ until = LATEST } = {}) {
   try {
     execFileSync('bash', [join(ROOT, 'scripts', 'test-db.sh'), until], { env: { ...process.env, GOSKO_TEST_DB: DB_NAME }, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (err) {
@@ -148,9 +151,9 @@ function logTail() {
 
 /**
  * Vytvorí čerstvú DB (ak reset) a spustí PostgREST. Počká, kým odpovedá.
- * until: posledná migrácia ('001' … '015'); od '006' pridá seed eventov, od '012' aj spoty (default '015').
+ * until: posledná migrácia ('001' … LATEST); od '006' pridá seed eventov, od '012' aj spoty (default LATEST).
  */
-export async function startStack({ reset = true, until = '015', timeoutMs = 20000 } = {}) {
+export async function startStack({ reset = true, until = LATEST, timeoutMs = 20000 } = {}) {
   if (child) await stopStack();
   killStale();
   if (await portBusy()) {

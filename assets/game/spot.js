@@ -52,7 +52,7 @@ function bustMeter(bust) {
     h('span', { class: 'g-bust-txt' }, bust ? T.bust[bust] : T.spot.bustNone));
 }
 
-/* Vytvorí sheet v host (g-view). opts: { row, mode, here, myRating, onCheckIn, onCheckOut, onLogin, onProfile, onRate, onReport, onClose } */
+/* Vytvorí sheet v host (g-view). opts: { row, mode, here, myRating, slots, onCheckIn, onCheckOut, onLogin, onProfile, onRate, onReport, onClose } */
 export function spotSheet(host, opts) {
   let tilt = null;
   const sheet = h('div', { class: 'g-sheet', role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': 'g-spot-name' });
@@ -108,9 +108,10 @@ export function spotSheet(host, opts) {
     }
 
     const tiltBtn = h('button', { class: 'linklike g-tilt', type: 'button', hidden: true }, T.spot.tiltOn);
+    // slots: trvalé časti (klipy, skóre crews, loot) vytvorené raz v map.js; pri prekreslení sa len presunú
     sheet.replaceChildren(
       h('button', { class: 'g-x', type: 'button', 'aria-label': T.spot.close, onclick: () => o.onClose() }, icon('close')),
-      card, msg, actions, ...extra, tiltBtn);
+      card, msg, actions, ...extra, ...(o.slots || []), tiltBtn);
     tilt = attachTilt(card);
     // povolenie pýta iOS Safari; na počítači (myš) je náklon myšou a tlačidlo netreba
     if (tilt.needsPermission && window.matchMedia?.('(pointer: coarse)').matches) {

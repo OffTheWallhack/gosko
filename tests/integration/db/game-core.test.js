@@ -7,7 +7,7 @@ import { DENIED } from './_fixtures.js';
 import { SPOT, createPlayer, createSpot, createRegistration, north, rpc, insertCheckIn } from './_game.js';
 
 const checkIn = (player, spot, at = SPOT) => rpc('check_in', player, { p_spot: spot, p_lat: at.lat, p_lng: at.lng });
-const addClip = (player, spot) => rpc('add_clip', player, { p_spot: spot, p_media_url: 'https://example.com/v.mp4', p_media_kind: 'video', p_trick: 'kickflip' });
+const addClip = (player, spot) => rpc('add_clip', player, { p_spot: spot, p_kind: 'embed', p_embed_url: 'https://youtu.be/dQw4w9WgXcQ', p_trick: 'kickflip' });
 const addSpot = (player, i = 0) => rpc('add_spot', player, {
   p_name: `Nový spot ${i}`, p_city: 'Bratislava', p_kind: 'street', p_lat: 48.14 + i / 1000, p_lng: 17.10, p_description: null,
 });
@@ -284,10 +284,11 @@ describe('clips and likes', () => {
     assert.equal((await addClip(p, spot)).body.verified, true);
   });
 
-  test('media url must be http(s)', async () => {
+  test('a clip link must be http(s) (016: only IG, TikTok, YouTube, game-clips.test.js)', async () => {
     const p = createPlayer();
-    const res = await rpc('add_clip', p, { p_spot: createSpot(), p_media_url: 'javascript:alert(1)', p_media_kind: 'video', p_trick: null });
+    const res = await rpc('add_clip', p, { p_spot: createSpot(), p_kind: 'embed', p_embed_url: 'javascript:alert(1)', p_trick: null });
     assert.equal(res.status, 400);
+    assert.equal(res.body.message, 'BAD_EMBED');
   });
 
   test('like once per player, not your own clip, unlike works', async () => {

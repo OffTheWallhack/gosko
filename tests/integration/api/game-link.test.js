@@ -134,6 +134,21 @@ test('U16: token pre rodiča, len prezeranie; súhlas s eventom hru neodomkne, h
   assert.equal(inn.status, 200, JSON.stringify(inn.body));
   const again = await call(consent(), { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, rawBody: `token=${g.token}` });
   assert.equal(again.headers.location, 'https://gosko.test/#/registracia/neplatny-odkaz');
+
+  // súhlas s hrou bez fotiek: klip nejde (016); hráč si vypýta nový odkaz, rodič zaškrtne fotky a videá
+  assert.equal((await asPlayer('game_me', u)).body.can_publish, false);
+  const clip = await asPlayer('add_clip', u, { p_spot: spot, p_kind: 'embed', p_embed_url: 'https://youtu.be/dQw4w9WgXcQ' });
+  assert.equal(clip.body.message, 'NEED_MEDIA_CONSENT');
+  const resend = await post(u, { resend_guardian: true }, mail);
+  assert.equal(resend.json.needs_media_consent, true);
+  assert.equal(resend.json.guardian_mail_sent, true);
+  const t2 = stack.sql(`select token from public.player_guardian where player_id = ${lit(u.id)}`);
+  const page2 = await call(consent(), { query: { token: t2 } });
+  assert.match(page2.body, /<input type="checkbox" name="media" value="1"/);
+  const ok2 = await call(consent(), { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, rawBody: `token=${t2}&media=1` });
+  assert.equal(ok2.headers.location, 'https://gosko.test/#/hra/potvrdene');
+  assert.equal((await asPlayer('game_me', u)).body.can_publish, true);
+  assert.equal((await asPlayer('add_clip', u, { p_spot: spot, p_kind: 'embed', p_embed_url: 'https://youtu.be/dQw4w9WgXcQ' })).status, 200);
 });
 
 test('event token potvrdí registráciu cez ten istý /api/consent ako predtým', async () => {

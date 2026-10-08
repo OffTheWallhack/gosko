@@ -32,13 +32,15 @@ const PATHS = {
 export const icon = (name, cls = 'g-ico') => h('svg:svg', { class: cls, viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' },
   h('svg:path', { d: PATHS[name], 'fill-rule': 'evenodd' }));
 
-/* Herný shell appky Ghoskate (/hra): horná lišta s názvom a odkazom späť na web, obsah, spodné menu
-   MAPA · CREW · REBRÍČEK · PROFIL. Hlavičku, spodné menu a pätičku webu skryje app.js (body.game-app). Vráti { view, body }. */
+/* Herný shell appky Ghoskate (/hra): horná lišta s odkazom späť na web, názvom a profilom, obsah, spodné menu
+   MAPA · FEED · CREW · REBRÍČEK · LOADOUT. Hlavičku, spodné menu a pätičku webu skryje app.js (body.game-app). Vráti { view, body }. */
 export function gameShell(root, active) {
   document.body.classList.add('game-mode');
   const top = h('header', { class: 'g-top' },
     h('a', { class: 'g-back', href: './', 'aria-label': T.app.backLabel }, h('span', { 'aria-hidden': 'true' }, '← '), T.app.back),
-    h('a', { class: 'g-brand', href: '#/hra' }, h('img', { src: 'img/ghost.svg', alt: '', width: 22, height: 25 }), h('span', { class: 'wide' }, T.app.name)));
+    h('a', { class: 'g-brand', href: '#/hra' }, h('img', { src: 'img/ghost.svg', alt: '', width: 22, height: 25 }), h('span', { class: 'wide' }, T.app.name)),
+    h('a', { class: 'g-me', href: '#/hra/profil', 'data-game-nav': 'profile', 'aria-label': T.menu.profileLabel, 'aria-current': active === 'profile' ? 'page' : null },
+      icon('profile'), h('span', {}, T.menu.profile)));
   const body = h('div', { class: 'g-body' });
   const menu = h('nav', { class: 'g-menu', 'aria-label': T.menu.label },
     GAME_MENU.map(m => h('a', { href: m.href, class: 'g-menu-item', 'data-game-nav': m.id, 'aria-current': m.id === active ? 'page' : null },

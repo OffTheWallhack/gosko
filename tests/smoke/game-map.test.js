@@ -78,6 +78,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
       const json = (body, status = 200, extra = {}) => route.fulfill({ status, headers: { ...CORS, 'content-type': 'application/json', ...extra }, body: JSON.stringify(body) });
       const p = url.pathname;
+      if (scenario.route) { const done = scenario.route(p, req, json); if (done) return done; }   // vráti Promise z json() alebo null
       if (p.startsWith('/auth/v1/user')) return scenario.signedIn ? json(session().user) : json({ msg: 'no session' }, 401);
       if (p.startsWith('/auth/v1/')) return json({ error: 'stub' }, 400);
       if (p === '/rest/v1/rpc/game_cfg') return json(CFG);
@@ -98,7 +99,8 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   test('anonym: HUD, spodné menu, piny so crew, loot a pulzom, holo karta, check-in pýta prihlásenie', async () => {
     const { page, context, hits, blocked, errors } = await open('hra');
     try {
-      assert.deepEqual(await page.$$eval('.g-menu-item span', els => els.map(e => e.textContent)), ['MAPA', 'CREW', 'REBRÍČEK', 'PROFIL']);
+      assert.deepEqual(await page.$$eval('.g-menu-item span', els => els.map(e => e.textContent)), ['MAPA', 'FEED', 'CREW', 'REBRÍČEK', 'LOADOUT']);
+      assert.equal(await page.getAttribute('.g-top .g-me', 'href'), '#/hra/profil');
       assert.equal(await page.getAttribute('.g-menu-item[data-game-nav="map"]', 'aria-current'), 'page');
       assert.match(await page.textContent('.g-chip-player'), /Prihlásiť sa/);
       assert.equal(await page.$$eval('[data-spot-id]', els => new Set(els.map(e => e.dataset.spotId)).size), 2);
@@ -187,12 +189,12 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
     } finally { await context.close(); }
   });
 
-  test('ďalšie herné stránky: FEED a LOADOUT čoskoro, REBRÍČEK crews, starý zoznam spotov ostal', async () => {
+  test('ďalšie herné stránky: FEED, LOADOUT čoskoro, REBRÍČEK crews, starý zoznam spotov ostal', async () => {
     const { page, context, errors } = await open('hra');
     try {
       await page.goto(`${base}/hra/feed`);
-      await page.waitForSelector('.g-soon');
-      assert.match(await page.textContent('.g-soon'), /ČOSKORO/);
+      await page.waitForSelector('.g-feed .g-hint');
+      assert.match(await page.textContent('.g-feed'), /Zatiaľ žiadne klipy/);
       await page.goto(`${base}/hra/loadout`);
       await page.waitForSelector('.g-soon');
       assert.match(await page.textContent('.g-soon'), /LOADOUT/);
@@ -264,7 +266,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       assert.equal(await page.evaluate(() => location.pathname), `/hra/spot/${SPOTS[0].id}`);
       assert.equal(await page.textContent('#g-spot-name'), 'Eurovea schody');
       await page.goto(`${base}/feed`);
-      await page.waitForSelector('.g-soon');
+      await page.waitForSelector('.g-feed');
       assert.equal(await page.evaluate(() => location.pathname), '/hra/feed');
       await page.goto(`${base}/#/mapa`);
       await page.waitForSelector('[data-spot-id]');
@@ -272,6 +274,98 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       await page.goto(`${base}/#/spot/${SPOTS[1].id}`);
       await page.waitForSelector('.g-sheet.open .g-holo');
       await page.waitForFunction(id => location.pathname === `/hra/spot/${id}`, SPOTS[1].id);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  const PLAYER_ME = { id: USER_ID, username: 'jano_flip', city: 'Bratislava', stance: 'goofy', board_config: {}, can_write: true, needs_guardian: false, can_publish: true, media_consent: false };
+  const CLIPS = [
+    { id: 'c1000000-0000-4000-8000-000000000001', spot_id: SPOTS[0].id, spot_name: SPOTS[0].name, username: 'ghost_rr', crew_id: 'c0000000-0000-4000-8000-000000000001', crew_tag: 'RR', crew_color: '#FF3366',
+      media_kind: 'video', media_path: `${USER_ID}/11111111-2222-4333-8444-555555555555.mp4`, embed_url: null, trick: 'kickflip', duration_s: 14, verified: true, likes: 3, created_at: new Date(Date.now() - 5 * 60_000).toISOString() },
+    { id: 'c1000000-0000-4000-8000-000000000002', spot_id: SPOTS[1].id, spot_name: SPOTS[1].name, username: 'jano_flip', crew_id: null, crew_tag: null, crew_color: null,
+      media_kind: 'embed', media_path: null, embed_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', trick: null, duration_s: null, verified: false, likes: 0, created_at: new Date(Date.now() - 3 * 3600_000).toISOString() },
+    { id: 'c1000000-0000-4000-8000-000000000003', spot_id: SPOTS[1].id, spot_name: SPOTS[1].name, username: 'ema', crew_id: null, crew_tag: null, crew_color: null,
+      media_kind: 'embed', media_path: null, embed_url: 'https://www.instagram.com/reel/C1a2B3c4D5e/', trick: 'boardslide', duration_s: null, verified: true, likes: 1, created_at: new Date(Date.now() - 30 * 3600_000).toISOString() },
+  ];
+  const clipRoute = (calls = []) => (p, req, json) => {
+    if (p === '/rest/v1/clips_public') {
+      const spot = new URL(req.url()).searchParams.get('spot_id');
+      return json(spot ? CLIPS.filter(c => `eq.${c.spot_id}` === spot) : CLIPS);
+    }
+    if (p === '/storage/v1/object/sign/media') {
+      const { paths } = req.postDataJSON();
+      return json(paths.map(path => ({ path, signedURL: `/object/sign/media/${path}?token=stub`, error: null })));
+    }
+    if (p === '/rest/v1/rpc/add_clip') { calls.push(['add_clip', req.postDataJSON()]); return json({ id: 'c-new', verified: true, spot_id: SPOTS[0].id, created_at: new Date().toISOString() }); }
+    if (p === '/rest/v1/rpc/like_clip') { calls.push(['like_clip', req.postDataJSON()]); return json({ clip_id: CLIPS[0].id, likes: 4 }); }
+    if (p.startsWith('/storage/v1/object/media/')) { calls.push(['upload', p]); return json({ Key: p }); }
+    return null;
+  };
+
+  test('FEED: klipy z clips_public, overené na spote, video s podpísanou URL, YouTube a Instagram, lajk', async () => {
+    const calls = [];
+    const { page, context, errors, hits } = await open('hra', { signedIn: true, me: PLAYER_ME, route: clipRoute(calls) });
+    try {
+      await page.click('.g-menu-item[data-game-nav="feed"]');
+      await page.waitForSelector('.g-feed .g-clip');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra/feed');
+      assert.equal(await page.getAttribute('.g-menu-item[data-game-nav="feed"]', 'aria-current'), 'page');
+      assert.equal(await page.$$eval('.g-clip', els => els.length), 3);
+      const first = await page.$(`.g-clip[data-clip-id="${CLIPS[0].id}"]`);
+      assert.match(await first.textContent(), /@ghost_rr/);
+      assert.match(await first.textContent(), /OVERENÉ NA SPOTE/);
+      assert.match(await first.textContent(), /pred \d+ min/);
+      assert.match(await first.$eval('video', v => v.getAttribute('src')), /\/storage\/v1\/object\/sign\/media\/.+\.mp4\?token=stub$/);
+      assert.equal(await first.$eval('.g-clip-spot', a => a.getAttribute('href')), `#/hra/spot/${SPOTS[0].id}`);
+      const yt = await page.$(`.g-clip[data-clip-id="${CLIPS[1].id}"]`);
+      assert.match(await yt.$eval('img', i => i.src), /i\.ytimg\.com\/vi\/dQw4w9WgXcQ/);
+      assert.equal(await yt.$eval('.g-like', b => b.disabled), true, 'vlastný klip sa nelajkuje');
+      assert.ok(await yt.$('button.linklike'), 'vlastný klip sa dá zmazať');
+      const ig = await page.$(`.g-clip[data-clip-id="${CLIPS[2].id}"]`);
+      assert.equal(await ig.$eval('a.g-clip-media', a => a.href), 'https://www.instagram.com/reel/C1a2B3c4D5e/');
+      assert.equal(await ig.$eval('a.g-clip-media', a => a.rel), 'noopener noreferrer');
+      await first.$eval('.g-like', b => b.click());
+      await page.waitForFunction(id => document.querySelector(`[data-clip-id="${id}"] .g-like`)?.getAttribute('aria-pressed') === 'true', CLIPS[0].id);
+      assert.equal(await first.$eval('.g-like-n', e => e.textContent), '4');
+      assert.deepEqual(calls.find(c => c[0] === 'like_clip')[1], { p_clip: CLIPS[0].id });
+      assert.ok(hits.some(h => h === 'POST /storage/v1/object/sign/media'), 'podpísané URL pre súkromný bucket');
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('klip zo spotu: karta ukáže klipy spotu, neplatný odkaz má hlášku, platný ide do add_clip', async () => {
+    const calls = [];
+    const { page, context, errors } = await open(`hra/spot/${SPOTS[0].id}`, { signedIn: true, me: PLAYER_ME, route: clipRoute(calls) });
+    try {
+      await page.waitForSelector('.g-sheet.open .g-spot-clips .g-clip');
+      assert.equal(await page.$$eval('.g-spot-clips .g-clip', els => els.length), 1, 'len klipy z tohto spotu');
+      await page.click('.g-spot-clips .g-spot-sec-head button');
+      await page.waitForSelector('.g-sheet-form input[name="link"]');
+      await page.fill('.g-sheet-form input[name="link"]', 'https://vimeo.com/123456');
+      await page.click('.g-sheet-form button[type="submit"]');
+      await page.waitForFunction(() => /Instagram, TikTok alebo YouTube/.test(document.querySelector('.g-sheet-form .g-msg[role="alert"]')?.textContent || ''));
+      assert.equal(calls.filter(c => c[0] === 'add_clip').length, 0, 'neplatný odkaz nejde na server');
+      await page.fill('.g-sheet-form input[name="link"]', 'https://youtu.be/dQw4w9WgXcQ?si=abc');
+      await page.fill('.g-sheet-form input[name="trick"]', 'tre flip');
+      await page.click('.g-sheet-form button[type="submit"]');
+      await page.waitForSelector('.g-toast');
+      assert.match(await page.textContent('.g-toasts'), /overený na spote/);
+      assert.deepEqual(calls.find(c => c[0] === 'add_clip')[1], { p_spot: SPOTS[0].id, p_kind: 'embed', p_embed_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', p_trick: 'tre flip' });
+      await page.waitForSelector('.g-sheet.open .g-holo');
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('U16 so súhlasom s hrou, ale bez fotiek: namiesto Pridať klip výzva a odkaz na profil', async () => {
+    const { page, context, errors } = await open(`hra/spot/${SPOTS[0].id}`, { signedIn: true, route: clipRoute(),
+      me: { ...PLAYER_ME, username: 'kubko', can_publish: false } });
+    try {
+      await page.waitForSelector('.g-sheet.open .g-spot-clips');
+      assert.equal(await page.$('.g-spot-clips .g-spot-sec-head button'), null);
+      assert.match(await page.textContent('.g-spot-clips'), /súhlas s fotkami a videami/);
+      await page.goto(`${base}/hra/profil`);
+      await page.waitForSelector('.g-consent');
+      assert.match(await page.textContent('.g-consent'), /Poslať rodičovi odkaz/);
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });
@@ -285,7 +379,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       await page.goBack();
       await page.waitForSelector('[data-spot-id]');
       assert.equal(await page.evaluate(() => location.pathname), '/hra');
-      await page.click('.g-menu-item[data-game-nav="profile"]');
+      await page.click('.g-top .g-me[data-game-nav="profile"]');
       await page.waitForFunction(() => location.pathname === '/hra/profil');
       await page.goto(`${base}/crew`);
       await page.waitForSelector('.crew-grid');

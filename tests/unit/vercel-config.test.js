@@ -165,8 +165,8 @@ describe('vercel.json: CSP', () => {
   test('img-src', () => has('img-src', "'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://tile.openstreetmap.org', SUPABASE_ORIGIN));
   /* úvodka a kalendár (Robova main): vlajky krajín z flagcdn.com, video na pozadí je z vlastnej domény (default-src 'self') */
   test('img-src: vlajky v kalendári (flagcdn.com)', () => has('img-src', 'https://flagcdn.com'));
-  test('video na úvodke: media-src nie je nastavené, platí default-src self', () => {
-    assert.ok(!csp.has('media-src'), 'media-src by prepísal default-src');
+  test('video: úvodka z vlastnej domény, klipy hry zo Supabase Storage (podpísané URL), náhľad dĺžky cez blob:', () => {
+    has('media-src', "'self'", 'blob:', SUPABASE_ORIGIN);
     has('default-src', "'self'");
   });
   test('connect-src', () => has('connect-src', "'self'", SUPABASE_ORIGIN, 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'));

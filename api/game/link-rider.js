@@ -40,12 +40,14 @@ export function createHandler(deps) {
     return privs.filter(p => !taken.has(p.rider_id));
   }
 
-  const loadPlayer = userId => db.selectOne('players', { id: eq(userId) }, { select: 'id,rider_id,username,guardian_confirmed_at' });
+  const loadPlayer = userId => db.selectOne('players', { id: eq(userId) }, { select: 'id,rider_id,username,guardian_confirmed_at,media_consent_at' });
 
-  async function playerNeedsGuardian(player) {
-    if (player.guardian_confirmed_at) return false;
+  // { guardian: chýba súhlas s hrou, media: chýba súhlas s fotkami a videami (016, U16 iba od rodiča) }
+  async function playerConsents(player) {
+    if (player.guardian_confirmed_at && player.media_consent_at) return { guardian: false, media: false };
     const priv = await db.selectOne('rider_private', { rider_id: eq(player.rider_id) }, { select: 'birth_date' });
-    return !priv || needsGuardian(priv.birth_date, todayIn(now()));
+    const minor = !priv || needsGuardian(priv.birth_date, todayIn(now()));
+    return { guardian: minor && !player.guardian_confirmed_at, media: minor && !player.media_consent_at };
   }
 
   // Nový token pre rodiča (starý prestane platiť) a e-mail. Vráti, či e-mail odišiel.
@@ -72,17 +74,21 @@ export function createHandler(deps) {
 
   async function status(user, res) {
     const player = await loadPlayer(user.userId);
-    if (player) return send(res, 200, { ok: true, status: 'player', username: player.username, needs_guardian: await playerNeedsGuardian(player) });
+    if (player) {
+      const need = await playerConsents(player);
+      return send(res, 200, { ok: true, status: 'player', username: player.username, needs_guardian: need.guardian, needs_media_consent: need.media });
+    }
     const list = await candidates(user.email);
     const rider = list.length === 0 ? 'none' : list.length === 1 ? 'known' : 'ambiguous';
     send(res, 200, { ok: true, status: 'new', rider, guardian_known: rider === 'known' && Boolean(list[0].guardian_email) });
   }
 
-  // Už existujúci hráč: nič nové nezakladá; U16 bez súhlasu si môže dať poslať e-mail rodičovi znova.
+  // Už existujúci hráč: nič nové nezakladá; U16 bez súhlasu s hrou alebo s fotkami si môže dať poslať
+  // e-mail rodičovi znova (rodič na stránke súhlasu zaškrtne aj fotky a videá).
   async function existingPlayer(user, player, body, res) {
-    const needs = await playerNeedsGuardian(player);
+    const need = await playerConsents(player);
     let sent = false;
-    if (needs && body.resend_guardian === true) {
+    if ((need.guardian || need.media) && body.resend_guardian === true) {
       if (await rateLimitHit(db, `game-guardian:${user.userId}`, 3, 60)) {
         throw new ApiError(429, 'rate_limited', 'E-mail rodičovi sme poslali už viackrát. Skús to znova o hodinu.');
       }
@@ -95,7 +101,7 @@ export function createHandler(deps) {
       sent = await issueGuardian(player, guardian, riderPublicName(rider) || player.username);
       await audit(db, { actor: user.userId, action: 'game.guardian_resend', entity: 'player', entity_id: player.id, data: { mail_sent: sent } }, log);
     }
-    send(res, 200, { ok: true, status: 'player', username: player.username, needs_guardian: needs, guardian_mail_sent: sent });
+    send(res, 200, { ok: true, status: 'player', username: player.username, needs_guardian: need.guardian, needs_media_consent: need.media, guardian_mail_sent: sent });
   }
 
   // Nový jazdec bez hráča nesmie zostať (rider_private by v DB zmazala kaskáda, tu výslovne).

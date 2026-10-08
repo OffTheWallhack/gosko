@@ -67,7 +67,7 @@ export function insertCheckIn({ player, spot, crew = null, startedMinAgo = 0, en
 export function insertClip({ player, spot, crew = null, verified = true, likes = 0, minAgo = 0 }) {
   const id = randomUUID();
   sql(`insert into public.clips (id, player_id, spot_id, crew_id, media_url, media_kind, verified, created_at)
-         values (${lit(id)}, ${lit(player.id ?? player)}, ${lit(spot)}, ${lit(crew)}, 'https://example.com/clip.mp4', 'video', ${verified},
+         values (${lit(id)}, ${lit(player.id ?? player)}, ${lit(spot)}, ${lit(crew)}, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'embed', ${verified},
                  now() - interval '${minAgo} minutes')`);
   for (let i = 0; i < likes; i++) {
     const fan = createPlayer();

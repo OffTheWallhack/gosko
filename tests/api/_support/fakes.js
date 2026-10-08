@@ -171,15 +171,18 @@ export class FakeDb {
         r.guardian_confirmed_at = new Date().toISOString(); r.guardian_token = null;
         return { ...r };
       },
-      confirm_player_guardian: ({ p_token }) => {
-        // ako migrácia 010: token sa použije raz, prepadnutý alebo neznámy = PT404
+      confirm_player_guardian: ({ p_token, p_media = false }) => {
+        // ako migrácia 016: token sa použije raz, prepadnutý alebo neznámy = PT404; fotky iba s p_media
         const g = this.t('player_guardian').find(x => x.token && x.token === p_token
           && (!x.token_expires_at || Date.parse(x.token_expires_at) > Date.now()));
         if (!g) throw new DbError({ status: 404, code: 'PT404', message: 'invalid_token' });
         g.token = null;
         const p = this.t('players').find(x => x.id === g.player_id);
-        if (p) p.guardian_confirmed_at = new Date().toISOString();
-        return { player_id: g.player_id };
+        if (p) {
+          p.guardian_confirmed_at ||= new Date().toISOString();
+          if (p_media) p.media_consent_at ||= new Date().toISOString();
+        }
+        return { player_id: g.player_id, media: Boolean(p_media) };
       },
       save_results: ({ p_event_id, p_category, p_rows, p_actor }) => {
         // ako migrácia 005: token vyhodeného jazdca s výsledkom na chaine sa má vynulovať

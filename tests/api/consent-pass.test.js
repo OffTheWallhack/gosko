@@ -22,7 +22,7 @@ function seed(regOver = {}) {
   });
 }
 const consent = (db, mail = fakeMail(), chain = fakeChain()) => consentHandler({ env: testEnv(), db, mail, chain, log: silentLog, now: fixedNow() });
-const confirmForm = (h, token) => call(h, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, rawBody: `token=${encodeURIComponent(token)}` });
+const confirmForm = (h, token, extra = '') => call(h, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, rawBody: `token=${encodeURIComponent(token)}${extra}` });
 
 /* ---------- consent GET: iba stránka, nič nepotvrdí ---------- */
 test('consent GET: stránka s eventom, verejným menom a formulárom; token sa nepoužije', async () => {
@@ -290,6 +290,28 @@ test('consent POST s herným tokenom: confirm_player_guardian odomkne hru, token
   assert.equal(db.t('registrations')[0].status, 'pending_guardian', 'súhlas s hrou nepotvrdí event');
   assert.ok(db.t('audit_log').some(a => a.action === 'guardian_confirm_game' && a.entity_id === PLAYER));
   assert.equal((await confirmForm(h, PTOKEN)).headers.location, BAD);
+});
+
+test('consent GET s herným tokenom: súhlas s fotkami a videami je samostatné nezaškrtnuté políčko', async () => {
+  const res = await call(consent(seedGame()), { query: { token: PTOKEN } });
+  const box = /<input[^>]*name="media"[^>]*>/.exec(res.body)?.[0];
+  assert.ok(box, 'políčko media chýba');
+  assert.match(box, /type="checkbox"/);
+  assert.ok(!/checked/.test(box), 'súhlas s fotkami nesmie byť predvyplnený');
+  assert.ok(res.body.includes('Bez tohto súhlasu hráč nemôže nahrávať klipy'));
+});
+
+test('consent POST s herným tokenom: zaškrtnuté fotky pošlú p_media true, inak false', async () => {
+  const db = seedGame();
+  await confirmForm(consent(db), PTOKEN, '&media=1');
+  assert.deepEqual(db.callsOf('rpc', 'confirm_player_guardian').map(c => c.args), [{ p_token: PTOKEN, p_media: true }]);
+  assert.ok(db.t('players')[0].media_consent_at);
+  assert.ok(db.t('audit_log').some(a => a.action === 'guardian_confirm_game' && a.data?.media === true));
+
+  const db2 = seedGame();
+  await confirmForm(consent(db2), PTOKEN);
+  assert.deepEqual(db2.callsOf('rpc', 'confirm_player_guardian').map(c => c.args), [{ p_token: PTOKEN, p_media: false }]);
+  assert.ok(!db2.t('players')[0].media_consent_at);
 });
 
 test('consent POST s tokenom eventu nepotvrdí hru', async () => {

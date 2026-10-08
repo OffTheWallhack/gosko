@@ -98,7 +98,7 @@ test('POST: opakované volanie hráča nevytvorí druhýkrát, vráti status pla
   assert.equal(again.json.username, 'jano_flip');
   assert.equal(db.t('players').length, 1);
   const st = await get(handler(db), 'jwt-jano');
-  assert.deepEqual(st.json, { ok: true, status: 'player', username: 'jano_flip', needs_guardian: false });
+  assert.deepEqual(st.json, { ok: true, status: 'player', username: 'jano_flip', needs_guardian: false, needs_media_consent: false });
 });
 
 test('POST: IG sa doplní jazdcovi len vtedy, keď ho ešte nemá', async () => {
@@ -233,12 +233,34 @@ test('POST U16 hráč: resend_guardian vydá nový token a pošle e-mail znova',
   assert.equal(db.t('player_guardian').length, 1);
 });
 
+test('POST U16 hráč so súhlasom s hrou, ale bez fotiek: resend_guardian pošle rodičovi nový odkaz (fotky a videá)', async () => {
+  const db = seed();
+  const mail = fakeMail();
+  await post(handler(db, { mail }), 'jwt-kid', { ...ONBOARD, username: 'kubko' });
+  db.t('players')[0].guardian_confirmed_at = '2026-10-05T11:00:00Z';
+  db.t('player_guardian')[0].token = null;
+  const st = await get(handler(db, { mail }), 'jwt-kid');
+  assert.equal(st.json.needs_guardian, false);
+  assert.equal(st.json.needs_media_consent, true);
+  const res = await post(handler(db, { mail }), 'jwt-kid', { resend_guardian: true });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json.guardian_mail_sent, true);
+  assert.equal(res.json.needs_media_consent, true);
+  assert.match(db.t('player_guardian')[0].token, /^[0-9a-f-]{36}$/);
+  assert.equal(mail.sent.length, 2);
+  db.t('players')[0].media_consent_at = '2026-10-05T12:00:00Z';
+  const done = await post(handler(db, { mail }), 'jwt-kid', { resend_guardian: true });
+  assert.equal(done.json.needs_media_consent, false);
+  assert.equal(mail.sent.length, 2, 'so všetkými súhlasmi sa nič neposiela');
+});
+
 test('POST: dospelý hráč s resend_guardian nič nepošle', async () => {
   const db = seed();
   const mail = fakeMail();
   await post(handler(db, { mail }), 'jwt-jano', ONBOARD);
   const res = await post(handler(db, { mail }), 'jwt-jano', { resend_guardian: true });
   assert.equal(res.json.needs_guardian, false);
+  assert.equal(res.json.needs_media_consent, false);
   assert.equal(mail.sent.length, 0);
 });
 
