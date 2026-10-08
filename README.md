@@ -37,9 +37,9 @@ icons/                ikony appky (ghoskate-* sú ikony hry)
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim (základ)
-supabase/migrations/  migrácie 001–015 nad supabase-setup.sql (registrácia v2, výsledky, NFT, hra, novinky, komunita)
+supabase/migrations/  migrácie 001–019 nad supabase-setup.sql (registrácia v2, výsledky, NFT, hra, novinky, komunita, klipy, crew, loot, profil)
 supabase/checks/      grants.sql: audit práv anon/authenticated (iba čítanie)
-chain/                kontrakt GoskoPass (Hardhat), lokálny deploy
+chain/                kontrakty GoskoPass a GoskoLoot (Hardhat), lokálny deploy
 vercel.json           hlavičky, cache, CSP, funkcie a cron pre Vercel
 .vercelignore         čo sa nenahrá na Vercel (a teda nie je verejné)
 api/                  Vercel funkcie (registrácia, passy, admin, NFT, cron)
@@ -78,6 +78,7 @@ Po zmene premenných treba nasadiť znova, inak ich bežiaca verzia nevidí.
 | Databáza | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_AUTH_URL` | service role kľúč je TAJNÝ, v dashboarde ho označ ako Sensitive |
 | Registrácia | `TURNSTILE_SECRET_KEY`, `RESEND_API_KEY`, `MAIL_FROM`, `PUBLIC_BASE_URL`, `CONSENT_VERSION`, `RATE_LIMIT_PER_10MIN` | `TURNSTILE_SECRET_KEY` a `RESEND_API_KEY` sú TAJNÉ; v produkcii musia byť nastavené |
 | NFT | `CHAIN_ID`, `RPC_URL`, `NFT_CONTRACT_ADDRESS`, `NFT_CUSTODY_ADDRESS`, `MINTER_PRIVATE_KEY` | `MINTER_PRIVATE_KEY` je TAJNÝ; kým je `NFT_CONTRACT_ADDRESS` prázdna, NFT je vypnuté a registrácia funguje ďalej |
+| Hra: GoskoLoot | `LOOT_CONTRACT_ADDRESS` | prázdna = žiadny mint odmien z loot dropov (hra funguje ďalej); zdieľa `CHAIN_ID`, `RPC_URL`, `MINTER_PRIVATE_KEY`, `NFT_CUSTODY_ADDRESS`. Kontrakt je zatiaľ len lokálny (`chain/README.md`) |
 | Cron | `CRON_SECRET` | TAJNÝ; Vercel ho posiela cronu automaticky ako `Authorization: Bearer ...` |
 
 `PUBLIC_BASE_URL` je adresa bez lomky na konci (`https://gosko.sk`). Preview nasadenia majú inú
@@ -206,8 +207,10 @@ Všetko v **SQL Editore** projektu, po jednom súbore, v tomto poradí:
    pozvánky adminov `admin_invites`; admin z pozvánky až po potvrdení e-mailu)
 10. `supabase/migrations/015_main_sync2.sql` (z Robovej main PR #6–#9: profil jazdca, trik týždňa, hodnotenie
     spotov `spot_reviews`, XP `my_activity()`, článok k eventu `posts.event_id`, bucket `clips`; viď `docs/ZLUCENIE-MAIN.md`)
-11. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`), voliteľne `supabase-seed-events.sql` (skate kalendár)
-12. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
+11. `supabase/migrations/016_game_clips.sql` až `019_game_profile.sql` (hra Ghoskate: klipy a feed so súkromným bucketom
+    `media` a súhlasom rodiča s fotkami, stránka crew, loot dropy od admina, loadout, súhlas s NFT, úprava profilu)
+12. `supabase/seed/events_2026.sql` (eventy a výsledky z `data.js`), voliteľne `supabase-seed-events.sql` (skate kalendár)
+13. Znova `supabase/checks/grants.sql`: nesmie ostať žiadny riadok `KRITICKÉ`.
 
 Každá migrácia je v transakcii a dá sa spustiť znova. Po opätovnom spustení 001 treba znova spustiť 002 až 005
 (001 odoberá všetky práva).

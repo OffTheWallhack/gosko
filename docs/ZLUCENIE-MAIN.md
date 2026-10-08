@@ -33,9 +33,10 @@ naša Supabase v `data.js` a CSP.
 | Vec | Robova (web) | Naša (hra Ghoskate) |
 |---|---|---|
 | Mapa | `/spoty`: skateparky zo `SKATEPARKS`, spoty od komunity, hodnotenie hviezdičkami, spot mesiaca | `/hra` (appka Ghoskate, predtým `/mapa`): MapLibre mapa spotov, check-in do 150 m, holo karta, crew a loot; spot na `/hra/spot/<id>` |
+| Klipy | trik týždňa: bucket **`clips`** (verejný, video do 30 MB, nahrá ktokoľvek prihlásený do vlastného priečinka) | klipy zo spotov: bucket **`media`** (`016_game_clips.sql`, súkromný, video do 60 s a 50 MB a fotky, len hráč so súhlasmi) |
 | Hodnotenie spotov | tabuľka **`spot_reviews`** (v jeho databáze `spot_ratings`): hviezdičky 1 až 5 a štítky podľa `spot_key` (`park:<slug>`, `spot:<id>`) | tabuľka `spot_ratings`: lebky 1 až 5 podľa `spot_id` a hráča (`010_game_core.sql`) |
-| Crew | `/crew`, `/crew/<id>`: partie z `data.js` (`CREWS`), členovia z profilu jazdca | herné crew v databáze (`011_game_crews.sql`), v hre zatiaľ „čoskoro“ na **`/hra/crew`** |
-| Profil | `/profil`: účet, heslo, XP a odznaky, profil jazdca („Som to ja“) | `/hra/profil`: hráčsky profil (prezývka, mesto, súhlas rodiča) |
+| Crew | `/crew`, `/crew/<id>`: partie z `data.js` (`CREWS`), členovia z profilu jazdca | herné crew v databáze (`011_game_crews.sql`, `017_game_crews_page.sql`) na **`/hra/crew`**, pozvánka `/hra/crew/pridat/<KÓD>` |
+| Profil | `/profil`: účet, heslo, XP a odznaky, profil jazdca („Som to ja“) | `/hra/profil`: hráčsky profil (prezývka, mesto, stance, avatar a farba, súhlasy) |
 | XP a odznaky | `my_activity()`: fotky, spoty, parky, triky, hodnotenia (check-in na evente zatiaľ 0, registrácia nie je naviazaná na účet) | body a gear v hre |
 
 Názov `spot_ratings` mal každý inak, preto Robova tabuľka u nás dostala meno `spot_reviews`
@@ -53,7 +54,8 @@ Herná crew bola na `#/crew`. Robova stránka crew dostala `#/crew`, hra sa pres
   pred súbormi). Hash z e-mailov a starých záložiek (`#/mapa`, `#/spot/<id>`) prepíše router v prehliadači.
   `scripts/dev-server.js` vie `redirects` tiež. Odkaz zo súhlasu rodiča (`api/consent.js`, `#/hra/potvrdene`) sa nemenil.
 - Na `/hra/*` má body triedu `game-app`: hlavička, spodné menu a pätička webu sú skryté, hra má vlastnú hornú lištu
-  (Ghoskate, „← GOSko“ späť na web) a spodné menu MAPA, CREW, REBRÍČEK, PROFIL. FEED a LOADOUT sú „čoskoro“ mimo menu.
+  (Ghoskate, „← GOSko“ späť na web, PROFIL) a spodné menu MAPA, FEED, CREW, REBRÍČEK, LOADOUT (od Taskov 4 až 6).
+  Admin hry (loot dropy, odkaz na moderáciu klipov) je na `/hra/admin`.
 - `<head>` sa v hre prepne na `ghoskate.webmanifest` (id a start_url `/hra`), `apple-mobile-web-app-title` Ghoskate,
   ikonu `icons/ghoskate-apple-touch.png` a farbu `#14111C`; mimo hry späť na GOSko. Statická stránka `hra/index.html`
   (náhľad pre zdieľanie, `scripts/build-pages.mjs`) to má priamo v HTML. Robova `mapa/index.html` je zmazaná, `/mapa`
@@ -100,3 +102,18 @@ Odkaz z e-mailu vedie vždy na koreň webu (v Supabase stačí mať adresu webu 
 - Robove odkazy z databázy (kalendár, sociálne siete eventu, klipy v admine) idú cez `safeUrl`.
 - Herné stránky sú bez pásu eventov a spoločnej pätičky.
 - Service worker `gosko-v20` (Robo mal v19, my v16), s appkou Ghoskate `gosko-v21`.
+
+### Klipy, crew, loot a profil v hre (Tasky 4 až 6, 8. 10. 2026)
+
+- **Bucket na klipy hry je vlastný `media`, nie Robov `clips`.** Dôvody: iné pravidlá (video do 60 s a 50 MB aj fotky,
+  Robov `clips` má 30 MB a len video), nahrávať smie len hráč, ktorý môže zverejňovať (16+ alebo U16 so súhlasom
+  rodiča s hrou aj s fotkami a videami), a bucket je súkromný: súbor číta každý len kým je jeho klip verejný (po skrytí
+  adminom alebo odvolaní súhlasu už nie), autor a admin vždy. Politiky na `storage.objects` majú `bucket_id = 'media'`
+  a názvy začínajú „Ghoskate:“, Robove sú viazané na `'clips'` a ostali bez zmeny; navzájom sa nekrížia.
+- Pri návrate do `main`: Robova politika „Prihlásený nahrá klip triku“ pustí do `clips` každého prihláseného (aj U16 bez
+  súhlasu rodiča). Hry sa to netýka, ale pri zlúčení identity hráča a jazdca by stálo za to zvážiť rovnaké pravidlo ako v `media`.
+- Súhlas rodiča s hrou a súhlas s fotkami a videami sú dve políčka na tej istej stránke `/api/consent` (fotky sú nepovinné,
+  nezaškrtnuté). Hráč si nový odkaz pre rodiča vypýta v profile, súhlas s klipmi vie sám odvolať.
+- Herná logika, ktorá sa nesmie dať obísť, je v DB ako SECURITY DEFINER s `auth.uid()`: `add_clip`, `my_crew`, `crew_preview`,
+  `rotate_invite_code`, `claim_loot`, `set_loadout`, `set_nft_consent`, `update_profile`. Admin loot ide cez `/api/admin/loot`
+  (requireAdmin) a RPC len pre `service_role`.

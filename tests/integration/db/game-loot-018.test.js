@@ -141,6 +141,8 @@ describe('loadout: gear catalog and starter sticker', () => {
     assert.equal(locked.body.message, 'GEAR_LOCKED');
     const junk = await rpc('set_loadout', p, { p_config: { deck: 'x'.repeat(40), stickers: Array(9).fill('gosko-ghost') } });
     assert.equal(junk.body.message, 'BAD_INPUT');
+    const direct = await rest(`/players?id=eq.${p.id}`, { method: 'PATCH', as: 'authenticated', sub: p.id, body: { board_config: { stickers: ['skull-king'] } } });
+    assert.ok(DENIED.includes(direct.status), `priamy zápis board_config obchádza set_loadout: ${direct.status}`);
   });
 });
 
