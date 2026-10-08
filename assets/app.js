@@ -1617,6 +1617,20 @@ function postDialog(post, done) {
     },
   });
 }
+/* admin: výber novej titulnej fotky článku (alebo odstránenie) */
+function pickPostImage(post, done) {
+  const input = h('input', { type: 'file', accept: 'image/*', hidden: true });
+  input.addEventListener('change', async () => {
+    const f = input.files[0]; input.remove(); if (!f) return;
+    try { toast('Nahrávam fotku…'); await store.setPostImage(post.id, await resizePhoto(f, store.mode === 'demo' ? 900 : 1600, store.mode === 'demo' ? .7 : .82)); POSTS = null; toast('Titulná fotka je zmenená.'); done && done(); }
+    catch (err) { console.error(err); toast('Fotku sa nepodarilo nahrať.'); }
+  });
+  document.body.append(input); input.click();
+}
+async function removePostImage(post, done) {
+  if (!confirm('Odstrániť titulnú fotku článku?')) return;
+  try { await store.setPostImage(post.id, null); POSTS = null; toast('Fotka je odstránená.'); done && done(); } catch (err) { console.error(err); toast('Nepodarilo sa odstrániť.'); }
+}
 function postCard(p, { big } = {}) {
   return h('a', { class: 'post-card' + (big ? ' big' : ''), href: '#/novinka/' + p.id },
     p.image_url ? h('span', { class: 'pc-img' }, h('img', { src: p.image_url, alt: '', loading: 'lazy' })) : h('span', { class: 'pc-img empty', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' })),
@@ -1636,8 +1650,18 @@ async function pagePost(root, id) {
   const p = await store.getPost(id).catch(() => null);
   if (!p) return pageNotFound(root);
   const link = p.link ? (p.link.startsWith('#/') ? h('a', { class: 'btn primary', href: p.link }, p.link_label || 'Viac', h('span', { 'aria-hidden': 'true' }, '→')) : safeUrl(p.link) && h('a', { class: 'btn primary', href: p.link, target: '_blank', rel: 'noopener' }, p.link_label || 'Otvoriť odkaz')) : null;
+  const heroBox = h('div', { class: 'post-hero-box' });
+  const paintHero = () => heroBox.replaceChildren(...[p.image_url ? h('div', { class: 'post-hero' }, h('img', { src: p.image_url, alt: '' })) : null].filter(Boolean));
+  paintHero();
+  const adminBar = h('div', { class: 'post-admin', hidden: true });
+  const reload = async () => { Object.assign(p, await store.getPost(id).catch(() => p)); paintHero(); paintBar(); };
+  const paintBar = () => adminBar.replaceChildren(h('span', { class: 'mono' }, 'Admin'),
+    h('button', { class: 'btn small', type: 'button', onclick: () => pickPostImage(p, reload) }, p.image_url ? 'Zmeniť titulnú fotku' : 'Pridať titulnú fotku'),
+    p.image_url ? h('button', { class: 'btn small', type: 'button', onclick: () => removePostImage(p, reload) }, 'Odstrániť fotku') : null,
+    h('button', { class: 'btn small', type: 'button', onclick: () => postDialog(p, reload) }, 'Upraviť článok'));
+  store.isAdmin().then(ok => { if (ok) { paintBar(); adminBar.hidden = false; } }).catch(() => {});
   root.append(h('article', { class: 'post' },
-    p.image_url ? h('div', { class: 'post-hero' }, h('img', { src: p.image_url, alt: '' })) : null,
+    adminBar, heroBox,
     h('div', { class: 'wrap post-in' },
       h('a', { class: 'back', href: '#/novinky' }, '← Všetky novinky'),
       h('p', { class: 'mono post-meta' }, [fmtDateTime(p.created_at), p.author].filter(Boolean).join(' · ')),
@@ -1740,6 +1764,8 @@ async function pageAdmin(root) {
       p.image_url && h('img', { class: 'thumb', src: p.image_url, alt: '' }),
       h('span', {}, h('b', {}, p.title), ` · ${fmtDateTime(p.created_at)}`, p.pinned ? ' · pripnuté' : '', p.published === false ? ' · skryté' : ''),
       h('a', { href: '#/novinka/' + p.id }, 'pozrieť'),
+      h('button', { class: 'btn small', type: 'button', onclick: () => pickPostImage(p, renderPosts) }, p.image_url ? 'Zmeniť fotku' : 'Pridať fotku'),
+      p.image_url ? h('button', { class: 'btn small', type: 'button', onclick: () => removePostImage(p, renderPosts) }, 'Odstrániť fotku') : null,
       h('button', { class: 'btn small', type: 'button', onclick: () => postDialog(p, renderPosts) }, 'Upraviť'),
       h('button', { class: 'btn small', type: 'button', onclick: async () => { if (!confirm(`Zmazať novinku „${p.title}“?`)) return; await store.deletePost(p.id); renderPosts(); } }, 'Zmazať')))) : h('p', { class: 'empty' }, 'Zatiaľ žiadne novinky.'));
   }
