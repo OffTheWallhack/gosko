@@ -23,7 +23,7 @@ export async function pageSoon(root, ctx, which) {
 export async function pageCrewBoard(root, ctx) {
   const { body } = gameShell(root, 'board');
   await loadGameCss();
-  const listEl = h('ol', { class: 'g-board' }, h('li', { class: 'g-hint' }, T.hud.loading));
+  const listEl = h('ol', { class: 'g-board' }, h('li', { class: 'g-hint' }, T.hud.loadingList));
   body.append(h('div', { class: 'g-page' },
     h('header', { class: 'g-page-head' }, h('h1', { class: 'wide' }, T.board.title), h('p', {}, T.board.lead)),
     listEl,

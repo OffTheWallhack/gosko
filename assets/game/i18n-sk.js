@@ -11,6 +11,7 @@ export const T = {
     list: 'Zoznam spotov',
     mapLabel: 'Herná mapa spotov',
     loading: 'Načítavam spoty…',
+    loadingList: 'Načítavam…',
     noServer: 'Hra potrebuje spojenie so serverom GOSko. Skontroluj pripojenie a obnov stránku.',
     loadFailed: 'Spoty sa nepodarilo načítať. Skús to znova o chvíľu.',
     mapFailed: 'Mapový podklad sa nenačítal. Spoty sú aj tak tu, ťukni na ne.',
