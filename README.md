@@ -9,6 +9,12 @@ na adrese `#/admin` so skenerom na check-in (`#/admin/scan`).
 Web sa dá pridať na plochu telefónu ako appka a funguje aj bez signálu
 (okrem vecí, ktoré potrebujú internet: mapa, video, formuláre).
 
+Hra **Ghoskate** (herná mapa spotov, check-in, crew) je samostatná appka na `/hra`
+(`/hra/spot/<id>`, `/hra/profil`, `/hra/crew`, `/hra/rebricek`, `/hra/feed`, `/hra/loadout`) s vlastnou
+hornou lištou, spodným menu a manifestom `ghoskate.webmanifest`, takže sa dá na plochu pridať zvlášť.
+Staré adresy `/mapa`, `/spot/<id>`, `/feed`, `/loadout` presmeruje Vercel (`vercel.json` redirects),
+hash tvar z e-mailov (`#/mapa`) prepíše router v prehliadači.
+
 ## Súbory
 
 ```
@@ -25,7 +31,9 @@ assets/qr.js          QR passy a skener na check-in
 assets/pwa.js         pridanie na plochu
 sw.js                 offline režim (pri väčšej zmene zvýš VERSION)
 manifest.webmanifest  nastavenie appky na ploche
-icons/                ikony appky
+ghoskate.webmanifest  appka Ghoskate (hra na /hra) na ploche
+assets/game/          hra Ghoskate (načíta sa až na /hra)
+icons/                ikony appky (ghoskate-* sú ikony hry)
 assets/style.css      vzhľad
 img/                  logo a fotky
 supabase-setup.sql    databáza pre ostrý režim (základ)

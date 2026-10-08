@@ -81,6 +81,15 @@
       ]
     },
     {
+      "source": "/ghoskate.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -115,6 +124,33 @@
           "value": "public, max-age=86400"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/mapa",
+      "destination": "/hra",
+      "permanent": true
+    },
+    {
+      "source": "/mapa/",
+      "destination": "/hra",
+      "permanent": true
+    },
+    {
+      "source": "/spot/:id",
+      "destination": "/hra/spot/:id",
+      "permanent": true
+    },
+    {
+      "source": "/feed",
+      "destination": "/hra/feed",
+      "permanent": true
+    },
+    {
+      "source": "/loadout",
+      "destination": "/hra/loadout",
+      "permanent": true
     }
   ],
   "rewrites": [

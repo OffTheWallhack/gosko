@@ -3,12 +3,12 @@
 import { T } from './i18n-sk.js';
 import { ageAt, U16_LIMIT } from '../register.js';
 
+/* Spodné menu appky Ghoskate (/hra). FEED a LOADOUT sú zatiaľ „čoskoro“ na /hra/feed a /hra/loadout, mimo menu. */
 export const GAME_MENU = [
-  { id: 'map', label: T.menu.map, href: '#/mapa' },
-  { id: 'feed', label: T.menu.feed, href: '#/feed' },
+  { id: 'map', label: T.menu.map, href: '#/hra' },
   { id: 'crew', label: T.menu.crew, href: '#/hra/crew' },   // #/crew je Robova stránka crew z data.js
   { id: 'board', label: T.menu.board, href: '#/hra/rebricek' },
-  { id: 'loadout', label: T.menu.loadout, href: '#/loadout' },
+  { id: 'profile', label: T.menu.profile, href: '#/hra/profil' },
 ];
 
 /* ---------- vzdialenosť ---------- */

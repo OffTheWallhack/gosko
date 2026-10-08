@@ -1,6 +1,6 @@
 /* GOSko service worker: web funguje aj offline a dá sa pridať na plochu.
    Pri zmene webu zvýš číslo verzie. */
-const VERSION = 'gosko-v20';
+const VERSION = 'gosko-v21';
 const SHELL = ['./', 'index.html', 'data.js', 'assets/style.css', 'assets/app.js', 'assets/ranking.js', 'assets/util.js', 'assets/board.js', 'assets/park.js',
   'assets/store.js', 'assets/api.js', 'assets/login.js', 'assets/register.js', 'assets/pages.js', 'assets/deco.js', 'assets/badges.js', 'assets/card.js', 'assets/qr.js', 'assets/map.js', 'assets/pwa.js', 'assets/bracket.js', 'assets/crt.js', 'assets/mascot.js',
   'assets/vendor/supabase-2.117.2.js', 'assets/vendor/qrcode-generator-1.4.4.js',
@@ -8,7 +8,9 @@ const SHELL = ['./', 'index.html', 'data.js', 'assets/style.css', 'assets/app.js
   'assets/game/index.js', 'assets/game/map.js', 'assets/game/spot.js', 'assets/game/checkin.js', 'assets/game/onboarding.js', 'assets/game/pages.js',
   'assets/game/api.js', 'assets/game/auth.js', 'assets/game/return.js', 'assets/game/logic.js', 'assets/game/ui.js', 'assets/game/i18n-sk.js', 'assets/game/game.css',
   'img/logo.webp', 'img/ghost.svg', 'img/gosko-wordmark.svg', 'img/gosko-wordmark-cream.svg', 'img/gosko-wordmark-plain.svg', 'img/hero-poster.jpg', 'img/sticker-cut.webp',
-  'icons/icon-192.png', 'manifest.webmanifest'];
+  'icons/icon-192.png', 'manifest.webmanifest',
+  /* Ghoskate ako samostatná appka na /hra: vlastný manifest a ikony */
+  'ghoskate.webmanifest', 'icons/ghoskate-192.png', 'icons/ghoskate-512.png', 'icons/ghoskate-apple-touch.png'];
 /* cudzie zdroje, ktoré sa smú cachovať (knižnice a fonty s verziou v adrese) */
 const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 

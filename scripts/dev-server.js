@@ -12,8 +12,10 @@
 //
 //  - `rewrites` z vercel.json ako na Verceli: až keď pre cestu neexistuje súbor (skutočné adresy webu, napr. /eventy -> /index.html).
 //
-// Obmedzenia: pravidlá `headers`/`rewrites` s `has`/`missing` sa ignorujú, `redirects`/`cleanUrls` sa
-// nepodporujú (GOSko ich nepoužíva). Handler sa pri zmene súboru načíta znova,
+//  - `redirects` z vercel.json ako na Verceli: pred súbormi aj rewrites, `:param` v ceste, query ostáva (308/307).
+//
+// Obmedzenia: pravidlá `headers`/`rewrites`/`redirects` s `has`/`missing` sa ignorujú, `cleanUrls` sa
+// nepodporuje (GOSko ho nepoužíva). Handler sa pri zmene súboru načíta znova,
 // ale pomocné moduly, ktoré importuje (napr. api/_lib/*), sa znova nenačítajú: po ich zmene server reštartuj.
 
 import http from 'node:http';
@@ -84,6 +86,20 @@ export function matchRewrite(config, pathname) {
   for (const rule of config?.rewrites ?? []) {
     if (rule.has?.length || rule.missing?.length) continue;
     if (sourceToRegExp(rule.source).test(pathname)) return rule.destination;
+  }
+  return null;
+}
+
+/** Presmerovanie z `redirects` pre `pathname` (bez `has`/`missing`): { location, status } alebo null.
+ *  `:param` z cesty sa dosadí do cieľa; permanent (predvolene true ako na Verceli) dá 308, inak 307, statusCode má prednosť. */
+export function matchRedirect(config, pathname) {
+  for (const rule of config?.redirects ?? []) {
+    if (rule.has?.length || rule.missing?.length) continue;
+    const m = sourceToRegExp(rule.source).exec(pathname);
+    if (!m) continue;
+    const names = [...rule.source.matchAll(/:([A-Za-z_]\w*)/g)].map(x => x[1]);
+    const location = rule.destination.replace(/:([A-Za-z_]\w*)/g, (all, name) => { const i = names.indexOf(name); return i === -1 ? all : (m[i + 1] ?? ''); });
+    return { location, status: rule.statusCode ?? (rule.permanent === false ? 307 : 308) };
   }
   return null;
 }
@@ -465,6 +481,14 @@ export function createDevServer({ root = resolve(import.meta.dirname, '..'), log
 
     // hlavičky z vercel.json idú na každú odpoveď (aj 404 a /api); handler ich môže prepísať
     for (const [key, value] of matchHeaders(getConfig(), pathname)) res.setHeader(key, value);
+
+    // redirects majú na Verceli prednosť pred súbormi, /api aj rewrites
+    const redirect = matchRedirect(getConfig(), pathname);
+    if (redirect) {
+      res.statusCode = redirect.status;
+      res.setHeader('Location', redirect.location + (search ? `?${search}` : ''));
+      return res.end();
+    }
 
     if (pathname === '/api' || pathname.startsWith('/api/')) {
       const route = await resolveApiRoute(root, pathname);

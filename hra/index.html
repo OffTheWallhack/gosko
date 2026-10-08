@@ -5,28 +5,28 @@
 <!-- web beží v koreni domény; relatívne odkazy (eventy, assets/…) sa rátajú od / aj na /event/… -->
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mapa spotov | GOSko</title>
-<meta name="description" content="Herná mapa skate spotov na Slovensku: check-in na spote, crew a body v hre Ghoskate.">
-<link rel="canonical" href="https://gosko.sk/mapa/">
+<title>Ghoskate | GOSko</title>
+<meta name="description" content="Ghoskate, hra od GOSko: herná mapa skate spotov na Slovensku, check-in na spote, crew, body a rebríček. Pridaj si ju na plochu ako appku.">
+<link rel="canonical" href="https://gosko.sk/hra/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GOSko">
 <meta property="og:locale" content="sk_SK">
-<meta property="og:title" content="Mapa spotov | GOSko">
-<meta property="og:description" content="Herná mapa skate spotov na Slovensku: check-in na spote, crew a body v hre Ghoskate.">
-<meta property="og:url" content="https://gosko.sk/mapa/">
-<meta property="og:image" content="https://gosko.sk/img/og/ba-podium.jpg">
+<meta property="og:title" content="Ghoskate | GOSko">
+<meta property="og:description" content="Ghoskate, hra od GOSko: herná mapa skate spotov na Slovensku, check-in na spote, crew, body a rebríček. Pridaj si ju na plochu ako appku.">
+<meta property="og:url" content="https://gosko.sk/hra/">
+<meta property="og:image" content="https://gosko.sk/img/og/ba-trick-5.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0e0d0c">
+<meta name="theme-color" content="#14111C">
 <!-- Verejná adresa webu. Sociálne siete potrebujú absolútne URL, preto je https://gosko.sk vypísaná aj nižšie;
      pri zmene domény ju zmeň v celom bloku (a v redirect/index.html) a pregeneruj stránky: node scripts/build-pages.mjs -->
 <meta name="gosko:base-url" content="https://gosko.sk">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/ghoskate-apple-touch.png">
+<link rel="manifest" href="ghoskate.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="GOSko">
+<meta name="apple-mobile-web-app-title" content="Ghoskate">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;600&family=Pirata+One&display=swap">
@@ -47,9 +47,10 @@
       <a href="eventy" data-nav="eventy">Eventy</a>
       <a href="rebricek" data-nav="rebricek">Rebríček</a>
       <a href="komunita" data-nav="komunita">Komunita</a>
-      <a href="mapa" data-nav="mapa">Mapa</a>
+      <a class="nav-game" href="hra" data-nav="hra">Ghoskate</a>
     </nav>
     <div class="top-right">
+      <a class="game-pill" href="hra" aria-label="Hra Ghoskate"><img src="img/ghost.svg" alt="" width="16" height="18"><span>Hra</span></a>
       <a class="acct" id="acct" href="profil"><img src="img/ghost.svg" alt="" width="20" height="22"><span>Prihlásiť</span></a>
       <button class="menu-btn" id="menu-open" type="button" aria-haspopup="dialog">Menu</button>
     </div>
@@ -72,11 +73,11 @@
       <a href="komunita">Komunita a Discord</a>
       <a href="trik-tyzdna">Trik týždňa</a>
       <a href="crew">Crew</a>
-      <a href="mapa">Mapa spotov (hra)</a>
       <a href="spoty">Skateparky a hodnotenia</a>
     </nav>
     <nav aria-label="Hraj sa">
       <p class="mono">Hraj sa</p>
+      <a class="menu-game" href="hra">Ghoskate: herná mapa spotov</a>
       <a href="doska">Navrhni si dosku</a>
       <a href="parky">Postav si skatepark</a>
       <a href="shop">Shop</a>
@@ -100,7 +101,7 @@
   <a href="komunita" data-tab="komunita"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c.8-3.3 3.2-5 6-5s5.2 1.7 6 5M12 17c.9-1.4 2.3-2 4-2 2.8 0 5.2 1.7 6 5"/></svg><span>Komunita</span></a>
   <a href="profil" data-tab="profil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21v-9a7 7 0 0114 0v9l-2.3-1.6L14.3 21 12 19.4 9.7 21l-2.4-1.6z"/><circle cx="9.5" cy="11" r="1"/><circle cx="14.5" cy="11" r="1"/></svg><span>Profil</span></a>
 </nav>
-<main id="main" tabindex="-1"><div class="wrap seo-pre"><h1>Mapa spotov</h1><p>Herná mapa skate spotov na Slovensku: check-in na spote, crew a body v hre Ghoskate.</p></div></main>
+<main id="main" tabindex="-1"><div class="wrap seo-pre"><h1>Ghoskate</h1><p>Ghoskate, hra od GOSko: herná mapa skate spotov na Slovensku, check-in na spote, crew, body a rebríček. Pridaj si ju na plochu ako appku.</p></div></main>
 
 <footer>
   <div class="wrap">
@@ -108,7 +109,7 @@
     <p>GOSko robí komunita pre komunitu. Game of S.K.A.T.E. súťaže po Slovensku.<br><small>Slovenská Federácia Skateboardingu, o. z. (v príprave)</small></p>
     <div class="foot-cols">
       <nav aria-label="GOSko"><b class="mono">GOSko</b><a href="eventy">Eventy</a><a href="rebricek">Rebríček</a><a href="sien-slavy">Sieň slávy</a><a href="novinky">Novinky</a><a href="hub/">Event hub</a></nav>
-      <nav aria-label="Komunita"><b class="mono">Komunita</b><a href="komunita">Discord a komunita</a><a href="trik-tyzdna">Trik týždňa</a><a href="crew">Crew</a><a href="mapa">Mapa spotov</a></nav>
+      <nav aria-label="Komunita"><b class="mono">Komunita</b><a href="komunita">Discord a komunita</a><a href="trik-tyzdna">Trik týždňa</a><a href="crew">Crew</a><a href="hra">Ghoskate (hra)</a></nav>
       <nav aria-label="Info"><b class="mono">Info</b><a href="o-nas">Kto sme</a><a href="rodicia">Pre rodičov</a><a href="partneri">Pre partnerov</a><a href="rebricek/pravidla">Pravidlá rebríčka</a><a href="sukromie">Ochrana súkromia</a><a href="profil">Môj profil</a></nav>
       <div class="foot-act"><button class="btn small" id="footer-news" type="button">Odber noviniek</button><a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a></div>
     </div>

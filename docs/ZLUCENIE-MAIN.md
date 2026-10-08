@@ -32,7 +32,7 @@ naša Supabase v `data.js` a CSP.
 
 | Vec | Robova (web) | Naša (hra Ghoskate) |
 |---|---|---|
-| Mapa | `/spoty`: skateparky zo `SKATEPARKS`, spoty od komunity, hodnotenie hviezdičkami, spot mesiaca | `/mapa`: MapLibre mapa spotov, check-in do 150 m, holo karta, crew a loot |
+| Mapa | `/spoty`: skateparky zo `SKATEPARKS`, spoty od komunity, hodnotenie hviezdičkami, spot mesiaca | `/hra` (appka Ghoskate, predtým `/mapa`): MapLibre mapa spotov, check-in do 150 m, holo karta, crew a loot; spot na `/hra/spot/<id>` |
 | Hodnotenie spotov | tabuľka **`spot_reviews`** (v jeho databáze `spot_ratings`): hviezdičky 1 až 5 a štítky podľa `spot_key` (`park:<slug>`, `spot:<id>`) | tabuľka `spot_ratings`: lebky 1 až 5 podľa `spot_id` a hráča (`010_game_core.sql`) |
 | Crew | `/crew`, `/crew/<id>`: partie z `data.js` (`CREWS`), členovia z profilu jazdca | herné crew v databáze (`011_game_crews.sql`), v hre zatiaľ „čoskoro“ na **`/hra/crew`** |
 | Profil | `/profil`: účet, heslo, XP a odznaky, profil jazdca („Som to ja“) | `/hra/profil`: hráčsky profil (prezývka, mesto, súhlas rodiča) |
@@ -43,6 +43,25 @@ Názov `spot_ratings` mal každý inak, preto Robova tabuľka u nás dostala men
 buď tabuľku premenovať, alebo v `store.js` vrátiť `spot_ratings`.
 
 Herná crew bola na `#/crew`. Robova stránka crew dostala `#/crew`, hra sa presunula na `#/hra/crew`.
+
+### Hra Ghoskate ako samostatná appka na `/hra` (8. 10. 2026)
+
+- Všetky herné stránky sú pod `/hra`: `/hra` (mapa), `/hra/spot/<id>`, `/hra/profil`, `/hra/crew`, `/hra/rebricek`,
+  `/hra/potvrdene`, `/hra/feed`, `/hra/loadout`. Router v `assets/app.js` pozná len tieto; staré tvary prepíše
+  `legacyGameRoute()` v `assets/game/return.js`.
+- Staré adresy: `/mapa`, `/mapa/`, `/spot/<id>`, `/feed`, `/loadout` presmeruje Vercel (`redirects` vo `vercel.json`, 308,
+  pred súbormi). Hash z e-mailov a starých záložiek (`#/mapa`, `#/spot/<id>`) prepíše router v prehliadači.
+  `scripts/dev-server.js` vie `redirects` tiež. Odkaz zo súhlasu rodiča (`api/consent.js`, `#/hra/potvrdene`) sa nemenil.
+- Na `/hra/*` má body triedu `game-app`: hlavička, spodné menu a pätička webu sú skryté, hra má vlastnú hornú lištu
+  (Ghoskate, „← GOSko“ späť na web) a spodné menu MAPA, CREW, REBRÍČEK, PROFIL. FEED a LOADOUT sú „čoskoro“ mimo menu.
+- `<head>` sa v hre prepne na `ghoskate.webmanifest` (id a start_url `/hra`), `apple-mobile-web-app-title` Ghoskate,
+  ikonu `icons/ghoskate-apple-touch.png` a farbu `#14111C`; mimo hry späť na GOSko. Statická stránka `hra/index.html`
+  (náhľad pre zdieľanie, `scripts/build-pages.mjs`) to má priamo v HTML. Robova `mapa/index.html` je zmazaná, `/mapa`
+  ju aj tak preskočí presmerovaním.
+- Vstup z webu: „Ghoskate“ v hlavnom menu, nálepka „Hra“ v hlavičke na mobile, „Hraj sa“ v menu, pätička, karta na úvodke
+  a tlačidlo na Robovej `/spoty`. Robova `/spoty` je inak bez zmeny.
+- Pri návrate do `main`: Robove GitHub Pages (`/gosko/`) by potrebovali presmerovanie `/mapa` v `404.html`, `redirects`
+  z `vercel.json` tam neplatia. Manifest hry má absolútne `/hra`, na Pages by bol `start_url` mimo `/gosko/`.
 
 ### Databáza: `supabase/migrations/015_main_sync2.sql`
 
@@ -80,4 +99,4 @@ Odkaz z e-mailu vedie vždy na koreň webu (v Supabase stačí mať adresu webu 
   hashom, CSP hash importmapy je prepočítaný.
 - Robove odkazy z databázy (kalendár, sociálne siete eventu, klipy v admine) idú cez `safeUrl`.
 - Herné stránky sú bez pásu eventov a spoločnej pätičky.
-- Service worker `gosko-v20` (Robo mal v19, my v16).
+- Service worker `gosko-v20` (Robo mal v19, my v16), s appkou Ghoskate `gosko-v21`.

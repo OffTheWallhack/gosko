@@ -1,4 +1,4 @@
-/* Herná mapa (#/mapa, #/spot/:id): MapLibre GL (assets/vendor, bez CDN) s tmavými dlaždicami OpenFreeMap.
+/* Herná mapa (#/hra, #/hra/spot/:id): MapLibre GL (assets/vendor, bez CDN) s tmavými dlaždicami OpenFreeMap.
    Piny zo spot_summary: farba a TAG crew, pulz podľa ľudí na spote, ikona lootu. Detail spotu je holo karta
    (spot.js), check-in cez GPS (checkin.js), nový spot dlhým podržaním na mape.
    Keď sa mapový štýl nenačíta (offline, blokované dlaždice), piny a karta fungujú ďalej; bez WebGL sa
@@ -176,7 +176,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
   function closeSheet() {
     S.sheet?.close(); S.sheet = null; S.sheetId = null;
     S.temp?.remove(); S.temp = null;
-    if (/^#\/spot\//.test(currentRoute())) history.replaceState(null, '', routeUrl('#/mapa'));
+    if (/^#\/hra\/spot\//.test(currentRoute())) history.replaceState(null, '', routeUrl('#/hra'));
   }
 
   async function openSpot(id) {
@@ -185,7 +185,7 @@ export async function pageGameMap(root, ctx, spotId = null) {
     closeSheet();
     S.sheetId = id;
     S.myRating = null;
-    history.replaceState(null, '', routeUrl(`#/spot/${id}`));
+    history.replaceState(null, '', routeUrl(`#/hra/spot/${id}`));
     if (S.map) S.map[reduced ? 'jumpTo' : 'easeTo']({ center: [row.lng, row.lat], zoom: Math.max(S.map.getZoom(), 15), offset: [0, -120] });
     S.sheet = spotSheet(body, {
       ...sheetState(row),

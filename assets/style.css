@@ -1869,8 +1869,35 @@ body.bars-up .er-top{transform:translateY(calc(-100% - 62px))}
 .menu-groups nav{display:grid;gap:2px}
 .menu-groups .mono{margin:0 0 6px;color:#e2a39b;font-size:.7rem}
 
+/* vstup do hry Ghoskate z hlavičky webu: v menu výrazne, na mobile ako nálepka vedľa Menu */
+.nav a.nav-game{color:#14111C;background:#FF3DA5;padding:6px 10px 5px;border-bottom:0;transform:rotate(-2deg);box-shadow:3px 3px 0 rgba(0,0,0,.6)}
+.nav a.nav-game:hover,.nav a.nav-game[aria-current]{color:#14111C;background:var(--cream)}
+.game-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px 5px;background:#FF3DA5;color:#14111C;text-decoration:none;font-weight:900;
+  font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;transform:rotate(-2deg);box-shadow:3px 3px 0 rgba(0,0,0,.6)}
+.game-pill img{filter:brightness(0)}
+@media (min-width:980px){ .game-pill{display:none} }
+.menu-groups a.menu-game{color:#FF3DA5;font-weight:800}
+
+/* úvodka: karta hry Ghoskate (farby z assets/game/game.css) */
+.gk-band{padding:28px 0}
+.gk-card{display:flex;align-items:center;gap:18px;padding:18px 20px;background:#14111C;color:#F3EBDD;text-decoration:none;border:3px solid #FF3DA5;
+  box-shadow:6px 7px 0 rgba(0,0,0,.65);transform:rotate(-.6deg);transition:transform .15s}
+.gk-card:hover,.gk-card:focus-visible{transform:rotate(0) translate(-2px,-2px)}
+.gk-icon{width:84px;height:84px;flex:none;border-radius:18px}
+.gk-body{display:grid;gap:4px}
+.gk-k{color:#FF3DA5;font-size:.72rem}
+.gk-t{font-size:clamp(1.8rem,5vw,2.6rem);line-height:1;text-transform:uppercase}
+.gk-d{color:#d9d1c4;max-width:60ch}
+.gk-cta{font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#6FF3FF}
+@media (max-width:520px){ .gk-card{flex-direction:column;align-items:flex-start} .gk-icon{width:64px;height:64px} }
+
 /* spodné menu ako v appke */
 .tabbar{display:none}
+/* appka Ghoskate (/hra): bez hlavičky, spodného menu a pätičky webu; hra má vlastnú lištu a menu (assets/game/ui.js).
+   Trieda sa nastaví v app.js ešte pred načítaním hry, aby hlavička webu neblikla. */
+body.game-app .topbar,body.game-app .tabbar,body.game-app footer{display:none!important}
+body.game-app{padding-bottom:0!important;background:#14111C}
+body.game-app .install{bottom:calc(76px + env(safe-area-inset-bottom,0px))}   /* nad herným menu */
 @media (max-width:760px){
   .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));background:rgba(14,13,12,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line-dark)}
   .tabbar a{display:grid;justify-items:center;gap:3px;padding:4px 0;color:var(--muted-dark);text-decoration:none;font-family:var(--f-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase}

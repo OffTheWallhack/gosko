@@ -1,0 +1,18 @@
+{
+  "id": "/hra",
+  "name": "Ghoskate",
+  "short_name": "Ghoskate",
+  "description": "Ghoskate: herná mapa skate spotov od GOSko. Check-in na spote, crew, body a rebríček.",
+  "lang": "sk",
+  "start_url": "/hra",
+  "scope": "/hra",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#14111C",
+  "theme_color": "#14111C",
+  "icons": [
+    { "src": "icons/ghoskate-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/ghoskate-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/ghoskate-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

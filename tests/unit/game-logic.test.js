@@ -172,9 +172,9 @@ describe('texty hry', () => {
     const walk = o => Object.values(o).flatMap(v => (typeof v === 'string' ? [v] : typeof v === 'object' && v ? walk(v) : []));
     for (const s of walk(T)) assert.doesNotMatch(s, LONG_DASH, s);
   });
-  test('spodné menu: MAPA · FEED · CREW · REBRÍČEK · LOADOUT', () => {
-    assert.deepEqual(G.GAME_MENU.map(m => m.label), ['MAPA', 'FEED', 'CREW', 'REBRÍČEK', 'LOADOUT']);
-    for (const m of G.GAME_MENU) assert.match(m.href, /^#\//);
+  test('spodné menu appky Ghoskate: MAPA · CREW · REBRÍČEK · PROFIL, všetko pod #/hra', () => {
+    assert.deepEqual(G.GAME_MENU.map(m => m.label), ['MAPA', 'CREW', 'REBRÍČEK', 'PROFIL']);
+    assert.deepEqual(G.GAME_MENU.map(m => m.href), ['#/hra', '#/hra/crew', '#/hra/rebricek', '#/hra/profil']);
   });
 });
 
@@ -186,26 +186,41 @@ describe('návrat do hry po prihlásení odkazom', async () => {
     const st = mem({ hash: '#/spot/abc-1', at: now - 60_000 });
     assert.equal(consumeReturn(now, st), '#/spot/abc-1');
     assert.equal(consumeReturn(now, st), '');
-    assert.equal(consumeReturn(now, mem({ hash: '#/mapa', at: now - 31 * 60_000 })), '');
+    assert.equal(consumeReturn(now, mem({ hash: '#/hra', at: now - 31 * 60_000 })), '');
     assert.equal(consumeReturn(now, mem({ hash: 'javascript:alert(1)', at: now })), '');
     assert.equal(consumeReturn(now, mem({ hash: '#/x?y=<z>', at: now })), '');
     assert.equal(consumeReturn(now, mem()), '');
   });
 });
 
-describe('skutočné adresy pre hru (web má /mapa, /spot/…, starý tvar #/… platí tiež)', async () => {
-  const { currentRoute, routeUrl } = await import('../../assets/game/return.js');
+describe('skutočné adresy pre hru (appka Ghoskate na /hra, starý tvar #/… platí tiež)', async () => {
+  const { currentRoute, routeUrl, legacyGameRoute, isGameRoute, appHead } = await import('../../assets/game/return.js');
   const loc = (pathname, hash = '') => ({ pathname, hash });
   test('currentRoute: cesta pod base aj starý hash', () => {
-    assert.equal(currentRoute(loc('/spot/abc-1'), '/'), '#/spot/abc-1');
-    assert.equal(currentRoute(loc('/mapa/'), '/'), '#/mapa');
+    assert.equal(currentRoute(loc('/hra/spot/abc-1'), '/'), '#/hra/spot/abc-1');
+    assert.equal(currentRoute(loc('/hra/'), '/'), '#/hra');
     assert.equal(currentRoute(loc('/'), '/'), '#/');
     assert.equal(currentRoute(loc('/gosko/hra/profil'), '/gosko/'), '#/hra/profil');
-    assert.equal(currentRoute(loc('/mapa', '#/spot/x'), '/'), '#/spot/x');
+    assert.equal(currentRoute(loc('/hra', '#/spot/x'), '/'), '#/spot/x');
   });
   test('routeUrl: #/… na cestu pod base', () => {
-    assert.equal(routeUrl('#/mapa', '/'), '/mapa');
-    assert.equal(routeUrl('#/spot/abc', '/gosko/'), '/gosko/spot/abc');
+    assert.equal(routeUrl('#/hra', '/'), '/hra');
+    assert.equal(routeUrl('#/hra/spot/abc', '/gosko/'), '/gosko/hra/spot/abc');
+  });
+  test('staré herné adresy vedú pod /hra (aj odkazy z e-mailov a zapamätaný návrat)', () => {
+    assert.equal(legacyGameRoute('#/mapa'), '#/hra');
+    assert.equal(legacyGameRoute('#/spot/5a000000-0000-4000-8000-000000000001'), '#/hra/spot/5a000000-0000-4000-8000-000000000001');
+    assert.equal(legacyGameRoute('#/feed'), '#/hra/feed');
+    assert.equal(legacyGameRoute('#/loadout'), '#/hra/loadout');
+    for (const ok of ['#/hra', '#/hra/spot/x', '#/spoty', '#/crew', '#/crew/x', '#/', '#/mapa/x', '#/spotx']) assert.equal(legacyGameRoute(ok), null, ok);
+  });
+  test('isGameRoute: herná appka je len /hra a všetko pod ňou', () => {
+    for (const r of ['#/hra', '#/hra/spot/x', '#/hra/profil', '#/hra/crew', '#/hra/rebricek', '#/hra/potvrdene', '#/hra/feed', '#/hra/loadout']) assert.ok(isGameRoute(r), r);
+    for (const r of ['#/', '#/spoty', '#/crew', '#/rebricek', '#/hrac', '#/mapa', '#/profil']) assert.ok(!isGameRoute(r), r);
+  });
+  test('appHead: v hre manifest, názov a farba Ghoskate, mimo hry GOSko', () => {
+    assert.deepEqual(appHead(true), { manifest: 'ghoskate.webmanifest', title: 'Ghoskate', theme: '#14111C', icon: 'icons/ghoskate-apple-touch.png' });
+    assert.deepEqual(appHead(false), { manifest: 'manifest.webmanifest', title: 'GOSko', theme: '#0e0d0c', icon: 'icons/apple-touch-icon.png' });
   });
   test('herná crew nekoliduje s Robovou stránkou #/crew', () => {
     assert.equal(G.GAME_MENU.find(m => m.id === 'crew').href, '#/hra/crew');

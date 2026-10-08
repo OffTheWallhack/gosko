@@ -14,6 +14,7 @@ const metaBase = /<meta name="gosko:base-url" content="([^"]+)">/.exec(template0
 const SITE_URL = (process.env.SITE_URL || metaBase || 'https://offthewallhack.github.io/gosko/').replace(/\/?$/, '/');
 const BASE_PATH = new URL(SITE_URL).pathname;
 const { CONFIG, SITE, EVENTS, RIDERS = {}, CREWS = [] } = await import(join(ROOT, 'data.js'));
+const { appHead } = await import(join(ROOT, 'assets/game/return.js'));
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -24,7 +25,7 @@ const clip = (s, n = 180) => { s = String(s || '').replace(/\s+/g, ' ').trim(); 
 
 const template = template0.replace(/<base href="[^"]*">/, `<base href="${BASE_PATH}">`);
 const pages = [];
-function page(path, { title, description, image, body = '', type = 'website' }) {
+function page(path, { title, description, image, body = '', type = 'website', head = null }) {
   const url = SITE_URL + (path ? path + '/' : '');
   const full = title ? `${title} | GOSko` : 'GOSko | Game of S.K.A.T.E. na Slovensku';
   let html = template
@@ -39,6 +40,12 @@ function page(path, { title, description, image, body = '', type = 'website' }) 
       `<meta name="twitter:card" content="summary_large_image">`, '<meta name="theme-color"'].join('\n'));
   // obsah pre vyhľadávače a prehliadače bez JavaScriptu; aplikácia ho po načítaní nahradí
   html = html.replace(/<main id="main"([^>]*)>[\s\S]*?<\/main>/, `<main id="main"$1><div class="wrap seo-pre"><h1>${esc(title || 'GOSko')}</h1><p>${esc(description)}</p>${body}</div></main>`);
+  /* samostatná appka (Ghoskate na /hra): vlastný manifest, názov na ploche, ikona a farba lišty už v HTML, nech sa dá hneď inštalovať */
+  if (head) html = html
+    .replace(/<link rel="manifest" href="[^"]*">/, `<link rel="manifest" href="${head.manifest}">`)
+    .replace(/<meta name="apple-mobile-web-app-title" content="[^"]*">/, `<meta name="apple-mobile-web-app-title" content="${esc(head.title)}">`)
+    .replace(/<link rel="apple-touch-icon" href="[^"]*">/, `<link rel="apple-touch-icon" href="${head.icon}">`)
+    .replace(/<meta name="theme-color" content="[^"]*">/, `<meta name="theme-color" content="${head.theme}">`);
   if (path) { mkdirSync(join(ROOT, path), { recursive: true }); writeFileSync(join(ROOT, path, 'index.html'), html); }
   pages.push(path);
   return html;
@@ -70,7 +77,7 @@ const SECTIONS = [
   ['jazdci', 'Jazdci', 'Skejteri, ktorí jazdili GOSko: profily, výsledky a dosky.'],
   ['sien-slavy', 'Sieň slávy', 'Víťazi GOSko eventov a ocenenia.'],
   ['novinky', 'Novinky', 'Čo sa deje v GOSku a na skate scéne.'],
-  ['mapa', 'Mapa spotov', 'Herná mapa skate spotov na Slovensku: check-in na spote, crew a body v hre Ghoskate.'],
+  ['hra', 'Ghoskate', 'Ghoskate, hra od GOSko: herná mapa skate spotov na Slovensku, check-in na spote, crew, body a rebríček. Pridaj si ju na plochu ako appku.'],
   ['spoty', 'Skateparky a spoty', 'Skateparky a street spoty na Slovensku s hodnotením. Pridaj aj svoj spot a ohodnoť ostatné.'],
   ['parky', 'Postav si skatepark', '3D stavebnica skateparku. Najlepšie parky podľa hlasov idú do top 10.'],
   ['doska', 'Navrhni si dosku', 'Tvoja 3D skateboard doska s nálepkami z GOSko eventov.'],
@@ -93,7 +100,9 @@ writeFileSync(join(ROOT, 'index.html'), template0.replace(/<main id="main"([^>]*
   `<main id="main"$1><div class="wrap seo-pre"><h1>GOSko</h1><p>${esc(homeDesc)}</p>${homeBody}</div></main>`));
 writeFileSync(join(ROOT, '404.html'), home.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"'));
 
-for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d,
+/* staré /mapa presmeruje Vercel na /hra (vercel.json redirects), stránka mapa/ by sa nikdy neukázala */
+if (existsSync(join(ROOT, 'mapa'))) rmSync(join(ROOT, 'mapa'), { recursive: true, force: true });
+for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d, head: p === 'hra' ? appHead(true) : null, image: p === 'hra' ? 'img/ba-trick-5.webp' : undefined,
   body: p === 'eventy' ? list(EVENTS.map(e => link(`event/${e.id}`, e.name))) : p === 'jazdci' || p === 'rebricek' ? list([...riders.values()].map(r => link(`jazdec/${r.slug}`, r.name))) : p === 'novinky' ? list(posts.map(x => link(`novinka/${x.id}`, x.title))) : '' });
 for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', image: e.photos?.[0]?.src,
   description: clip([e.status === 'next' ? 'Ďalší stop GOSko' : 'GOSko', e.place, e.date ? fmt(e.date) : e.when || 'coming soon', e.about].filter(Boolean).join(' · ')),

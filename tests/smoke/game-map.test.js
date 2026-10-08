@@ -1,4 +1,4 @@
-// Smoke hernej mapy (#/mapa) v headless Chromiu proti lokálnemu dev serveru so stubnutým Supabase.
+// Smoke hry Ghoskate (/hra, staré #/mapa) v headless Chromiu proti lokálnemu dev serveru so stubnutým Supabase.
 //
 //   npm run test:smoke        (PLAYWRIGHT_MODULE=/cesta/k/node_modules/playwright, inak sa test preskočí)
 //
@@ -96,9 +96,9 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   }
 
   test('anonym: HUD, spodné menu, piny so crew, loot a pulzom, holo karta, check-in pýta prihlásenie', async () => {
-    const { page, context, hits, blocked, errors } = await open('#/mapa');
+    const { page, context, hits, blocked, errors } = await open('hra');
     try {
-      assert.deepEqual(await page.$$eval('.g-menu-item span', els => els.map(e => e.textContent)), ['MAPA', 'FEED', 'CREW', 'REBRÍČEK', 'LOADOUT']);
+      assert.deepEqual(await page.$$eval('.g-menu-item span', els => els.map(e => e.textContent)), ['MAPA', 'CREW', 'REBRÍČEK', 'PROFIL']);
       assert.equal(await page.getAttribute('.g-menu-item[data-game-nav="map"]', 'aria-current'), 'page');
       assert.match(await page.textContent('.g-chip-player'), /Prihlásiť sa/);
       assert.equal(await page.$$eval('[data-spot-id]', els => new Set(els.map(e => e.dataset.spotId)).size), 2);
@@ -119,8 +119,8 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
       assert.equal(await page.getAttribute('.g-bust', 'data-level'), '2');
       assert.match(await page.textContent('.g-holo'), /RR drží spot · 145 b/);
       assert.match(await page.textContent('.g-holo'), /LOOT DROP/);
-      // web má skutočné adresy: starý odkaz /#/mapa sa prepíše na /mapa, otvorený spot je /spot/<id>
-      assert.match(await page.evaluate(() => location.pathname), /^\/spot\//);
+      // otvorený spot má vlastnú adresu v appke: /hra/spot/<id>
+      assert.equal(await page.evaluate(() => location.pathname), `/hra/spot/${SPOTS[0].id}`);
       await page.click('.g-btn-in');
       await page.waitForSelector('dialog[open]');
       assert.match(await page.textContent('dialog[open]'), /Prihlásenie/);
@@ -132,7 +132,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   });
 
   test('U16 bez súhlasu: páska „len prezeranie“ a check-in je vypnutý', async () => {
-    const { page, context, errors } = await open('#/mapa', { signedIn: true, me: { id: USER_ID, username: 'kubko', city: 'Bratislava', stance: 'regular', board_config: {}, can_write: false, needs_guardian: true } });
+    const { page, context, errors } = await open('hra', { signedIn: true, me: { id: USER_ID, username: 'kubko', city: 'Bratislava', stance: 'regular', board_config: {}, can_write: false, needs_guardian: true } });
     try {
       await page.waitForSelector('.g-banner.tape');
       assert.match(await page.textContent('.g-banner.tape'), /Len prezeranie/);
@@ -145,7 +145,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   });
 
   test('hráč ďaleko od spotu: TOO_FAR ukáže vzdialenosť a limit', async () => {
-    const { page, context } = await open(`#/spot/${SPOTS[0].id}`, {
+    const { page, context } = await open(`hra/spot/${SPOTS[0].id}`, {
       signedIn: true, geo: { latitude: 48.1436, longitude: 17.1235 },
       me: { id: USER_ID, username: 'jano_flip', city: 'Bratislava', stance: 'goofy', board_config: {}, can_write: true, needs_guardian: false },
       checkIn: { status: 400, body: { code: 'P0001', message: 'TOO_FAR', details: '{"distance_m": 340, "max_m": 150}', hint: null } },
@@ -160,7 +160,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   });
 
   test('zamietnutá poloha: jasná hláška, na server nič nejde', async () => {
-    const { page, context, hits } = await open(`#/spot/${SPOTS[0].id}`, {
+    const { page, context, hits } = await open(`hra/spot/${SPOTS[0].id}`, {
       signedIn: true,
       me: { id: USER_ID, username: 'jano_flip', city: null, stance: null, board_config: {}, can_write: true, needs_guardian: false },
     });
@@ -177,7 +177,7 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   });
 
   test('reduced motion: piny bez pulzu, počet ľudí ostáva', async () => {
-    const { page, context } = await open('#/mapa', { reducedMotion: true });
+    const { page, context } = await open('hra', { reducedMotion: true });
     try {
       const pin = await page.$(`.g-pin[data-spot-id="${SPOTS[0].id}"]`);
       if (!pin) return;   // bez WebGL je zoznam, pulz tam nie je vôbec
@@ -188,37 +188,108 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
   });
 
   test('ďalšie herné stránky: FEED a LOADOUT čoskoro, REBRÍČEK crews, starý zoznam spotov ostal', async () => {
-    const { page, context, errors } = await open('#/mapa');
+    const { page, context, errors } = await open('hra');
     try {
-      await page.click('.g-menu-item[data-game-nav="feed"]');
+      await page.goto(`${base}/hra/feed`);
       await page.waitForSelector('.g-soon');
       assert.match(await page.textContent('.g-soon'), /ČOSKORO/);
+      await page.goto(`${base}/hra/loadout`);
+      await page.waitForSelector('.g-soon');
+      assert.match(await page.textContent('.g-soon'), /LOADOUT/);
       await page.click('.g-menu-item[data-game-nav="board"]');
       await page.waitForSelector('.g-board .g-hint');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra/rebricek');
       assert.match(await page.textContent('.g-board'), /Zatiaľ tu nie je žiadna crew/);
-      await page.goto(`${base}/#/spoty`);
+      await page.goto(`${base}/spoty`);
       await page.waitForSelector('.spot-list');
       assert.equal(await page.$('body.game-mode'), null, 'mimo hry sa herný režim vypne');
+      assert.equal(await page.$('body.game-app'), null);
+      assert.equal(await page.getAttribute('.page-head a[href="/hra"]', 'href'), '/hra', 'z Robovej mapy sa dá prejsť do hry');
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });
 
-  test('skutočné adresy: /mapa, /spot/<id>, herná CREW na /hra/crew, Robove crew na /crew', async () => {
+  test('herný shell: horná lišta Ghoskate s odkazom na GOSko, bez hlavičky, spodného menu a pätičky webu, herný manifest', async () => {
+    const { page, context, errors } = await open('hra');
+    try {
+      const visible = sel => page.$eval(sel, e => getComputedStyle(e).display !== 'none' && e.getClientRects().length > 0).catch(() => false);
+      assert.match(await page.textContent('.g-top'), /Ghoskate/);
+      assert.equal(await page.getAttribute('.g-top a.g-back', 'href'), './');
+      assert.match(await page.textContent('.g-top a.g-back'), /GOSko/);
+      assert.equal(await visible('.g-top'), true);
+      for (const sel of ['body > header.topbar', 'body > footer', 'nav.tabbar']) assert.equal(await visible(sel), false, `${sel} má byť v hre skrytý`);
+      assert.equal(await page.getAttribute('link[rel="manifest"]', 'href'), 'ghoskate.webmanifest');
+      assert.equal(await page.getAttribute('meta[name="apple-mobile-web-app-title"]', 'content'), 'Ghoskate');
+      assert.equal(await page.getAttribute('meta[name="theme-color"]', 'content'), '#14111C');
+      assert.equal(await page.getAttribute('link[rel="apple-touch-icon"]', 'href'), 'icons/ghoskate-apple-touch.png');
+      const m = await page.evaluate(async () => (await fetch(document.querySelector('link[rel="manifest"]').href)).json());
+      assert.equal(m.name, 'Ghoskate');
+      assert.equal(m.start_url, '/hra');
+      // na mobile tiež: herné menu dole, webové spodné menu nie
+      await page.setViewportSize({ width: 390, height: 800 });
+      assert.equal(await visible('nav.tabbar'), false);
+      assert.equal(await visible('.g-menu'), true);
+      // späť na web: hlavička a manifest GOSko sa vrátia
+      await page.click('.g-top a.g-back');
+      await page.waitForFunction(() => !document.body.classList.contains('game-app'));
+      assert.equal(await page.evaluate(() => location.pathname), '/');
+      assert.equal(await visible('body > header.topbar'), true);
+      assert.equal(await page.getAttribute('link[rel="manifest"]', 'href'), 'manifest.webmanifest');
+      assert.equal(await page.getAttribute('meta[name="apple-mobile-web-app-title"]', 'content'), 'GOSko');
+      assert.equal(await page.$('.g-top'), null);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('vstup z webu: hlavné menu má Ghoskate a vedie do appky na /hra', async () => {
+    const { page, context, errors } = await open('hra');
+    try {
+      await page.goto(`${base}/eventy`);
+      await page.waitForSelector('body:not(.game-app) .topbar .nav a[data-nav="hra"]');
+      assert.match(await page.textContent('.topbar .nav a[data-nav="hra"]'), /Ghoskate/);
+      await page.click('.topbar .nav a[data-nav="hra"]');
+      await page.waitForSelector('[data-spot-id]');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra');
+      assert.ok(await page.$('body.game-app'));
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('staré adresy vedú do /hra: /mapa, /spot/<id>, /feed, hash z e-mailu #/mapa a #/spot/<id>', async () => {
     const { page, context, errors } = await open('mapa');
     try {
-      assert.equal(await page.evaluate(() => location.pathname), '/mapa');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra');
+      await page.goto(`${base}/spot/${SPOTS[0].id}`);
+      await page.waitForSelector('.g-sheet.open .g-holo');
+      assert.equal(await page.evaluate(() => location.pathname), `/hra/spot/${SPOTS[0].id}`);
+      assert.equal(await page.textContent('#g-spot-name'), 'Eurovea schody');
+      await page.goto(`${base}/feed`);
+      await page.waitForSelector('.g-soon');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra/feed');
+      await page.goto(`${base}/#/mapa`);
+      await page.waitForSelector('[data-spot-id]');
+      await page.waitForFunction(() => location.pathname === '/hra' && !location.hash);
+      await page.goto(`${base}/#/spot/${SPOTS[1].id}`);
+      await page.waitForSelector('.g-sheet.open .g-holo');
+      await page.waitForFunction(id => location.pathname === `/hra/spot/${id}`, SPOTS[1].id);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('herná CREW na /hra/crew, Robove crew na /crew, späť v histórii', async () => {
+    const { page, context, errors } = await open('hra');
+    try {
       await page.click('.g-menu-item[data-game-nav="crew"]');
       await page.waitForSelector('.g-soon');
       assert.equal(await page.evaluate(() => location.pathname), '/hra/crew');
       await page.goBack();
       await page.waitForSelector('[data-spot-id]');
-      assert.equal(await page.evaluate(() => location.pathname), '/mapa');
+      assert.equal(await page.evaluate(() => location.pathname), '/hra');
+      await page.click('.g-menu-item[data-game-nav="profile"]');
+      await page.waitForFunction(() => location.pathname === '/hra/profil');
       await page.goto(`${base}/crew`);
       await page.waitForSelector('.crew-grid');
       assert.equal(await page.$('body.game-mode'), null);
-      await page.goto(`${base}/spot/${SPOTS[0].id}`);
-      await page.waitForSelector('.g-sheet.open .g-holo');
-      assert.equal(await page.textContent('#g-spot-name'), 'Eurovea schody');
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });

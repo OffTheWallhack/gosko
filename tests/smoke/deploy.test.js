@@ -189,6 +189,50 @@ describe(`smoke: nasadenie${RAW_URL ? ` ${BASE}` : ""}`, { skip: SKIP }, () => {
     });
   });
 
+  describe('hra Ghoskate na /hra', () => {
+    for (const path of ['/hra', '/hra/', '/hra/spot/5a000000-0000-4000-8000-000000000001', '/hra/profil', '/hra/crew', '/hra/rebricek', '/hra/feed', '/hra/loadout']) {
+      test(`${path}: stránka webu (200, HTML)`, async () => {
+        const res = await get(path);
+        const body = await res.text();
+        expectStatus(res, 200, path);
+        assert.match(res.headers.get('content-type') ?? '', /text\/html/);
+        assert.match(body, /assets\/app\.js/);
+      });
+    }
+
+    test('/hra má náhľad Ghoskate a herný manifest hneď v HTML', async () => {
+      const res = await get('/hra');
+      const body = await res.text();
+      assert.match(body, /<meta property="og:title" content="Ghoskate/);
+      assert.match(body, /<link rel="manifest" href="ghoskate\.webmanifest">/);
+    });
+
+    for (const [from, to] of [['/mapa', '/hra'], ['/mapa/', '/hra'], ['/spot/abc-1', '/hra/spot/abc-1'], ['/feed', '/hra/feed'], ['/loadout', '/hra/loadout']]) {
+      test(`${from} presmeruje na ${to}`, async () => {
+        const res = await get(from);
+        await res.arrayBuffer();
+        assert.ok([301, 308].includes(res.status), `${from}: čakalo sa trvalé presmerovanie, prišlo ${res.status}${hint(res)}`);
+        assert.equal(new URL(res.headers.get('location'), BASE).pathname, to);
+      });
+    }
+
+    test('ghoskate.webmanifest: id, start_url a scope /hra, ikony sú dostupné', async () => {
+      const res = await get('/ghoskate.webmanifest');
+      expectStatus(res, 200, '/ghoskate.webmanifest');
+      const m = await res.json();
+      assert.equal(m.id, '/hra');
+      assert.equal(m.start_url, '/hra');
+      assert.equal(m.scope, '/hra');
+      assert.equal(m.name, 'Ghoskate');
+      for (const icon of m.icons) {
+        const r = await get(`/${icon.src}`);
+        await r.arrayBuffer();
+        expectStatus(r, 200, icon.src);
+        assert.match(r.headers.get('content-type') ?? '', /^image\/png/, icon.src);
+      }
+    });
+  });
+
   describe('API', () => {
     test('cron endpoint nie je verejný: bez tajomstva nevráti 200', async t => {
       const res = await get('/api/cron/nft-retry');

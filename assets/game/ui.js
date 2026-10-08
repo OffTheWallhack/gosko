@@ -25,20 +25,25 @@ const PATHS = {
   loadout: 'M6.5 3.5c-1.5 0-2.5 1.2-2.5 2.6v11.8c0 1.4 1 2.6 2.5 2.6h11c1.5 0 2.5-1.2 2.5-2.6V6.1c0-1.4-1-2.6-2.5-2.6h-11ZM7 7h2v2H7V7Zm8 0h2v2h-2V7Zm-8 8h2v2H7v-2Zm8 0h2v2h-2v-2Z',
   locate: 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm-1-6h2v3.1A7 7 0 0 1 18.9 11H22v2h-3.1A7 7 0 0 1 13 18.9V22h-2v-3.1A7 7 0 0 1 5.1 13H2v-2h3.1A7 7 0 0 1 11 5.1V2Zm1 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z',
   skull: 'M12 2C6.5 2 3 5.8 3 10.5c0 2.9 1.4 5 3.5 6.2V20a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3.3c2.1-1.2 3.5-3.3 3.5-6.2C21 5.8 17.5 2 12 2Zm-3.5 7.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm7 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM12 14l1.3 2.2h-2.6L12 14Z',
+  profile: 'M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 12c4.4 0 8 2.7 8 6v2H4v-2c0-3.3 3.6-6 8-6Z',
   loot: 'M4 9h16v3H4V9Zm1 4h14v8H5v-8Zm6-4h2v12h-2V9ZM8.5 3.5C10 3.5 11.3 5 12 7c.7-2 2-3.5 3.5-3.5a2 2 0 0 1 0 4h-7a2 2 0 0 1 0-4Z',
   close: 'M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z',
 };
 export const icon = (name, cls = 'g-ico') => h('svg:svg', { class: cls, viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' },
   h('svg:path', { d: PATHS[name], 'fill-rule': 'evenodd' }));
 
-/* Herný shell: obsah + spodné menu MAPA · FEED · CREW · REBRÍČEK · LOADOUT. Vráti { view, body }. */
+/* Herný shell appky Ghoskate (/hra): horná lišta s názvom a odkazom späť na web, obsah, spodné menu
+   MAPA · CREW · REBRÍČEK · PROFIL. Hlavičku, spodné menu a pätičku webu skryje app.js (body.game-app). Vráti { view, body }. */
 export function gameShell(root, active) {
   document.body.classList.add('game-mode');
+  const top = h('header', { class: 'g-top' },
+    h('a', { class: 'g-back', href: './', 'aria-label': T.app.backLabel }, h('span', { 'aria-hidden': 'true' }, '← '), T.app.back),
+    h('a', { class: 'g-brand', href: '#/hra' }, h('img', { src: 'img/ghost.svg', alt: '', width: 22, height: 25 }), h('span', { class: 'wide' }, T.app.name)));
   const body = h('div', { class: 'g-body' });
   const menu = h('nav', { class: 'g-menu', 'aria-label': T.menu.label },
     GAME_MENU.map(m => h('a', { href: m.href, class: 'g-menu-item', 'data-game-nav': m.id, 'aria-current': m.id === active ? 'page' : null },
       icon(m.id), h('span', {}, m.label))));
-  const view = h('section', { class: 'g-view', 'data-game': active }, body, menu);
+  const view = h('section', { class: 'g-view', 'data-game': active }, top, body, menu);
   root.append(view);
   return { view, body };
 }

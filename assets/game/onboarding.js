@@ -20,8 +20,8 @@ function profileCard(player, api, ctx) {
     h('p', { class: 'g-holo-city cond' }, [me.city, me.stance && T.onboarding[me.stance]].filter(Boolean).join(' · ')),
     player.mode === 'browse' && h('p', { class: 'g-msg warn' }, T.banner.browse),
     h('div', { class: 'g-actions' },
-      h('a', { class: 'g-btn g-btn-in', href: '#/mapa' }, T.onboarding.toMap),
-      h('button', { class: 'g-btn g-btn-ghost', type: 'button', onclick: async () => { await api.logout(); ctx.go('#/mapa'); } }, T.onboarding.logout))));
+      h('a', { class: 'g-btn g-btn-in', href: '#/hra' }, T.onboarding.toMap),
+      h('button', { class: 'g-btn g-btn-ghost', type: 'button', onclick: async () => { await api.logout(); ctx.go('#/hra'); } }, T.onboarding.logout))));
 }
 
 function onboardingForm(status, api, done) {
@@ -117,7 +117,7 @@ export async function pageOnboarding(root, ctx) {
     if (res.needs_guardian) lines.push(res.guardian_mail_sent ? T.onboarding.doneGuardian : T.onboarding.doneGuardianFail);
     page.replaceChildren(h('article', { class: 'g-holo g-profile' }, h('div', { class: 'g-holo-in' },
       h('span', { class: 'g-sticker' }, T.onboarding.doneTitle), h('h1', { class: 'g-holo-name wide' }, `@${res.username}`),
-      lines.map(l => h('p', {}, l)), h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-in', href: '#/mapa' }, T.onboarding.toMap)))));
+      lines.map(l => h('p', {}, l)), h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-in', href: '#/hra' }, T.onboarding.toMap)))));
     if (!res.needs_guardian) toast(T.onboarding.done(res.username));
   }));
   return leaveGame;

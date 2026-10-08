@@ -12,7 +12,7 @@ import { safeUrl, csvRows, icsText, decodePasses, mergePasses, importTarget, Use
 import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPayload, completeRegistration, fetchPass, upsertPass } from './register.js';
 import { apiRequest, browserFetch } from './api.js';
 import { pointsTable, rankingRules, PRIVACY } from './pages.js';
-import { consumeReturn } from './game/return.js';
+import { consumeReturn, legacyGameRoute, isGameRoute, appHead } from './game/return.js';
 import { loginMode, credentialsError, loginErrorMessage, signUpOutcome, MIN_PASSWORD } from './login.js';
 /* 3D (three.js, 1,3 MB z CDN) sa načítava cez import() len tam, kde sa kreslí:
    board.js (doska na úvode a u jazdca), park.js (stavebnica parkov), card.js (karta jazdca). */
@@ -740,6 +740,17 @@ function skaterCards(rows, label = `Open ${SITE.season}`) {
   };
   return h('div', { class: 'sk-cards' + (rows.length < 3 ? ' few' : '') }, rows.slice(0, 3).map(card));
 }
+/* úvodka: vstup do appky Ghoskate (/hra) */
+function gameBand() {
+  return h('section', { class: 'sec gk-band' }, h('div', { class: 'wrap' },
+    h('a', { class: 'gk-card', href: '#/hra' },
+      h('img', { class: 'gk-icon', src: 'icons/ghoskate-192.png', alt: '', width: 96, height: 96, loading: 'lazy' }),
+      h('span', { class: 'gk-body' },
+        h('span', { class: 'mono gk-k' }, 'Hra od GOSko'),
+        h('span', { class: 'gk-t wide' }, 'Ghoskate'),
+        h('span', { class: 'gk-d' }, 'Herná mapa skate spotov: check-in na spote, crew, body a rebríček. Pridaj si ju na plochu ako vlastnú appku.'),
+        h('span', { class: 'gk-cta' }, 'Hrať', h('span', { 'aria-hidden': 'true' }, ' →'))))));
+}
 function skaterSection() {
   const top = standings('open');
   if (!top.length) return null;
@@ -831,7 +842,7 @@ function pageHome(root) {
     mascotSlot, heroIn);
   const studio = boardStudio();
   setTimeout(onboarding, 1800);
-  const solid = h('div', { class: 'after-solid' }, skaterSection(), studio.el, eventWidget(), partnersStrip());
+  const solid = h('div', { class: 'after-solid' }, skaterSection(), gameBand(), studio.el, eventWidget(), partnersStrip());
   const after = h('div', { class: 'after-hero' }, h('div', { class: 'after-clear' }, stickerWall()), solid);
   let raf = 0;
   const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
@@ -887,7 +898,7 @@ function onboarding() {
 const FEATURES = [
   { href: '#/parky', k: 'Hra · 3D', t: 'Postav si skatepark', d: 'Rampy, raily, ledge. Poskladaj park snov, najlepšie idú do top 10.', img: 'img/ba-trick-1.webp' },
   { href: '#/doska', k: '3D garáž', t: 'Navrhni si dosku', d: 'Tvoja doska, tvoje farby, nálepky z eventov. V 3D, pri stene aj v jazde.', img: 'img/ba-deck.webp' },
-  { href: '#/mapa', k: 'Komunita', t: 'Mapa spotov', d: 'Poznáš spot, o ktorom nikto nevie? Teraz už bude.', img: 'img/ba-trick-5.webp' },
+  { href: '#/hra', k: 'Hra · appka', t: 'Ghoskate', d: 'Check-in na spote, crew a body. Herná mapa spotov, ktorú si pridáš na plochu.', img: 'img/ba-trick-5.webp' },
   { href: '#/partneri/zavolaj', k: 'Pre mestá a firmy', t: 'Zavolaj si GOSko', d: 'Prinesieme Game of S.K.A.T.E. do tvojho mesta, na festival alebo firemnú akciu.', img: 'img/ba-mc.webp' },
 ];
 const featureCard = (f, i) => h('a', { class: 'ft-card ' + (i % 2 ? 'cream' : 'red'), href: f.href },
@@ -2072,7 +2083,7 @@ async function pageMap(root) {
   const list = h('ul', { class: 'spot-list' }), parksList = h('ul', { class: 'park-list' }), somBox = h('div');
   root.append(pageHead('Mapa spotov', 'Známe skateparky na Slovensku a street spoty od komunity. Poznáš dobrý spot? Pošli ho aj s fotkou.',
     h('button', { class: 'btn primary', type: 'button', onclick: () => requireLogin(() => spotDialog(load)).then(ok => ok && spotDialog(load)) }, 'Pridať spot'),
-    h('a', { class: 'btn', href: '#/mapa' }, 'Herná mapa')),
+    h('a', { class: 'btn', href: '#/hra' }, 'Hra Ghoskate')),
     h('div', { class: 'wrap page-body' }, somBox, mapEl,
       h('p', { class: 'map-legend mono' }, h('span', { class: 'lg lg-park' }), 'Skatepark', h('span', { class: 'lg lg-spot' }), 'Spot od komunity', h('span', { class: 'lg lg-event' }), 'GOSko event'),
       h('h2', { class: 'wide sub' }, 'Skateparky'), parksList, h('h2', { class: 'wide sub' }, 'Spoty od komunity'), list));
@@ -2880,15 +2891,16 @@ const ROUTES = [
   [/^#\/doska$/, pageBoard, ''],
   [/^#\/shop$/, pageShop, 'shop'],
   [/^#\/partneri(?:\/(\w+))?$/, pagePartners, 'partneri'],
-  [/^#\/mapa$/, gamePage('pageGameMap'), 'mapa'],
-  [/^#\/spot\/([\w-]+)$/, gamePage('pageGameMap'), 'mapa'],
   [/^#\/spoty$/, pageMap, 'mapa'],
-  [/^#\/hra\/profil$/, gamePage('pageOnboarding'), 'mapa'],
-  [/^#\/hra\/rebricek$/, gamePage('pageCrewBoard'), 'mapa'],
-  [/^#\/hra\/potvrdene$/, gamePage('pageGameConsentDone'), 'mapa'],
-  [/^#\/feed$/, gameSoon('feed'), 'mapa'],
-  [/^#\/hra\/crew$/, gameSoon('crew'), 'mapa'],   // herná crew (čoskoro); #/crew sú Robove crew z data.js
-  [/^#\/loadout$/, gameSoon('loadout'), 'mapa'],
+  /* appka Ghoskate: všetko pod #/hra (isGameRoute v game/return.js); staré #/mapa, #/spot/…, #/feed, #/loadout prepíše route() */
+  [/^#\/hra$/, gamePage('pageGameMap'), 'hra'],
+  [/^#\/hra\/spot\/([\w-]+)$/, gamePage('pageGameMap'), 'hra'],
+  [/^#\/hra\/profil$/, gamePage('pageOnboarding'), 'hra'],
+  [/^#\/hra\/rebricek$/, gamePage('pageCrewBoard'), 'hra'],
+  [/^#\/hra\/potvrdene$/, gamePage('pageGameConsentDone'), 'hra'],
+  [/^#\/hra\/feed$/, gameSoon('feed'), 'hra'],
+  [/^#\/hra\/crew$/, gameSoon('crew'), 'hra'],   // herná crew (čoskoro); #/crew sú Robove crew z data.js
+  [/^#\/hra\/loadout$/, gameSoon('loadout'), 'hra'],
   [/^#\/pass$/, pagePasses, ''],
   [/^#\/checkin\/([\w-]+)$/, pageCheckin, ''],
   [/^#\/import-passes\/([\w-]+)(?:\?to=(.*))?$/, pageImportPasses, ''],
@@ -2918,6 +2930,17 @@ function reveal(main) {
     el.classList.add('rv', 'rv-pre'); revealIO.observe(el);
   }
 }
+/* Herná appka Ghoskate (/hra) vs. web: trieda na body skryje hlavičku, spodné menu a pätičku webu (style.css),
+   <head> dostane manifest, názov a ikonu appky, aby sa z /hra inštalovala Ghoskate a z webu GOSko. */
+function appMode(game) {
+  document.body.classList.toggle('game-app', game);
+  const a = appHead(game);
+  const set = (sel, attr, v) => { const el = $(sel); if (el && el.getAttribute(attr) !== v) el.setAttribute(attr, v); };
+  set('link[rel="manifest"]', 'href', a.manifest);
+  set('link[rel="apple-touch-icon"]', 'href', a.icon);
+  set('meta[name="apple-mobile-web-app-title"]', 'content', a.title);
+  set('meta[name="theme-color"]', 'content', a.theme);
+}
 async function route() {
   const id = ++renderId;
   if (cleanup) { try { await cleanup(); } catch (e) { console.error(e); } cleanup = null; }
@@ -2926,6 +2949,9 @@ async function route() {
   const rest = location.hash.startsWith('#/') ? location.hash.slice(2)
     : decodeURI(location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : '').replace(/^index\.html$/, '').replace(/\/$/, '');
   const hash = '#/' + rest;
+  const moved = legacyGameRoute(hash);
+  if (moved) { history.replaceState(null, '', toPath(moved) + location.search); return route(); }
+  appMode(isGameRoute(hash));
   const [re, page, nav] = ROUTES.find(([re]) => re.test(hash)) || [null, pageNotFound, ''];
   const args = re ? hash.match(re).slice(1) : [];
   const main = $('#main'); main.replaceChildren(); window.scrollTo({ top: 0, behavior: 'instant' });

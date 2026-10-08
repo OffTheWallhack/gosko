@@ -1,7 +1,8 @@
 /* Všetky texty hernej časti (Ghoskate) na jednom mieste. Jazyk skejterov, tykáme, bez dlhých pomlčiek.
    Funkcie skladajú texty s číslami; čísla formátuje logic.js. */
 export const T = {
-  menu: { map: 'MAPA', feed: 'FEED', crew: 'CREW', board: 'REBRÍČEK', loadout: 'LOADOUT', label: 'Herné menu' },
+  menu: { map: 'MAPA', feed: 'FEED', crew: 'CREW', board: 'REBRÍČEK', profile: 'PROFIL', loadout: 'LOADOUT', label: 'Herné menu' },
+  app: { name: 'Ghoskate', back: 'GOSko', backLabel: 'Späť na web GOSko', by: 'od GOSko' },
 
   hud: {
     login: 'Prihlásiť sa',

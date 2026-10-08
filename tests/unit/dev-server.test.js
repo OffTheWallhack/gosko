@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 
 const DEV = pathToFileURL(join(import.meta.dirname, '..', '..', 'scripts', 'dev-server.js')).href;
 const {
-  createDevServer, createIgnore, sourceToRegExp, matchHeaders, matchRewrite, parseEnv, resolveApiRoute,
+  createDevServer, createIgnore, sourceToRegExp, matchHeaders, matchRewrite, matchRedirect, parseEnv, resolveApiRoute,
 } = await import(DEV);
 
 // ---------- čisté funkcie ----------
@@ -174,6 +174,12 @@ before(async () => {
       { source: '/assets/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
     ],
     rewrites: [{ source: '/((?:eventy|event|hidden)(?:/[^.]*)?)', destination: '/index.html' }],
+    redirects: [
+      { source: '/stara', destination: '/nova', permanent: true },
+      { source: '/stary-spot/:id', destination: '/nova/spot/:id', permanent: true },
+      { source: '/docasna', destination: '/nova', permanent: false },
+      { source: '/event/zdielany', destination: '/nova' },
+    ],
   }));
   put('.vercelignore', 'secret.txt\n/hidden/\n*.sql\n!keep.sql\n.env*\n');
   put('index.html', '<!doctype html><title>fixture</title>');
@@ -320,6 +326,33 @@ describe('rewrites (skutočné adresy webu)', () => {
 
   test('súbory, /api a cesty mimo pravidiel ostávajú 404; .vercelignore má prednosť', async () => {
     for (const p of ['/event/x.js', '/eventyx', '/api/neexistuje', '/hidden/a.txt']) assert.equal((await fetch(base + p)).status, 404, p);
+  });
+});
+
+describe('redirects (staré adresy)', () => {
+  test('matchRedirect: parametre :id sa dosadia, predvolene a permanent 308, permanent: false 307', () => {
+    const cfg = { redirects: [{ source: '/a/:id', destination: '/b/:id', permanent: true }, { source: '/c', destination: '/d' }, { source: '/e', destination: '/f', permanent: false }, { source: '/x', has: [{ type: 'host', value: 'y' }], destination: '/z' }] };
+    assert.deepEqual(matchRedirect(cfg, '/a/abc-1'), { location: '/b/abc-1', status: 308 });
+    assert.deepEqual(matchRedirect(cfg, '/c'), { location: '/d', status: 308 });
+    assert.deepEqual(matchRedirect(cfg, '/e'), { location: '/f', status: 307 });
+    assert.equal(matchRedirect(cfg, '/x'), null);
+    assert.equal(matchRedirect(cfg, '/a'), null);
+    assert.equal(matchRedirect(null, '/c'), null);
+  });
+
+  test('presmerovanie má prednosť pred súbormi aj rewrites a zachová query', async () => {
+    const get = p => fetch(base + p, { redirect: 'manual' });
+    let res = await get('/stara');
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get('location'), '/nova');
+    res = await get('/stary-spot/5a-1?x=1');
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get('location'), '/nova/spot/5a-1?x=1');
+    res = await get('/docasna');
+    assert.equal(res.status, 307);
+    res = await get('/event/zdielany');
+    assert.equal(res.status, 308, 'Vercel uplatní redirects pred súbormi');
+    assert.equal(res.headers.get('x-content-type-options'), 'nosniff', 'hlavičky z headers platia aj pre presmerovanie');
   });
 });
 

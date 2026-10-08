@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createIgnore, matchHeaders, matchRewrite } from '../../scripts/dev-server.js';
+import { createIgnore, matchHeaders, matchRewrite, matchRedirect } from '../../scripts/dev-server.js';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 // CSP musí povoliť presne ten Supabase projekt, na ktorý ukazuje web (data.js CONFIG).
@@ -40,8 +40,20 @@ describe('vercel.json: základ', () => {
     assert.ok(!config.cleanUrls);
   });
 
-  test('žiadne redirects', () => {
-    assert.equal(config.redirects, undefined);
+});
+
+/* Hra Ghoskate je samostatná appka na /hra. Staré herné adresy (odkazy zo zdieľania, záložky) presmeruje Vercel
+   ešte pred súbormi; hash tvar (#/mapa) z e-mailov prepíše router v prehliadači (assets/game/return.js). */
+describe('vercel.json: staré herné adresy presmerujú na /hra', () => {
+  for (const [from, to] of [['/mapa', '/hra'], ['/mapa/', '/hra'], ['/spot/5a000000-0000-4000-8000-000000000001', '/hra/spot/5a000000-0000-4000-8000-000000000001'],
+    ['/feed', '/hra/feed'], ['/loadout', '/hra/loadout']]) {
+    test(`${from} -> ${to}`, () => assert.deepEqual(matchRedirect(config, from), { location: to, status: 308 }));
+  }
+  for (const p of ['/hra', '/hra/spot/x', '/spoty', '/spoty/', '/crew', '/mapa.js', '/', '/eventy']) {
+    test(`bez presmerovania: ${p}`, () => assert.equal(matchRedirect(config, p), null));
+  }
+  test('presmerovania sú bez has/missing a mieria len na /hra', () => {
+    for (const r of config.redirects) { assert.ok(!r.has && !r.missing); assert.match(r.destination, /^\/hra(\/|$)/); }
   });
 });
 
@@ -62,7 +74,7 @@ describe('vercel.json: rewrites na index.html', () => {
   });
 
   for (const p of ['/eventy', '/event/bratislava-2', '/jazdec/marek-kupkovic', '/checkin/0b6f2c1e-1111-4222-8333-444455556666', '/pass/abc-def',
-    '/registracia/potvrdene', '/admin', '/admin/vysledky/bratislava-2', '/hra/profil', '/spot/abc', '/trik-tyzdna/', '/import-passes/eyJh']) {
+    '/registracia/potvrdene', '/admin', '/admin/vysledky/bratislava-2', '/hra/profil', '/hra', '/hra/', '/hra/spot/abc', '/hra/feed', '/hra/loadout', '/trik-tyzdna/', '/import-passes/eyJh']) {
     test(`app: ${p}`, () => assert.equal(matchRewrite(config, p), '/index.html'));
   }
   for (const p of ['/api/register', '/api/admin/checkin', '/assets/app.js', '/img/logo.webp', '/sw.js', '/data.js', '/chain/', '/supabase/',
@@ -99,7 +111,7 @@ describe('vercel.json: cache hlavičky', () => {
   });
 
   test('pravidlá pre Cache-Control sa neprekrývajú (poradie pravidiel by nerozhodovalo)', () => {
-    const paths = ['/', '/index.html', '/sw.js', '/data.js', '/assets/app.js', '/img/logo.webp', '/icons/icon-192.png', '/manifest.webmanifest'];
+    const paths = ['/', '/index.html', '/sw.js', '/data.js', '/assets/app.js', '/img/logo.webp', '/icons/icon-192.png', '/manifest.webmanifest', '/ghoskate.webmanifest'];
     for (const p of paths) {
       const rules = config.headers.filter(r => r.headers.some(h => h.key.toLowerCase() === 'cache-control')
         && matchHeaders({ headers: [r] }, p).length);
@@ -259,5 +271,75 @@ describe('manifest.webmanifest', () => {
   });
   test('ikony existujú', () => {
     for (const icon of manifest.icons) assert.ok(existsSync(join(ROOT, icon.src)), icon.src);
+  });
+});
+
+describe('ghoskate.webmanifest (hra ako samostatná appka)', () => {
+  const m = JSON.parse(read('ghoskate.webmanifest'));
+  const ignores = createIgnore(read('.vercelignore'));
+  test('id, start_url a scope /hra, iné id ako web', () => {
+    assert.equal(m.id, '/hra');
+    assert.equal(m.start_url, '/hra');
+    assert.equal(m.scope, '/hra');
+    assert.notEqual(m.id, JSON.parse(read('manifest.webmanifest')).id);
+    assert.equal(m.display, 'standalone');
+  });
+  test('názov Ghoskate, slovenčina, farby hry', () => {
+    assert.equal(m.name, 'Ghoskate');
+    assert.equal(m.short_name, 'Ghoskate');
+    assert.equal(m.lang, 'sk');
+    assert.equal(m.theme_color, '#14111C');
+    assert.equal(m.background_color, '#14111C');
+  });
+  test('vlastné ikony 192, 512 a maskable 512 existujú a nie sú v .vercelignore', () => {
+    const want = [['192x192', undefined], ['512x512', undefined], ['512x512', 'maskable']];
+    for (const [sizes, purpose] of want) assert.ok(m.icons.some(i => i.sizes === sizes && i.purpose === purpose && i.type === 'image/png'), `${sizes} ${purpose ?? ''}`);
+    for (const i of m.icons) {
+      assert.match(i.src, /^icons\/ghoskate-/);
+      assert.ok(existsSync(join(ROOT, i.src)), i.src);
+      assert.equal(ignores(i.src), false, i.src);
+    }
+    assert.ok(existsSync(join(ROOT, 'icons/ghoskate-apple-touch.png')));
+  });
+  test('manifest nie je v .vercelignore, revaliduje sa ako manifest webu', () => {
+    assert.equal(ignores('ghoskate.webmanifest'), false);
+    const cc = headersFor('/ghoskate.webmanifest')['cache-control'];
+    assert.match(cc, /max-age=0/);
+    assert.match(cc, /must-revalidate/);
+  });
+  test('service worker ho precachuje aj s ikonami', () => {
+    const sw = read('sw.js');
+    for (const f of ['ghoskate.webmanifest', 'icons/ghoskate-192.png', 'icons/ghoskate-apple-touch.png']) assert.ok(sw.includes(`'${f}'`), f);
+  });
+  test('CSP pustí manifest aj ikony (manifest-src a img-src self)', () => {
+    const csp = fullCsp('/hra');
+    assert.ok(csp.get('manifest-src').includes("'self'"));
+    assert.ok(csp.get('img-src').includes("'self'"));
+  });
+});
+
+/* Statická stránka /hra (scripts/build-pages.mjs): náhľad pri zdieľaní popisuje Ghoskate a prehliadač
+   hneď vidí herný manifest (inštalácia z /hra). Stará stránka mapa/ zmizla, /mapa presmeruje Vercel. */
+describe('stránka /hra pre zdieľanie a vstup z webu', () => {
+  const hra = read('hra/index.html');
+  test('hra/index.html: náhľad Ghoskate, herný manifest a ikona', () => {
+    assert.match(hra, /<title>Ghoskate \| GOSko<\/title>/);
+    assert.match(hra, /<meta property="og:title" content="Ghoskate \| GOSko">/);
+    assert.match(hra, /<meta property="og:url" content="https:\/\/gosko\.sk\/hra\/">/);
+    assert.match(hra, /<link rel="manifest" href="ghoskate\.webmanifest">/);
+    assert.match(hra, /<meta name="apple-mobile-web-app-title" content="Ghoskate">/);
+    assert.match(hra, /<link rel="apple-touch-icon" href="icons\/ghoskate-apple-touch\.png">/);
+    assert.match(hra, /<meta name="theme-color" content="#14111C">/);
+  });
+  test('mapa/ už nie je (presmerovanie by ju aj tak preskočilo)', () => {
+    assert.equal(existsSync(join(ROOT, 'mapa/index.html')), false);
+    assert.doesNotMatch(read('sitemap.xml'), /\/mapa\//);
+    assert.match(read('sitemap.xml'), /\/hra\//);
+  });
+  test('index.html: hlavné menu, menu a pätička vedú na /hra, nie na /mapa', () => {
+    const html = read('index.html');
+    assert.match(html, /<nav class="nav"[\s\S]*?<a [^>]*href="hra"[^>]*data-nav="hra"[^>]*>Ghoskate<\/a>[\s\S]*?<\/nav>/);
+    assert.doesNotMatch(html, /href="mapa"/);
+    assert.match(html, /<link rel="manifest" href="manifest\.webmanifest">/);
   });
 });

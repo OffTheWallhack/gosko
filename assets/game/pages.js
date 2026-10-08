@@ -1,5 +1,5 @@
 /* Ďalšie herné stránky: REBRÍČEK crews (crew_leaderboard), FEED, CREW a LOADOUT zatiaľ ako „čoskoro“
-   a potvrdenie súhlasu rodiča s hrou (#/hra/potvrdene, presmerovanie z /api/consent). */
+   (#/hra/feed, #/hra/crew, #/hra/loadout) a potvrdenie súhlasu rodiča s hrou (#/hra/potvrdene, presmerovanie z /api/consent). */
 import { T } from './i18n-sk.js';
 import { gameApi } from './auth.js';
 import { loadGameCss } from './map.js';
@@ -16,7 +16,7 @@ export async function pageSoon(root, ctx, which) {
       h('span', { class: 'g-sticker' }, T.soon.tag),
       h('h1', { class: 'g-holo-name wide' }, T.menu[which]),
       h('p', {}, T.soon[which]),
-      h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-ghost', href: '#/mapa' }, T.soon.back))))));
+      h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-ghost', href: '#/hra' }, T.soon.back))))));
   return leaveGame;
 }
 
@@ -45,6 +45,6 @@ export async function pageGameConsentDone(root) {
   body.append(h('div', { class: 'g-page' }, h('article', { class: 'g-holo g-profile' }, h('div', { class: 'g-holo-in' },
     h('img', { src: 'img/logo.webp', alt: '', width: 72, height: 77, class: 'g-ghost' }),
     h('h1', { class: 'g-holo-name wide' }, T.consentDone.title), h('p', {}, T.consentDone.body),
-    h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-in', href: '#/mapa' }, T.consentDone.cta))))));
+    h('div', { class: 'g-actions' }, h('a', { class: 'g-btn g-btn-in', href: '#/hra' }, T.consentDone.cta))))));
   return leaveGame;
 }
