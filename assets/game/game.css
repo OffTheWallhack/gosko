@@ -291,3 +291,28 @@ body.game-mode main{background:var(--black)}
 .g-consent .g-label{margin-top:0}
 .g-consent p{margin:0 0 10px;font-size:.88rem}
 .g-spot-clips .g-clip-spot{display:none}
+
+/* ---------- crew a Turf Wars (017) ---------- */
+.g-crew{display:grid;gap:18px}
+.g-crew-card .g-holo-name{text-shadow:3px 3px 0 var(--crew,var(--red))}
+.g-crew-card{background:linear-gradient(135deg,var(--crew,#fff),#fff 35%,var(--crew,#aaa) 60%,#fff 80%)}
+.g-card-form{margin-top:18px;padding:16px;background:var(--asphalt-2);border:2px solid var(--asphalt-3)}
+.g-colors{display:flex;flex-wrap:wrap;gap:8px}
+.g-color{position:relative;width:40px;height:40px;cursor:pointer}
+.g-color input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.g-color span{display:block;width:100%;height:100%;border-radius:50%;background:var(--crew);border:3px solid var(--black);box-shadow:2px 3px 0 rgba(0,0,0,.6)}
+.g-color input:checked+span{outline:3px solid var(--cream);outline-offset:2px}
+.g-color input:focus-visible+span{outline:3px solid var(--ice);outline-offset:2px}
+.g-invite-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.g-code{padding:8px 12px;background:var(--black);border:2px dashed var(--spray);color:var(--cream);font-size:1.15rem;letter-spacing:.12em;user-select:all}
+.g-roster{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.g-roster li{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--asphalt-2);border-left:4px solid var(--asphalt-3)}
+.g-roster .linklike{margin-left:auto;color:#ffb38a;font-size:.85rem}
+.g-board-row.mine{border-left-color:var(--ice);background:#25203a}
+.g-spot-turf{margin-top:14px}
+.g-turf-line{margin:0 0 8px;font-weight:800}
+.g-turf{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.g-turf li{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center}
+.g-turf-tag{font-stretch:75%;font-weight:900;color:var(--crew)}
+.g-turf-bar{height:10px;background:linear-gradient(90deg,var(--crew) var(--w),#2a2436 var(--w));transform:skewX(-18deg)}
+.g-turf-pts{font-size:.85rem;color:var(--muted-dark)}

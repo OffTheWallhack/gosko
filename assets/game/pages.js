@@ -1,5 +1,5 @@
-/* Ďalšie herné stránky: REBRÍČEK crews (crew_leaderboard), FEED, CREW a LOADOUT zatiaľ ako „čoskoro“
-   (#/hra/feed, #/hra/crew, #/hra/loadout) a potvrdenie súhlasu rodiča s hrou (#/hra/potvrdene, presmerovanie z /api/consent). */
+/* Ďalšie herné stránky: REBRÍČEK crews (crew_leaderboard, vlastná crew zvýraznená), stránka „čoskoro“
+   a potvrdenie súhlasu rodiča s hrou (#/hra/potvrdene, presmerovanie z /api/consent). */
 import { T } from './i18n-sk.js';
 import { gameApi } from './auth.js';
 import { loadGameCss } from './map.js';
@@ -29,9 +29,11 @@ export async function pageCrewBoard(root, ctx) {
     listEl,
     h('p', {}, h('a', { class: 'g-btn g-btn-ghost', href: '#/rebricek' }, T.board.ranking))));
   const api = gameApi(ctx.store, ctx.apiBase);
-  let rows = [];
-  try { rows = api ? await api.leaderboard() : []; } catch (err) { console.error(err); listEl.replaceChildren(h('li', { class: 'g-msg err' }, T.hud.loadFailed)); return leaveGame; }
-  listEl.replaceChildren(...(rows.length ? rows.map(r => h('li', { class: 'g-board-row' },
+  let rows = [], mine = null;
+  try {
+    [rows, mine] = api ? await Promise.all([api.leaderboard(), api.me().then(me => (me ? api.myCrew() : null)).catch(() => null)]) : [[], null];
+  } catch (err) { console.error(err); listEl.replaceChildren(h('li', { class: 'g-msg err' }, T.hud.loadFailed)); return leaveGame; }
+  listEl.replaceChildren(...(rows.length ? rows.map(r => h('li', { class: `g-board-row${mine?.id === r.crew_id ? ' mine' : ''}`, 'aria-label': mine?.id === r.crew_id ? T.crew.mine : null },
     h('span', { class: 'g-board-rank wide' }, r.rank),
     h('span', { class: 'g-crewtag', style: { '--crew': COLOR_RE.test(r.color || '') ? r.color : '#F3EBDD' } }, r.tag),
     h('span', { class: 'g-board-name' }, h('strong', {}, r.name), h('small', {}, `${T.board.members(r.members)} · ${T.board.spots(r.spots_controlled)}`)),

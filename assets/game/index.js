@@ -3,3 +3,4 @@ export { pageGameMap } from './map.js';
 export { pageOnboarding } from './onboarding.js';
 export { pageSoon, pageCrewBoard, pageGameConsentDone } from './pages.js';
 export { pageFeed } from './feed.js';
+export { pageCrew } from './crew.js';

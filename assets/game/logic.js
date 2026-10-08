@@ -186,3 +186,36 @@ export function timeAgo(iso, now = Date.now()) {
   const d = new Date(t);
   return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
 }
+
+/* ---------- crews a Turf Wars (011, 017) ---------- */
+export const CREW_COLORS = ['#FF3DA5', '#6FF3FF', '#FFD23F', '#FF7A1A', '#7CFF6B', '#B48CFF', '#FF3B3B', '#F3EBDD'];
+/* Formulár novej crew: názov 2 až 30, TAG 2 až 4 (A až Z, 0 až 9), farba z palety. Rozhoduje DB (011). */
+export function validateCrew({ name, tag, color } = {}) {
+  const errors = {};
+  const p_name = clean(name);
+  const p_tag = clean(tag).toUpperCase();
+  if (p_name.length < 2 || p_name.length > 30) errors.name = T.crew.errName;
+  if (!/^[A-Z0-9]{2,4}$/.test(p_tag)) errors.tag = T.crew.errTag;
+  if (!CREW_COLORS.includes(color)) errors.color = T.crew.errColor;
+  return { errors, value: { p_name, p_tag, p_color: color } };
+}
+
+export const crewInviteHash = code => `#/hra/crew/pridat/${code}`;
+/* Kód z políčka: samotný kód (aj malými, s medzerami) alebo celý odkaz /hra/crew/pridat/<KÓD>. '' = neplatný. */
+export function parseInviteCode(input) {
+  const s = typeof input === 'string' ? input.trim() : '';
+  const m = /\/hra\/crew\/pridat\/([A-Za-z0-9]{8})(?:[/?#]|$)/.exec(s);
+  const code = (m ? m[1] : s.replace(/\s+/g, '')).toUpperCase();
+  return /^[A-Z0-9]{8}$/.test(code) ? code : '';
+}
+
+/* Crews na spote zoradené podľa bodov (spot_crew_scores), najviac n. */
+export const topTurf = (rows, n = 5) => [...(rows || [])].sort((a, b) => b.points - a.points).slice(0, n);
+/* Jedna veta o súboji na spote. */
+export function turfLine(rows, minPoints = 100) {
+  const [a, b] = topTurf(rows, 2);
+  if (!a) return '';
+  if (!b) return a.points >= minPoints ? T.crew.turfSolo(a.tag, a.points) : T.crew.turfNeed(a.tag, a.points, minPoints);
+  if (a.points === b.points) return T.crew.turfTie(a.tag, b.tag, a.points);
+  return T.crew.turfLead(a.tag, a.points, b.points, b.tag);
+}

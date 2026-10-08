@@ -370,11 +370,89 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
     } finally { await context.close(); }
   });
 
+  const MY_CREW = { id: 'c0000000-0000-4000-8000-000000000001', name: 'Ružinov Rats', tag: 'RR', color: '#FF3DA5', role: 'owner', invite_code: 'ABCD2345', max: 10,
+    points: 145, rank: 1, spots_controlled: 1,
+    members: [{ player_id: USER_ID, username: 'jano_flip', role: 'owner', joined_at: '2026-10-01T10:00:00Z' },
+      { player_id: '0b5b0000-0000-4000-8000-000000000002', username: 'ema', role: 'member', joined_at: '2026-10-02T10:00:00Z' }] };
+  const crewRoute = (calls, state) => (p, req, json) => {
+    if (p === '/rest/v1/rpc/my_crew') return json(state.crew);
+    if (p === '/rest/v1/rpc/create_crew') { calls.push(['create_crew', req.postDataJSON()]); state.crew = MY_CREW; return json({ id: MY_CREW.id, name: 'Ružinov Rats', tag: 'RR', color: '#FF3DA5' }); }
+    if (p === '/rest/v1/rpc/crew_preview') return state.preview ? json(state.preview) : json({ message: 'BAD_CODE' }, 400);
+    if (p === '/rest/v1/rpc/join_crew') { calls.push(['join_crew', req.postDataJSON()]); return state.joinError ? json({ message: state.joinError }, 400) : (state.crew = { ...MY_CREW, role: 'member' }, json({ id: MY_CREW.id, tag: 'RR' })); }
+    if (p === '/rest/v1/rpc/kick_crew_member') { calls.push(['kick', req.postDataJSON()]); state.crew = { ...MY_CREW, members: MY_CREW.members.slice(0, 1) }; return json({}); }
+    if (p === '/rest/v1/spot_crew_scores') return json([{ crew_id: MY_CREW.id, tag: 'RR', color: '#FF3366', points: 145 }, { crew_id: 'c2', tag: 'GG', color: '#6FF3FF', points: 90 }]);
+    return null;
+  };
+
+  test('CREW: hráč bez crew založí crew (zlý TAG má hlášku), potom vidí kód pozvánky, členov a vyhodí člena', async () => {
+    const calls = [], state = { crew: null };
+    const { page, context, errors } = await open('hra', { signedIn: true, me: PLAYER_ME, route: crewRoute(calls, state) });
+    try {
+      await page.click('.g-menu-item[data-game-nav="crew"]');
+      await page.waitForSelector('form.g-card-form input[name="tag"]');
+      await page.fill('input[name="name"]', 'Ružinov Rats');
+      await page.fill('input[name="tag"]', 'R');
+      await page.click('form.g-card-form:has(input[name="tag"]) button[type="submit"]');
+      await page.waitForFunction(() => /TAG má 2 až 4 znaky/.test(document.querySelector('form.g-card-form .g-msg')?.textContent || ''));
+      assert.equal(calls.length, 0);
+      await page.fill('input[name="tag"]', 'rr');
+      assert.equal(await page.inputValue('input[name="tag"]'), 'RR');
+      await page.click('form.g-card-form:has(input[name="tag"]) button[type="submit"]');
+      await page.waitForSelector('.g-crew .g-code');
+      assert.deepEqual(calls[0], ['create_crew', { p_name: 'Ružinov Rats', p_tag: 'RR', p_color: '#FF3DA5' }]);
+      assert.equal(await page.textContent('.g-code'), 'ABCD2345');
+      assert.match(await page.textContent('.g-crew'), /2 z 10 členov/);
+      assert.match(await page.textContent('.g-crew'), /145 b za 30 dní/);
+      page.once('dialog', d => d.accept());
+      await page.click('.g-roster li:nth-child(2) .linklike');
+      await page.waitForFunction(() => document.querySelectorAll('.g-roster li').length === 1);
+      assert.deepEqual(calls.at(-1), ['kick', { p_player: '0b5b0000-0000-4000-8000-000000000002' }]);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('pozvánka odkazom /hra/crew/pridat/<KÓD>: náhľad crew, pridanie; plná crew má hlášku a vypnuté tlačidlo', async () => {
+    const calls = [], state = { crew: null, preview: { id: MY_CREW.id, name: 'Ružinov Rats', tag: 'RR', color: '#FF3DA5', members: 9, max: 10, full: false } };
+    const { page, context, errors } = await open('hra', { signedIn: true, me: PLAYER_ME, route: crewRoute(calls, state) });
+    try {
+      await page.goto(`${base}/hra/crew/pridat/ABCD2345`);
+      await page.waitForSelector('.g-crew-card .g-btn-in');
+      assert.match(await page.textContent('.g-crew-card'), /Ružinov Rats/);
+      assert.match(await page.textContent('.g-crew-card'), /9 z 10 členov/);
+      await page.click('.g-crew-card .g-btn-in');
+      await page.waitForSelector('.g-crew .g-code');
+      assert.deepEqual(calls[0], ['join_crew', { p_code: 'ABCD2345' }]);
+      assert.equal(await page.evaluate(() => location.pathname), '/hra/crew');
+
+      state.crew = null; state.preview = { ...state.preview, members: 10, full: true };
+      await page.goto(`${base}/hra/crew/pridat/ABCD2345`);
+      await page.waitForSelector('.g-crew-card .g-btn-in');
+      assert.equal(await page.$eval('.g-crew-card .g-btn-in', b => b.disabled), true);
+      assert.match(await page.textContent('.g-crew-card'), /Crew je plná/);
+
+      state.preview = { ...state.preview, members: 9, full: false }; state.joinError = 'CREW_FULL';
+      await page.goto(`${base}/hra/crew/pridat/ABCD2345`);
+      await page.waitForSelector('.g-crew-card .g-btn-in:not([disabled])');
+      await page.click('.g-crew-card .g-btn-in');
+      await page.waitForFunction(() => /Crew je plná/.test(document.querySelector('.g-crew-card .g-msg[role="alert"]')?.textContent || ''));
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
+  test('karta spotu: Turf Wars „RR vedie 145 : 90 nad GG“ s pruhmi crews', async () => {
+    const { page, context, errors } = await open(`hra/spot/${SPOTS[0].id}`, { route: crewRoute([], { crew: null }) });
+    try {
+      await page.waitForFunction(() => /RR vedie 145 : 90 nad GG/.test(document.querySelector('.g-spot-turf')?.textContent || ''));
+      assert.equal(await page.$$eval('.g-turf li', els => els.length), 2);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
   test('herná CREW na /hra/crew, Robove crew na /crew, späť v histórii', async () => {
     const { page, context, errors } = await open('hra');
     try {
       await page.click('.g-menu-item[data-game-nav="crew"]');
-      await page.waitForSelector('.g-soon');
+      await page.waitForFunction(() => /Prihlás sa a založ si crew/.test(document.querySelector('.g-page')?.textContent || ''));
       assert.equal(await page.evaluate(() => location.pathname), '/hra/crew');
       await page.goBack();
       await page.waitForSelector('[data-spot-id]');

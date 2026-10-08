@@ -2899,7 +2899,8 @@ const ROUTES = [
   [/^#\/hra\/rebricek$/, gamePage('pageCrewBoard'), 'hra'],
   [/^#\/hra\/potvrdene$/, gamePage('pageGameConsentDone'), 'hra'],
   [/^#\/hra\/feed$/, gamePage('pageFeed'), 'hra'],
-  [/^#\/hra\/crew$/, gameSoon('crew'), 'hra'],   // herná crew (čoskoro); #/crew sú Robove crew z data.js
+  [/^#\/hra\/crew$/, gamePage('pageCrew'), 'hra'],   // herná crew; #/crew sú Robove crew z data.js
+  [/^#\/hra\/crew\/pridat\/([A-Za-z0-9]{8})$/, gamePage('pageCrew'), 'hra'],   // pozvánka odkazom
   [/^#\/hra\/loadout$/, gameSoon('loadout'), 'hra'],
   [/^#\/pass$/, pagePasses, ''],
   [/^#\/checkin\/([\w-]+)$/, pageCheckin, ''],

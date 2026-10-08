@@ -15,7 +15,7 @@ export class GameError extends UserError {
 
 /* game_cfg() keď server neodpovie: rovnaké čísla ako v 010 */
 export const DEFAULT_CFG = { checkin_radius_m: 150, checkin_max_minutes: 120, points_per_minute: 1, spots_per_day: 5, report_ttl_hours: 6, guardian_age: 16,
-  video_max_seconds: 60, video_max_mb: 50, photo_max_mb: 10, clips_per_day: 20, crew_max: 10 };
+  video_max_seconds: 60, video_max_mb: 50, photo_max_mb: 10, clips_per_day: 20, crew_max: 10, control_min_points: 100 };
 export const MEDIA_BUCKET = 'media';
 const CLIP_COLS = 'id,spot_id,spot_name,username,crew_id,crew_tag,crew_color,media_kind,media_path,embed_url,trick,duration_s,verified,likes,created_at';
 export const FEED_PAGE = 12;
@@ -100,6 +100,15 @@ export function createGameApi({ sb, apiBase = '', fetch = browserFetch }) {
         .eq('hidden', true).order('created_at', { ascending: false }).limit(50));
     },
     async setClipHidden(id, hidden) { must(await sb.from('clips').update({ hidden }).eq('id', id)); },
+    /* crews a Turf Wars (011, 017) */
+    myCrew: () => rpc('my_crew'),
+    crewPreview: code => rpc('crew_preview', { p_code: code }),
+    createCrew: v => rpc('create_crew', v),
+    joinCrew: code => rpc('join_crew', { p_code: code }),
+    leaveCrew: () => rpc('leave_crew'),
+    kickMember: playerId => rpc('kick_crew_member', { p_player: playerId }),
+    rotateInvite: () => rpc('rotate_invite_code'),
+    async spotTurf(spotId) { return must(await sb.from('spot_crew_scores').select('crew_id,tag,color,points').eq('spot_id', spotId).order('points', { ascending: false }).limit(5)); },
     /* onboarding (api/game/link-rider.js) */
     linkStatus: () => api('GET'),
     link: body => api('POST', body),
