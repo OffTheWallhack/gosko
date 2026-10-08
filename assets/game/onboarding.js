@@ -2,10 +2,10 @@
    Nový jazdec (e-mail nepoznáme z registrácie) vyplní aj meno, dátum narodenia a krajinu; U16 e-mail rodiča.
    Zápis robí server (api/game/link-rider.js), klient iba predbežne kontroluje polia. */
 import { T } from './i18n-sk.js';
-import { needsGuardian, validateUsername } from './logic.js';
+import { AVATARS, CREW_COLORS, needsGuardian, validateProfile, validateUsername } from './logic.js';
 import { gameApi, loadPlayer, rememberReturn } from './auth.js';
 import { loadGameCss } from './map.js';
-import { gameShell, h, leaveGame, toast } from './ui.js';
+import { avatarEl, gameShell, h, leaveGame, toast } from './ui.js';
 import { COUNTRIES, todayIn } from '../register.js';
 import { UserError } from '../util.js';
 
@@ -14,15 +14,59 @@ const field = (name, label, input, hint) => h('label', { class: 'g-field', 'data
 
 function profileCard(player, api, ctx) {
   const me = player.me;
-  return h('article', { class: 'g-holo g-profile' }, h('div', { class: 'g-holo-in' },
-    h('span', { class: 'g-sticker' }, T.onboarding.playerTitle),
+  const card = h('article', { class: 'g-holo g-profile' });
+  const show = () => card.replaceChildren(h('div', { class: 'g-holo-in' },
+    h('div', { class: 'g-holo-top' }, avatarEl(me.avatar, me.color, 'g-avatar big'), h('span', { class: 'g-sticker' }, T.onboarding.playerTitle)),
     h('h1', { class: 'g-holo-name wide' }, `@${me.username}`),
     h('p', { class: 'g-holo-city cond' }, [me.city, me.stance && T.onboarding[me.stance]].filter(Boolean).join(' · ')),
     player.mode === 'browse' && h('p', { class: 'g-msg warn' }, T.banner.browse),
     mediaConsent(me, api),
     h('div', { class: 'g-actions' },
       h('a', { class: 'g-btn g-btn-in', href: '#/hra' }, T.onboarding.toMap),
+      h('button', { class: 'g-btn g-btn-small g-edit', type: 'button', onclick: () => card.replaceChildren(h('div', { class: 'g-holo-in' }, profileForm(me, api, show))) }, T.profile.edit),
       h('button', { class: 'g-btn g-btn-ghost', type: 'button', onclick: async () => { await api.logout(); ctx.go('#/hra'); } }, T.onboarding.logout))));
+  show();
+  return card;
+}
+
+/* Úprava profilu: nick, mesto, stance, avatar a farba (update_profile, 019). */
+function profileForm(me, api, done) {
+  const msg = h('p', { class: 'g-msg', role: 'alert' });
+  const radios = (name, entries, current, render) => h('div', { class: `g-pick g-pick-${name}`, role: 'radiogroup', 'aria-label': T.profile[name] },
+    entries.map(([v, label]) => h('label', { class: 'g-pick-item', title: label },
+      h('input', { type: 'radio', name, value: v, checked: v === current, 'aria-label': label }), render(v))));
+  const stance = h('div', { class: 'g-chips', role: 'radiogroup', 'aria-label': T.onboarding.stance },
+    ['regular', 'goofy'].map(v => h('label', { class: 'g-chip' }, h('input', { type: 'radio', name: 'stance', value: v, checked: me.stance === v }), h('span', {}, T.onboarding[v]))));
+  const color = me.color && CREW_COLORS.includes(me.color) ? me.color : CREW_COLORS[0];
+  const submit = h('button', { class: 'g-btn g-btn-in', type: 'submit' }, T.profile.save);
+  const form = h('form', { class: 'g-form', novalidate: true },
+    h('h2', { class: 'wide g-form-title' }, T.profile.editTitle),
+    field('username', T.onboarding.username, h('input', { name: 'username', value: me.username, maxlength: 20, autocapitalize: 'none', spellcheck: 'false' }), T.onboarding.usernameHint),
+    field('city', T.onboarding.city, h('input', { name: 'city', value: me.city || '', maxlength: 60, autocomplete: 'address-level2' })),
+    h('div', { class: 'g-field' }, h('span', {}, T.onboarding.stance), stance),
+    h('div', { class: 'g-field' }, h('span', {}, T.profile.avatar), radios('avatar', Object.entries(AVATARS), me.avatar || 'ghost', v => avatarEl(v, color))),
+    h('div', { class: 'g-field' }, h('span', {}, T.profile.color), radios('color', CREW_COLORS.map(c => [c, c]), color, c => h('span', { class: 'g-swatch', style: { '--av': c } }))),
+    msg, h('div', { class: 'g-actions' }, submit, h('button', { class: 'g-btn g-btn-ghost', type: 'button', onclick: () => done() }, T.profile.cancel)));
+  form.addEventListener('change', e => {   // farba sa hneď ukáže na avataroch
+    if (e.target.name === 'color') form.querySelectorAll('.g-pick-avatar .g-avatar').forEach(a => a.style.setProperty('--av', e.target.value));
+  });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    msg.textContent = '';
+    const val = n => form.querySelector(`[name=${n}]:checked`)?.value || null;
+    const { errors, value } = validateProfile({ username: form.elements.username.value, city: form.elements.city.value, stance: val('stance'), avatar: val('avatar'), color: val('color') });
+    const first = Object.values(errors)[0];
+    if (first) { msg.textContent = first; return; }
+    submit.disabled = true;
+    try {
+      const out = await api.updateProfile(value);
+      Object.assign(me, out);
+      toast(T.profile.saved);
+      done();
+    } catch (err) { msg.textContent = err instanceof UserError ? err.message : T.err.UNKNOWN; }
+    finally { if (submit.isConnected) submit.disabled = false; }
+  });
+  return form;
 }
 
 /* Súhlas s fotkami a videami (016): U16 ho dostane iba od rodiča, odvolať ho vie sám. 16+ ho nepotrebuje. */

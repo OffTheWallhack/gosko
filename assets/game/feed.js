@@ -6,7 +6,7 @@ import { parseEmbed, timeAgo } from './logic.js';
 import { gameApi, loadPlayer } from './auth.js';
 import { loadGameCss } from './map.js';
 import { FEED_PAGE } from './api.js';
-import { gameShell, h, leaveGame, toast } from './ui.js';
+import { avatarEl, gameShell, h, leaveGame, toast } from './ui.js';
 import { UserError } from '../util.js';
 
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
@@ -50,7 +50,7 @@ export function clipCard(c, o = {}) {
   if (o.admin) tools.push(h('button', { class: 'linklike', type: 'button', onclick: () => o.onHide?.(c, !o.hiddenView) }, o.hiddenView ? T.feed.unhide : T.feed.hide));
   return h('article', { class: 'g-clip', 'data-clip-id': c.id },
     h('header', { class: 'g-clip-head' },
-      h('strong', {}, `@${c.username || '?'}`), crew,
+      avatarEl(c.avatar, c.color), h('strong', {}, `@${c.username || '?'}`), crew,
       c.spot_id && h('a', { class: 'g-clip-spot cond', href: `#/hra/spot/${c.spot_id}` }, c.spot_name || ''),
       h('time', { class: 'g-clip-time', datetime: c.created_at }, timeAgo(c.created_at))),
     c.media_kind === 'embed' ? embedMedia(c) : fileMedia(c, o.url),

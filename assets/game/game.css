@@ -353,3 +353,17 @@ body.game-mode main{background:var(--black)}
 .g-drop-list li.off{border-left-color:var(--asphalt-3);opacity:.75}
 .g-drop-list small{grid-column:1;color:var(--muted-dark)}
 .g-drop-list button{grid-column:2;grid-row:1 / span 2}
+
+/* ---------- profil: avatar a farba (019) ---------- */
+.g-avatar{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--av,var(--spray));color:var(--black);border:2px solid var(--black);flex:none}
+.g-avatar .g-ico{width:18px;height:18px}
+.g-avatar.big{width:56px;height:56px;border-width:3px;box-shadow:3px 4px 0 rgba(0,0,0,.6)}
+.g-avatar.big .g-ico{width:34px;height:34px}
+.g-pick{display:flex;flex-wrap:wrap;gap:8px}
+.g-pick-item{position:relative;cursor:pointer}
+.g-pick-item input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.g-pick-item .g-avatar{width:44px;height:44px}
+.g-pick-item .g-avatar .g-ico{width:26px;height:26px}
+.g-swatch{display:block;width:36px;height:36px;border-radius:50%;background:var(--av);border:3px solid var(--black)}
+.g-pick-item input:checked+*{outline:3px solid var(--cream);outline-offset:2px}
+.g-pick-item input:focus-visible+*{outline:3px solid var(--ice);outline-offset:2px}

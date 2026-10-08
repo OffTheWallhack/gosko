@@ -283,3 +283,18 @@ export function nftLabel(r) {
   if (r.nft_status === 'failed' || r.nft_status === 'pending') return T.loot.nftPending;
   return T.loot.nftAvailable;
 }
+
+/* ---------- herný profil (019) ---------- */
+export const AVATARS = { ghost: 'Duch', skull: 'Lebka', wheel: 'Koliesko', spray: 'Sprej', crown: 'Koruna', bolt: 'Blesk' };
+export function validateProfile({ username, city, stance, avatar, color } = {}) {
+  const errors = {};
+  const p_username = clean(username);
+  const p_city = clean(city) || null;
+  const p_stance = stance || null;
+  if (!USERNAME_RE.test(p_username)) errors.username = T.onboarding.errUsername;
+  if (p_city && p_city.length > 60) errors.city = T.profile.errCity;
+  if (p_stance && !['regular', 'goofy'].includes(p_stance)) errors.stance = T.profile.errStance;
+  if (!Object.hasOwn(AVATARS, avatar)) errors.avatar = T.profile.errAvatar;
+  if (!CREW_COLORS.includes(color)) errors.color = T.crew.errColor;
+  return { errors, value: { p_username, p_city, p_stance, p_avatar: avatar, p_color: color } };
+}

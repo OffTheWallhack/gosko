@@ -548,6 +548,36 @@ describe('smoke: herná mapa so stubnutým Supabase', { skip: pw ? false : 'Play
     } finally { await context.close(); }
   });
 
+  test('PROFIL: úprava nicku, mesta, stance, avatara a farby; obsadený nick má hlášku', async () => {
+    const calls = [];
+    let taken = true;
+    const route = (p, req, json) => {
+      if (p !== '/rest/v1/rpc/update_profile') return null;
+      calls.push(req.postDataJSON());
+      if (taken) { taken = false; return json({ message: 'USERNAME_TAKEN' }, 400); }
+      const v = req.postDataJSON();
+      return json({ username: v.p_username, city: v.p_city, stance: v.p_stance, avatar: v.p_avatar, color: v.p_color });
+    };
+    const { page, context, errors } = await open('hra', { signedIn: true, me: { ...PLAYER_ME, avatar: 'ghost', color: '#FF3DA5' }, route });
+    try {
+      await page.click('.g-top .g-me');
+      await page.waitForSelector('.g-profile .g-avatar.big');
+      await page.click('.g-profile button.g-edit');
+      await page.fill('input[name="username"]', 'novy_nick');
+      await page.fill('input[name="city"]', 'Košice');
+      await page.check('.g-pick-avatar input[value="skull"]');
+      await page.check('.g-pick-color input[value="#6FF3FF"]');
+      await page.click('.g-profile button[type="submit"]');
+      await page.waitForFunction(() => /niekto má/.test(document.querySelector('.g-profile .g-msg')?.textContent || ''));
+      await page.fill('input[name="username"]', 'iny_nick');
+      await page.click('.g-profile button[type="submit"]');
+      await page.waitForFunction(() => /@iny_nick/.test(document.querySelector('.g-profile h1')?.textContent || ''));
+      assert.deepEqual(calls.at(-1), { p_username: 'iny_nick', p_city: 'Košice', p_stance: 'goofy', p_avatar: 'skull', p_color: '#6FF3FF' });
+      assert.match(await page.textContent('.g-profile .g-holo-city'), /Košice · Goofy/);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+
   test('herná CREW na /hra/crew, Robove crew na /crew, späť v histórii', async () => {
     const { page, context, errors } = await open('hra');
     try {

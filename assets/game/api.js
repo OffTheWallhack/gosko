@@ -17,7 +17,7 @@ export class GameError extends UserError {
 export const DEFAULT_CFG = { checkin_radius_m: 150, checkin_max_minutes: 120, points_per_minute: 1, spots_per_day: 5, report_ttl_hours: 6, guardian_age: 16,
   video_max_seconds: 60, video_max_mb: 50, photo_max_mb: 10, clips_per_day: 20, crew_max: 10, control_min_points: 100 };
 export const MEDIA_BUCKET = 'media';
-const CLIP_COLS = 'id,spot_id,spot_name,username,crew_id,crew_tag,crew_color,media_kind,media_path,embed_url,trick,duration_s,verified,likes,created_at';
+const CLIP_COLS = 'id,spot_id,spot_name,username,crew_id,crew_tag,crew_color,media_kind,media_path,embed_url,trick,duration_s,verified,likes,created_at,avatar,color';
 export const FEED_PAGE = 12;
 
 const SUMMARY_COLS = 'id,name,city,kind,description,lat,lng,photo_url,needs_verification,skulls,ratings,people_now,status,bust,control_crew_id,control_tag,control_color,control_points,loot_active';
@@ -120,6 +120,7 @@ export function createGameApi({ sb, apiBase = '', fetch = browserFetch }) {
     async myGear() { return must(await sb.from('unlocked_gear').select('gear_id,source,unlocked_at')).map(r => r.gear_id); },
     setLoadout: config => rpc('set_loadout', { p_config: config }),
     setNftConsent: on => rpc('set_nft_consent', { p_on: on }),
+    updateProfile: v => rpc('update_profile', v),
     mintLootNft: dropId => call('/api/game/loot-nft', 'POST', { drop_id: dropId }),
     adminLoot: () => call('/api/admin/loot', 'GET'),
     adminCreateLoot: body => call('/api/admin/loot', 'POST', body),

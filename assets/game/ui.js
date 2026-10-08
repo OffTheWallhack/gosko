@@ -28,7 +28,16 @@ const PATHS = {
   profile: 'M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 12c4.4 0 8 2.7 8 6v2H4v-2c0-3.3 3.6-6 8-6Z',
   loot: 'M4 9h16v3H4V9Zm1 4h14v8H5v-8Zm6-4h2v12h-2V9ZM8.5 3.5C10 3.5 11.3 5 12 7c.7-2 2-3.5 3.5-3.5a2 2 0 0 1 0 4h-7a2 2 0 0 1 0-4Z',
   close: 'M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z',
+  /* avatary hráča (019) */
+  ghost: 'M12 2C7.6 2 4 5.6 4 10v11l2.7-2 2.6 2 2.7-2 2.7 2 2.6-2L20 21V10c0-4.4-3.6-8-8-8Zm-3 7a1.6 1.6 0 1 1 0 3.2A1.6 1.6 0 0 1 9 9Zm6 0a1.6 1.6 0 1 1 0 3.2A1.6 1.6 0 0 1 15 9Z',
+  wheel: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm0 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z',
+  spray: 'M9 2h4v3h-4V2Zm-1 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm8-3h2v2h-2V3Zm3 2h2v2h-2V5Zm-3 2h2v2h-2V7Z',
+  crown: 'M3 7l4.5 4L12 4l4.5 7L21 7l-2 12H5L3 7Zm2.6 13.5h12.8V22H5.6v-1.5Z',
+  bolt: 'M13 2 4 14h7l-1 8 9-12h-7l1-8Z',
 };
+/* Avatar hráča: motív hry v krúžku jeho farby. */
+export const avatarEl = (avatar, color, cls = 'g-avatar') => h('span', { class: cls, style: { '--av': /^#[0-9a-f]{6}$/i.test(color || '') ? color : '#FF3DA5' }, 'aria-hidden': 'true' },
+  icon(PATHS[avatar] ? avatar : 'ghost', 'g-ico'));
 export const icon = (name, cls = 'g-ico') => h('svg:svg', { class: cls, viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' },
   h('svg:path', { d: PATHS[name], 'fill-rule': 'evenodd' }));
 
