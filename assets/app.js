@@ -1689,7 +1689,7 @@ async function pageProfile(root) {
   put(body, h('div', { class: 'pf-grid' }, avatarSlot, h('div', { class: 'pf-card' },
     h('p', { class: 'mono pf-k' }, 'Prihlásený ako'),
     h('p', { class: 'pf-email' }, email || 'ukážkový režim'),
-    admin ? h('p', {}, h('span', { class: 'chip on' }, 'Admin / crew'), ' ', h('a', { class: 'btn small primary', href: '#/admin' }, 'Otvoriť admin')) : null,
+    admin ? h('p', { class: 'pf-admin' }, h('span', { class: 'chip on' }, 'Admin / crew'), ' ', h('a', { class: 'btn primary', href: '#/admin' }, 'Otvoriť admin'), ' ', h('a', { class: 'btn small', href: '#/admin/vysledky' }, 'Výsledky'), ' ', h('a', { class: 'btn small', href: '#/admin/scan' }, 'Check-in')) : null,
     store.mode === 'live' ? h('form', { class: 'pf-pw', onsubmit: async e => {
       e.preventDefault(); msg.textContent = '';
       if (pw.value.length < 8) { msg.textContent = 'Heslo musí mať aspoň 8 znakov.'; return; }
@@ -1743,6 +1743,8 @@ async function updateAccount() {
   const a = document.getElementById('acct'); if (!a || !store) return;
   const inn = store.mode === 'live' ? await store.signedIn().catch(() => false) : false;
   a.classList.toggle('in', inn);
+  const adm = inn && await store.isAdmin().catch(() => false);
+  document.querySelectorAll('[data-admin-link]').forEach(x => { x.hidden = !adm; });
   a.replaceChildren(h('img', { src: 'img/ghost.svg', alt: '', width: 20, height: 22 }), h('span', {}, inn ? 'Profil' : 'Prihlásiť'));
 }
 
