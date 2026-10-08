@@ -121,6 +121,10 @@ function demoStore() {
       if (!LS.set('gosko:posts', a)) throw new Error('Prehliadač nemá voľné miesto na uloženie.');
     },
     async deletePost(id) { LS.set('gosko:posts', LS.get('gosko:posts', []).filter(x => x.id !== id)); },
+    async setPostImage(id, photo) {
+      const a = LS.get('gosko:posts', []), x = a.find(p => p.id === id); if (!x) return;
+      x.image_url = photo ? await toDataUrl(photo) : null; LS.set('gosko:posts', a);
+    },
 
     /* profily, triky, hodnotenia: v ukážkovom režime len v prehliadači */
     async me() { return { id: 'demo', email: '' }; },
@@ -287,6 +291,18 @@ async function liveStore(CONFIG) {
       }
       const id = r.id; delete r.id; delete r.created; delete r.created_at;
       must(id ? await sb.from('posts').update(r).eq('id', id) : await sb.from('posts').insert(r));
+    },
+    /* zmena alebo odstránenie titulnej fotky článku (photo = súbor, alebo null na odstránenie) */
+    async setPostImage(id, photo) {
+      const old = must(await sb.from('posts').select('image_path').eq('id', id).maybeSingle())?.image_path;
+      let patch = { image_url: null, image_path: null };
+      if (photo) {
+        const u = (await session()).user.id, path = `${u}/news-${newToken()}.jpg`;
+        must(await sb.storage.from('photos').upload(path, photo, { contentType: 'image/jpeg', upsert: false }));
+        patch = { image_path: path, image_url: sb.storage.from('photos').getPublicUrl(path).data.publicUrl };
+      }
+      must(await sb.from('posts').update(patch).eq('id', id));
+      if (old) await sb.storage.from('photos').remove([old]).catch(() => {});
     },
     async deletePost(id) {
       const row = must(await sb.from('posts').select('image_path').eq('id', id).maybeSingle());
