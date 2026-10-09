@@ -16,3 +16,6 @@ supabase/test/*.log
 *.xlsx
 .vercel
 .env*
+.workflow/session.json
+.workflow/logs/
+.workflow/sessions/
