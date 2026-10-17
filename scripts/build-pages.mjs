@@ -107,6 +107,6 @@ for (const x of postPages) page(`novinka/${x.id}`, { title: x.title, type: 'arti
 for (const c of CREWS) page(`crew/${c.id}`, { title: c.name, description: clip(c.about || `${c.name}: skate crew na GOSko.`), image: c.image });
 
 /* sitemap a robots */
-writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages.map(p => p ? p + '/' : ''), 'hub/'].map(p => `  <url><loc>${SITE_URL}${p}</loc></url>`).join('\n')}\n</urlset>\n`);
+writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages.map(p => p ? p + '/' : ''), 'hub/', 'ghoskate/'].map(p => `  <url><loc>${SITE_URL}${p}</loc></url>`).join('\n')}\n</urlset>\n`);
 writeFileSync(join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}sitemap.xml\n`);
 console.log(`Hotovo: ${pages.length} stránok, ${posts.length} článkov.`);

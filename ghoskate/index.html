@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<!-- Pri prechode na gosko.sk zmeň base na "/" (rovnako ako v index.html webu). -->
+<base href="/gosko/">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ghoskate | skate appka od GOSka</title>
+<meta name="description" content="Ghoskate je skate appka pre Slovensko a Česko. Mapa spotov je herný svet: check-in, triky, crews a digitálny loot. Vytvor si ducha a pridaj prvý spot.">
+<link rel="canonical" href="https://offthewallhack.github.io/gosko/ghoskate/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ghoskate">
+<meta property="og:locale" content="sk_SK">
+<meta property="og:locale:alternate" content="cs_CZ">
+<meta property="og:locale:alternate" content="en_GB">
+<meta property="og:title" content="Ghoskate | skate appka od GOSka">
+<meta property="og:description" content="Mapa spotov ako herný svet. Vytvor si ducha, pridaj prvý spot a získaj Founder loot. Spúšťame na jar 2027.">
+<meta property="og:url" content="https://offthewallhack.github.io/gosko/ghoskate/">
+<meta property="og:image" content="https://offthewallhack.github.io/gosko/ghoskate/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#16122B">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..900&display=swap">
+<link rel="stylesheet" href="ghoskate/ghoskate.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<a class="skip" href="ghoskate/#vytvor" data-t="menu.create">Vytvor ducha</a>
+<header class="top">
+  <a class="top-brand" href="ghoskate/" aria-label="Ghoskate">
+    <img src="img/ghost.svg" alt="" width="34" height="38">
+    <span class="top-name">Ghoskate</span>
+    <span class="top-by" data-t="top.powered">od GOSka</span>
+  </a>
+  <div class="top-right">
+    <div class="lang" role="group" aria-label="Jazyk" data-t-aria="top.lang">
+      <button type="button" data-lang="sk" aria-pressed="true">SK</button>
+      <button type="button" data-lang="cs" aria-pressed="false">CZ</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <a class="top-acct" href="ghoskate/#vytvor" id="acct"><span class="acct-ghost" aria-hidden="true"></span><span data-t="top.login">Prihlásiť</span></a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="title" aria-labelledby="wm">
+    <div class="title-copy">
+      <h1 id="wm" class="wm" aria-label="Ghoskate"><span class="wm-a" aria-hidden="true">GHO</span><span class="wm-b" aria-hidden="true">SKATE</span></h1>
+      <p class="title-read" data-t="hero.read">Čítaj go skate.</p>
+      <p class="title-tag" data-t="hero.tag">Skate appka, v ktorej je mapa spotov herný svet.</p>
+      <p class="title-body" data-t="hero.body">Checkni sa na spote, nahraj trik, ovládni spot so svojou crew a zbieraj loot za reálnu jazdu. Pre Slovensko a Česko, od crew, ktorá robí GOSko. Spúšťame na jar 2027.</p>
+      <div class="title-cta">
+        <a class="btn-start" href="ghoskate/#vytvor"><span data-t="hero.create">Vytvoriť ducha</span></a>
+        <a class="btn-text" href="ghoskate/#ako" data-t="hero.how">Ako sa hrá</a>
+      </div>
+      <dl class="title-stats" id="stats" hidden>
+        <div><dt data-t="hero.founders">Founderi</dt><dd id="st-f">0</dd></div>
+        <div><dt data-t="hero.spots">Spoty v hre</dt><dd id="st-s">0</dd></div>
+      </dl>
+    </div>
+    <div class="title-stage" id="hero-stage">
+      <img class="title-ghost" src="img/ghost.svg" alt="" width="480" height="540">
+    </div>
+  </section>
+
+  <div class="layout">
+    <nav class="ps-menu" aria-label="Hlavné menu" data-t-aria="menu.label">
+      <a href="ghoskate/#ako" data-sec="ako" data-t="menu.how">Ako sa hrá</a>
+      <a href="ghoskate/#vytvor" data-sec="vytvor" data-t="menu.create">Vytvor ducha</a>
+      <a href="ghoskate/#mapa" data-sec="mapa" data-t="menu.map">Mapa sveta</a>
+      <a href="ghoskate/#kariera" data-sec="kariera" data-t="menu.career">Kariéra 2026/27</a>
+      <a href="ghoskate/#gosko" data-sec="gosko" data-t="menu.gosko">GOSko a Ghoskate</a>
+      <a href="ghoskate/#otazky" data-sec="otazky" data-t="menu.faq">Otázky</a>
+    </nav>
+
+    <div class="content">
+      <section class="sec" id="ako" aria-labelledby="ako-h">
+        <h2 id="ako-h" data-t="how.h">Ako sa hrá</h2>
+        <p class="lead" data-t="how.lead">Každý deň na spote je level. Tieto ciele prídu do appky postupne, v piatich vlnách.</p>
+        <ol class="goals" id="goals"></ol>
+      </section>
+
+      <section class="sec" id="vytvor" aria-labelledby="vytvor-h">
+        <h2 id="vytvor-h" data-t="create.h">Vytvor si ducha</h2>
+        <p class="lead" data-t="create.lead">Tvoj duch je tvoj profil. Ten istý duch, doska aj loot platia na GOSko webe aj v appke. Kto sa pridá pred spustením, dostane Founder loot.</p>
+        <div class="cas">
+          <aside class="cas-card" id="card" aria-live="polite">
+            <div class="cas-stage" id="preview" role="img" aria-label="Tvoj duch na doske" data-t-aria="create.preview"></div>
+            <p class="cas-nick" id="card-nick">Tvoja prezývka</p>
+            <p class="cas-meta" id="card-meta"></p>
+            <div class="cas-inv" id="card-inv" hidden></div>
+          </aside>
+          <ol class="cas-goals">
+            <li class="cg" id="goal-a">
+              <h3 class="cg-h"><span class="cg-box" aria-hidden="true"></span><span data-t="create.goalA">Postav si ducha</span><span class="cg-state sr" data-state></span></h3>
+              <div class="cg-body" id="body-a"></div>
+            </li>
+            <li class="cg" id="goal-b">
+              <h3 class="cg-h"><span class="cg-box" aria-hidden="true"></span><span data-t="create.goalB">Ulož ho do účtu</span><span class="cg-state sr" data-state></span></h3>
+              <div class="cg-body" id="body-b"></div>
+            </li>
+            <li class="cg" id="goal-c">
+              <h3 class="cg-h"><span class="cg-box" aria-hidden="true"></span><span data-t="create.goalC">Pridaj prvý spot</span><span class="cg-state sr" data-state></span></h3>
+              <div class="cg-body" id="body-c"></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="sec" id="mapa" aria-labelledby="mapa-h">
+        <h2 id="mapa-h" data-t="map.h">Mapa sveta</h2>
+        <p class="lead" data-t="map.lead">Toto je herný svet Ghoskate: skateparky a spoty od komunity. Každý spot, ktorý pridáš, tu bude od prvého dňa.</p>
+        <div class="world" id="world"></div>
+        <div class="world-foot">
+          <p class="legend"><span class="lg lg-park" aria-hidden="true"></span><span data-t="map.park">Skatepark</span><span class="lg lg-spot" aria-hidden="true"></span><span data-t="map.spot">Spot od komunity</span></p>
+          <a class="btn-text" href="ghoskate/#vytvor" id="map-add" data-t="map.add">Pridať spot</a>
+        </div>
+      </section>
+
+      <section class="sec" id="kariera" aria-labelledby="kariera-h">
+        <h2 id="kariera-h" data-t="career.h">Kariéra 2026/27</h2>
+        <p class="lead" data-t="career.lead">Appka rastie spolu so sezónou GOSka. Každá veľká zastávka odomkne ďalšiu vlnu.</p>
+        <ol class="career" id="career"></ol>
+        <p class="note" data-t="career.mini">Medzi veľkými zastávkami chystáme komunitné mini eventy: sessiony, pop-upy a výzvy na spotoch.</p>
+      </section>
+
+      <section class="sec" id="gosko" aria-labelledby="gosko-h">
+        <h2 id="gosko-h" data-t="gosko.h">GOSko a Ghoskate</h2>
+        <div class="duo">
+          <div class="duo-a"><h3 data-t="gosko.aT">GOSko</h3><p data-t="gosko.aD">Reálne Game of S.K.A.T.E. eventy po Slovensku. Rebríček, finále a ceny.</p></div>
+          <div class="duo-b"><h3 data-t="gosko.bT">Ghoskate</h3><p data-t="gosko.bD">Všetko medzi eventmi. Spoty, triky, crews a loot každý deň.</p></div>
+          <div class="duo-c"><h3 data-t="gosko.cT">Jeden účet</h3><p data-t="gosko.cD">Prihlásiš sa raz. Tvoj duch, doska aj loot sú na GOSko webe aj v appke. Výsledky z eventov idú do rankingu appky a appka ťa privedie na ďalší event.</p>
+            <a class="btn-text" href="./" data-t="gosko.link">Otvoriť GOSko web</a></div>
+        </div>
+      </section>
+
+      <section class="sec" id="otazky" aria-labelledby="otazky-h">
+        <h2 id="otazky-h" data-t="faq.h">Otázky</h2>
+        <div class="faq" id="faq"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <img src="img/ghost.svg" alt="" width="40" height="45">
+  <p data-t="foot.made">Ghoskate robí GOSko crew pre skate komunitu na Slovensku a v Česku.</p>
+  <nav aria-label="GOSko">
+    <a href="./" data-t="foot.web">GOSko web</a>
+    <a href="https://www.instagram.com/g.o.s.ko/" target="_blank" rel="noopener">Instagram @g.o.s.ko</a>
+    <a href="rodicia" data-t="foot.parents">Pre rodičov</a>
+    <a href="partneri" data-t="foot.partners">Pre partnerov</a>
+  </nav>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="ghoskate/ghoskate.js"></script>
+</body>
+</html>

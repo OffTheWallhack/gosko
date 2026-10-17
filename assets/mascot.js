@@ -3,15 +3,23 @@
 import * as THREE from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 import { makeBoardModel } from './board.js';
+import { GHOST_SKINS, ghostOf } from './profile.js';
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let svgPromise = null;
 const loadGhostSvg = () => (svgPromise ||= fetch('img/ghost.svg').then(r => r.text()).then(t => new SVGLoader().parse(t)));
 
-/* duch: telo (krémové), obrys (tmavý) a tvár (tmavá), všetko vytlačené do 3D */
-function buildGhost(data) {
+/* telo ducha podľa skinu z profilu (holo = perleťový, dúhový lesk) */
+function bodyMaterial(ghost) {
+  const s = GHOST_SKINS[ghostOf(ghost).skin];
+  if (s.holo) return new THREE.MeshPhysicalMaterial({ color: s.color, roughness: .3, metalness: .15, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 820], clearcoat: .6, emissive: 0x2a2530, emissiveIntensity: .25 });
+  return new THREE.MeshStandardMaterial({ color: s.color, roughness: .55, emissive: 0x2a2520, emissiveIntensity: .35 });
+}
+
+/* duch: telo (farba skinu), obrys (tmavý) a tvár (tmavá), všetko vytlačené do 3D */
+function buildGhost(data, ghost) {
   const g = new THREE.Group(), geos = [], mats = [];
-  const cream = new THREE.MeshStandardMaterial({ color: 0xf3ebdd, roughness: .55, emissive: 0x2a2520, emissiveIntensity: .35 });
+  const cream = bodyMaterial(ghost);
   const dark = new THREE.MeshStandardMaterial({ color: 0x0e0d0c, roughness: .35, metalness: .1 });
   mats.push(cream, dark);
   const [bodyPath, darkPath] = data.paths;
@@ -31,11 +39,12 @@ function buildGhost(data) {
   pivot.userData.wobble = [body.geometry, ring.geometry].map(geo => ({ geo, base: Float32Array.from(geo.attributes.position.array) }));
   pivot.userData.hemY = c.y + size.y * .18;   // spodok (lem) sa vlní, v SVG súradniciach
   pivot.userData.dispose = () => { geos.forEach(x => x.dispose()); mats.forEach(x => x.dispose()); };
+  pivot.userData.setSkin = gh => { const m = bodyMaterial(gh); body.material.dispose(); body.material = m; mats[0] = m; };
   return pivot;
 }
 
 /* Pripojí maskota na plátno. Vráti funkciu na upratanie (s metódami trick() a setLook()). */
-export async function mountMascot(canvas, { look, interactive = true } = {}) {
+export async function mountMascot(canvas, { look, ghost, interactive = true } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setClearColor(0, 0);
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(32, 1, .05, 20);
@@ -45,12 +54,12 @@ export async function mountMascot(canvas, { look, interactive = true } = {}) {
   const rim = new THREE.DirectionalLight(0xff5a4a, 2.6); rim.position.set(-2.2, .6, -1.6); scene.add(rim);
 
   const [data] = await Promise.all([loadGhostSvg()]);
-  const ghost = buildGhost(data);
+  const ghostObj = buildGhost(data, ghost);
   const rig = new THREE.Group(), boardRig = new THREE.Group(), flip = new THREE.Group();
   let model = await makeBoardModel(renderer, { look });
   flip.add(model.board); boardRig.add(flip); boardRig.position.y = -.3; boardRig.rotation.y = .5;
-  ghost.position.y = .1;
-  rig.add(ghost, boardRig); scene.add(rig);
+  ghostObj.position.y = .1;
+  rig.add(ghostObj, boardRig); scene.add(rig);
 
   const resize = () => { const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
   const ro = new ResizeObserver(resize); ro.observe(canvas); resize();
@@ -63,7 +72,7 @@ export async function mountMascot(canvas, { look, interactive = true } = {}) {
   canvas.addEventListener('click', () => startTrick(Math.random() < .5 ? 'kickflip' : 'tre'));
   const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; }); io.observe(canvas);
 
-  const wob = ghost.userData.wobble, hemY = ghost.userData.hemY;
+  const wob = ghostObj.userData.wobble, hemY = ghostObj.userData.hemY;
   (function loop(now) {
     if (!alive) return;
     requestAnimationFrame(loop);
@@ -79,21 +88,22 @@ export async function mountMascot(canvas, { look, interactive = true } = {}) {
     const bob = reduceMotion ? 0 : Math.sin(t * 1.7) * .05;
     rig.position.set(reduceMotion ? 0 : Math.sin(t * .6) * .06, bob, 0);
     rig.rotation.set(look2.y * .18, look2.x * .45 + (reduceMotion ? 0 : Math.sin(t * .5) * .12), reduceMotion ? 0 : Math.sin(t * 1.1) * .06);
-    ghost.rotation.z = reduceMotion ? 0 : Math.sin(t * 1.3 + 1) * .05;
+    ghostObj.rotation.z = reduceMotion ? 0 : Math.sin(t * 1.3 + 1) * .05;
     if (!trick && now > nextTrick) { startTrick(Math.random() < .65 ? 'kickflip' : 'ollie'); nextTrick = now + 6000 + Math.random() * 5000; }
     if (trick) {
       const k = Math.min(1, (now - trick.t) / 900), e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2, hop = Math.sin(k * Math.PI);
-      boardRig.position.y = -.3 + hop * .32; ghost.position.y = .1 + hop * .4;
+      boardRig.position.y = -.3 + hop * .32; ghostObj.position.y = .1 + hop * .4;
       flip.rotation.x = trick.kind === 'ollie' ? 0 : e * Math.PI * 2;
       flip.rotation.y = trick.kind === 'tre' ? e * Math.PI * 2 : 0;
       flip.rotation.z = trick.kind === 'ollie' ? Math.sin(k * Math.PI * 2) * .35 : 0;
-      if (k >= 1) { flip.rotation.set(0, 0, 0); boardRig.position.y = -.3; ghost.position.y = .1; trick = null; }
+      if (k >= 1) { flip.rotation.set(0, 0, 0); boardRig.position.y = -.3; ghostObj.position.y = .1; trick = null; }
     }
     renderer.render(scene, camera);
   })(t0);
 
-  const api = () => { alive = false; ro.disconnect(); io.disconnect(); removeEventListener('pointermove', onMove); ghost.userData.dispose(); model.dispose(); renderer.dispose(); renderer.forceContextLoss(); };
+  const api = () => { alive = false; ro.disconnect(); io.disconnect(); removeEventListener('pointermove', onMove); ghostObj.userData.dispose(); model.dispose(); renderer.dispose(); renderer.forceContextLoss(); };
   api.trick = startTrick;
+  api.setGhost = g => ghostObj.userData.setSkin(g);
   api.setLook = async l => { const m = await makeBoardModel(renderer, { look: l }); flip.remove(model.board); model.dispose(); model = m; flip.add(m.board); };
   return api;
 }

@@ -215,3 +215,23 @@ Fotka ostáva len v telefóne toho človeka, nikam sa neposiela.
 - **Profil jazdca:** jazdec klikne „Som to ja“, v admine ho schváliš, potom si sám doplní fotku a info. Fotku jazdca môžeš nahrať aj v admine.
 - **Crew:** zoznam v `data.js` (`CREWS`). **Spot mesiaca:** `SITE.spotOfMonth` v `data.js`. **Discord:** `SITE.discord`.
 - **XP a odznaky:** počítajú sa automaticky z aktivity (check-in, triky, spoty, parky, hodnotenia).
+
+## Ghoskate (`ghoskate/`)
+
+Prezentačný web skate appky Ghoskate: `https://offthewallhack.github.io/gosko/ghoskate/` (neskôr `gosko.sk/ghoskate`).
+Po slovensky, česky a anglicky (prepínač hore, alebo `?lang=sk|cs|en`). Texty sú v `ghoskate/i18n.js`.
+
+- **Jeden účet pre GOSko web aj Ghoskate.** Prihlásenie je to isté (Supabase Auth, e-mail s kódom, heslo z profilu).
+- **Spoločný profil:** prezývka, duch (farba), doska (loadout) a inventár (loot). Tabuľky `profiles` a `inventory`,
+  SQL je v `supabase-ghoskate.sql` (na živej databáze už spustené). Katalóg lootu a skinov je v `assets/profile.js`.
+- Kto si založí profil do 1. 4. 2027, dostane Founder loot (holo duch, nálepka Founder 2026, odznak Founder).
+  Za prvý schválený spot príde nálepka Spot hunter.
+- Spoty z Ghoskate idú do tej istej tabuľky `spots` ako mapa na webe (navyše náročnosť, Bustmeter a prekážky).
+  Schvaľuješ ich v admine ako doteraz. Profily skejterov vidíš v admine v sekcii „Skejteri“ (aj CSV).
+- Na GOSko webe sa doska a duch prihláseného človeka ukladajú do účtu, takže sú rovnaké na webe aj v Ghoskate.
+
+**Pred zdieľaním odkazu:** nastav SMTP (Resend) v Supabase. Bez neho prihlasovacie e-maily chodia len tebe,
+ostatní ľudia kód nedostanú. Do šablóny Magic Link pridaj `{{ .Token }}`, aby v e-maile bol aj 6-miestny kód.
+
+**Pri prechode na gosko.sk:** okrem `<base href>` v `index.html` zmeň aj `<base href="/gosko/">` v `ghoskate/index.html` na `/`
+a adresy v `og:url`, `og:image` a `canonical` v tom istom súbore.
