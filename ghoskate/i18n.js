@@ -157,7 +157,7 @@ const sk = {
   'career.now': 'Si tu',
   'career.items': [
     ['Teraz', 'Founderi', 'Vytvor ducha, pridaj spoty a získaj Founder loot.'],
-    ['November 2026', 'GOSko #3 Bratislava', 'Posledný GOSko roka a pilot novej sezóny.'],
+    ['November 2026', 'GOSko 3 Bratislava', 'Posledný GOSko roka a pilot novej sezóny.'],
     ['Január – február 2027', 'Vlna 1 v dielni', 'Kódujeme mapu, check-in a detail spotu.'],
     ['Marec 2027', 'Test s foundermi', 'Prví skejteri skúšajú appku naostro. Prihlás sa pri registrácii.'],
     ['Apríl 2027', 'Štart Ghoskate', 'Vlna 1 ide von: mapa, check-in a spoty od vás.'],
@@ -350,7 +350,7 @@ const cs = {
   'career.now': 'Jsi tady',
   'career.items': [
     ['Teď', 'Foundeři', 'Vytvoř ducha, přidej spoty a získej Founder loot.'],
-    ['Listopad 2026', 'GOSko #3 Bratislava', 'Poslední GOSko roku a pilot nové sezóny.'],
+    ['Listopad 2026', 'GOSko 3 Bratislava', 'Poslední GOSko roku a pilot nové sezóny.'],
     ['Leden – únor 2027', 'Vlna 1 v dílně', 'Kódujeme mapu, check-in a detail spotu.'],
     ['Březen 2027', 'Test s foundery', 'První skejťáci zkoušejí appku naostro. Přihlas se při registraci.'],
     ['Duben 2027', 'Start Ghoskate', 'Vlna 1 jde ven: mapa, check-in a spoty od vás.'],
@@ -543,7 +543,7 @@ const en = {
   'career.now': 'You are here',
   'career.items': [
     ['Now', 'Founders', 'Create your ghost, add spots and get Founder loot.'],
-    ['November 2026', 'GOSko #3 Bratislava', 'The last GOSko of the year and the pilot of the new season.'],
+    ['November 2026', 'GOSko 3 Bratislava', 'The last GOSko of the year and the pilot of the new season.'],
     ['January – February 2027', 'Wave 1 in the workshop', 'We build the map, check-ins and spot details.'],
     ['March 2027', 'Founder test', 'The first skaters try the app for real. Sign up for it when you register.'],
     ['April 2027', 'Ghoskate launch', 'Wave 1 goes live: the map, check-ins and your spots.'],

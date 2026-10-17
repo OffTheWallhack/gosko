@@ -981,14 +981,11 @@ function pageStandings(root, focus) {
   const body = h('div');
   const chips = (items, current, set) => h('div', { class: 'chips' }, items.map(([v, label]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === current), onclick: () => { set(v); render(); } }, label)));
   const all = riders(), doneEv = EVENTS.filter(e => e.status === 'done' && e.season === SITE.season);
-  const placings = allResults().filter(r => r.ev.season === SITE.season).length;
-  const stat = (n, t) => h('li', {}, h('b', {}, String(n)), h('span', {}, t));
-  const stats = h('ul', { class: 'rk-stats' },
-    stat(all.length, plural(all.length, 'jazdec', 'jazdci', 'jazdcov')),
-    stat(doneEv.length, plural(doneEv.length, 'odjazdený event', 'odjazdené eventy', 'odjazdených eventov')),
-    stat(placings, 'umiestnení v rebríčku'),
-    stat(CATEGORIES.length, plural(CATEGORIES.length, 'kategória', 'kategórie', 'kategórií')),
-    (() => { const lead = standings('open')[0]; return lead ? stat(lead.points, `bodov má líder Open: ${lead.name}`) : null; })());
+  /* úprimne, čo v rebríčku je: z prvých GOSiek máme len stupne víťazov, celé výsledky zbierame od ďalšieho */
+  const nextEv = nextEvent();
+  const stats = h('div', { class: 'rk-info' },
+    h('p', {}, h('b', {}, 'Ako vznikol rebríček. '), `Z ${doneEv.map(e => e.name.replace(/^GOSko/, 'GOSka')).join(' a ') || 'prvých eventov'} máme zapísané len stupne víťazov, teda prvé tri miesta v kategóriách, ktoré sa jazdili. Body majú zatiaľ len jazdci, ktorí boli na stupňoch.`),
+    h('p', {}, `Od ${nextEv ? nextEv.name.replace(/^GOSko/, 'GOSka') : 'ďalšieho GOSka'} zapisujeme celý pavúk, takže body dostane každý, kto jazdí.`));
   function render() {
     const doneEvents = EVENTS.filter(e => e.status === 'done' && e.season === season);
     if (scope !== 'season' && !doneEvents.some(e => e.id === scope)) scope = 'season';
@@ -997,10 +994,10 @@ function pageStandings(root, focus) {
     body.replaceChildren(); put(body,
       h('div', { class: 'controls' },
         years.length > 1 ? chips(years.map(y => [y, String(y)]), season, v => { season = v; scope = 'season'; }) : null,
-        chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.city + (e.date ? ` ${parseDate(e.date).d}. ${parseDate(e.date).m}.` : '')])], scope, v => { scope = v; }),
+        chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.name])], scope, v => { scope = v; }),
         chips(CATEGORIES.map(c => [c.id, c.name]), cat, v => { cat = v; })),
       ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])) : null,
-      rows.length ? [skaterCards(rows, `${catName(cat)} ${em ? ev.city : season}`), standingsList(rows, { eventMode: em, from: 3 })] : standingsList(rows),
+      rows.length ? [skaterCards(rows, `${catName(cat)} · ${em ? ev.name.replace(/^GOSko\s*/, '') : season}`), standingsList(rows, { eventMode: em, from: 3 })] : standingsList(rows),
       scope === 'season' ? finaleEl(cat, season) : null);
   }
   const pts = h('div', { class: 'rk-points' }, h('h3', { class: 'mono' }, 'Bodovanie'),
@@ -1054,7 +1051,6 @@ function riderRow(r) {
         h('ul', { class: 'rd-facts' },
           h('li', {}, h('b', {}, String(r.points)), h('span', {}, `bodov ${SITE.season}`)),
           h('li', {}, h('b', {}, String(r.events.length)), h('span', {}, plural(r.events.length, 'event', 'eventy', 'eventov'))),
-          h('li', {}, h('b', {}, String(st.length)), h('span', {}, plural(st.length, 'nálepka', 'nálepky', 'nálepiek'))),
           rankIn.length ? h('li', {}, h('b', {}, rankIn[0].split('.')[0] + '.'), h('span', {}, 'v rebríčku ' + rankIn[0].split('. ')[1])) : null),
         h('h4', { class: 'mono' }, 'Výsledky'),
         h('ul', { class: 'rd-res' }, r.results.map(x => h('li', {}, h('span', { class: 'rd-place' }, `${x.place}.`), h('a', { href: '#/event/' + x.ev.id }, x.ev.name), h('span', { class: 'mono' }, `${catName(x.cat)} · ${pointsFor(x.place)} b.`))),
@@ -1692,7 +1688,7 @@ function postDialog(post, done) {
     title: post ? 'Upraviť novinku' : 'Pridať novinku', submit: post ? 'Uložiť' : 'Zverejniť',
     intro: 'Stačí nadpis a pár viet. Fotka a odkaz sú nepovinné.',
     fields: [
-      { name: 'title', label: 'Nadpis', required: true, max: 120, value: post?.title, placeholder: 'napr. GOSko #3 bude 21. novembra' },
+      { name: 'title', label: 'Nadpis', required: true, max: 120, value: post?.title, placeholder: 'napr. GOSko 3 bude 21. novembra' },
       { name: 'summary', label: 'Krátko (1 – 2 vety)', type: 'textarea', max: 300, value: post?.summary, hint: 'Ukáže sa v zozname noviniek a na úvodke.' },
       { name: 'body', label: 'Celý text', type: 'textarea', rows: 7, max: 20000, value: post?.body, hint: 'Nový odsek = prázdny riadok. Nepovinné.' },
       { name: 'photo', label: 'Fotka', type: 'custom', hint: post?.image_url ? 'Nová fotka nahradí tú súčasnú.' : 'Nepovinné. Fotku zmenšíme pred odoslaním.', render: () => {

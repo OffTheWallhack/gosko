@@ -86,7 +86,7 @@ export const EVENTS = [
   },
   {
     id: 'zilina-2026',
-    name: 'GOSko Žilina',
+    name: 'GOSko 2 Žilina',
     city: 'Žilina',
     date: '2026-06-27',
     place: 'Skatepark Solinky (Shred Fest)',
@@ -105,7 +105,7 @@ export const EVENTS = [
   },
   {
     id: 'bratislava-2',
-    name: 'GOSko #3 Bratislava',
+    name: 'GOSko 3 Bratislava',
     city: 'Bratislava',
     date: '',
     place: '',
@@ -148,7 +148,7 @@ export const FACTS = [
 
 /* Plán sezóny (verejná verzia bez presných miest na rok 2027) */
 export const PLAN = [
-  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko #3, 14. alebo 21. 11.' },
+  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko 3, 14. alebo 21. 11.' },
   { when: '2027', title: 'Stop 1', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
