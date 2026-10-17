@@ -21,6 +21,7 @@ export const INBOX = {
   bookings: 'Objednávky pop-upov',
   shop_interest: 'Záujem o shop',
   privacy_requests: 'Žiadosti o súkromie',
+  profiles: 'Skejteri (spoločný profil GOSko a Ghoskate)',
 };
 
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
@@ -148,6 +149,19 @@ function demoStore() {
     async saveChallenge(row) { LS.set('gosko:challenge', { id: 'demo', ...row }); },
     async spotRatings() { return LS.get('gosko:spot-ratings', []); },
     async rateSpot(spot_key, stars, tags) { const a = LS.get('gosko:spot-ratings', []).filter(r => r.spot_key !== spot_key); a.push({ spot_key, stars, tags, user_id: 'demo' }); LS.set('gosko:spot-ratings', a); },
+    /* spoločný profil (duch, doska) a inventár: v ukážkovom režime len v prehliadači */
+    async myProfile() { return LS.get('gosko:demo-profile', null); },
+    async saveProfile(fields) {
+      const cur = LS.get('gosko:demo-profile', null);
+      const row = { ...(cur || { id: 'demo', created_at: new Date().toISOString() }), ...fields, updated_at: new Date().toISOString() };
+      LS.set('gosko:demo-profile', row);
+      if (!cur) { const inv = LS.get('gosko:demo-inventory', []); for (const item of ['skin:founder', 'sticker:founder-2026', 'badge:founder']) if (!inv.includes(item)) inv.push(item); LS.set('gosko:demo-inventory', inv); }
+      return row;
+    },
+    async myInventory() { return LS.get('gosko:demo-inventory', []).map(item => ({ item })); },
+    async nicknameFree() { return true; },
+    async ghoskateStats() { return { founders: LS.get('gosko:demo-profile', null) ? 1 : 0, spots: LS.get(K.spots, []).length, spots_live: 0 }; },
+    async mySpots() { return LS.get(K.spots, []).map(s => ({ ...s, created_at: new Date(s.created).toISOString() })); },
     async myActivity() { return { photos: 0, spots: LS.get(K.spots, []).length, parks: 0, park_votes: LS.get(K.votes, []).length, tricks: LS.get('gosko:trick-entries', []).length, finalist: 0, trick_votes: LS.get('gosko:trick-vote', null) ? 1 : 0, ratings: LS.get('gosko:spot-ratings', []).length, rider: 0, checkins: 0 }; },
     /* fotky a klipy od komunity */
     async listEventPhotos(event_id) { return LS.get(K.photos, []).filter(p => p.event_id === event_id).map(p => ({ ...p, pending: !p.approved })); },
@@ -383,6 +397,23 @@ async function liveStore(CONFIG) {
     /* ---------- hodnotenie spotov, XP ---------- */
     async spotRatings() { return must(await sb.from('spot_ratings').select('spot_key,stars,tags,user_id').limit(5000)); },
     async rateSpot(spot_key, stars, tags) { const s = await session(); must(await sb.from('spot_ratings').upsert({ spot_key, stars, tags, user_id: s.user.id }, { onConflict: 'spot_key,user_id' })); },
+    /* ---------- spoločný profil skejtera (GOSko web + Ghoskate) ---------- */
+    async myProfile() { const s = await session(); if (!s) return null; return must(await sb.from('profiles').select('*').eq('id', s.user.id).maybeSingle()); },
+    /* Uloží profil: existujúci upraví, nový založí. Obsadená prezývka = Error('nickname'). */
+    async saveProfile(fields) {
+      const s = await session(); if (!s) throw new Error('login');
+      const r = { ...fields }; delete r.id; delete r.created_at; delete r.updated_at;
+      const up = await sb.from('profiles').update(r).eq('id', s.user.id).select();
+      if (up.error) { if (up.error.code === '23505') throw new Error('nickname'); throw up.error; }
+      if (up.data?.length) return up.data[0];
+      const ins = await sb.from('profiles').insert({ id: s.user.id, ...r }).select().single();
+      if (ins.error) { if (ins.error.code === '23505') throw new Error(/nickname/.test(ins.error.message) ? 'nickname' : 'exists'); throw ins.error; }
+      return ins.data;
+    },
+    async myInventory() { const s = await session(); if (!s) return []; return must(await sb.from('inventory').select('item,source,created_at').eq('user_id', s.user.id).order('created_at')); },
+    async nicknameFree(nick) { const { data, error } = await sb.rpc('nickname_free', { nick }); if (error) throw error; return !!data; },
+    async ghoskateStats() { const { data, error } = await sb.rpc('ghoskate_stats'); if (error) throw error; return data; },
+    async mySpots() { const s = await session(); if (!s) return []; return must(await sb.from('spots').select('id,created_at,name,city,approved').eq('user_id', s.user.id).order('created_at', { ascending: false })); },
     async myActivity() { if (!(await session())) return null; const { data, error } = await sb.rpc('my_activity'); if (error) throw error; return data; },
   };
 }

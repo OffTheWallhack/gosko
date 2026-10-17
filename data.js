@@ -153,7 +153,7 @@ export const PLAN = [
   { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
   { when: '2027 · CZ', title: 'Česko', place: 'prvý stop v Česku', dark: true },
-  { when: '2027', title: 'Finále', place: 'oznámime čoskoro', red: true },
+  { when: '2027', title: 'Finále', place: 'Bratislava', red: true },
 ];
 /* Balíčky bez cien. Cena na vyžiadanie. */
 export const PACKAGES = [

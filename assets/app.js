@@ -11,6 +11,7 @@ import { qrCanvas, startScanner } from './qr.js';
 import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
+import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg } from './profile.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -614,6 +615,26 @@ function stickerWall({ bare = false } = {}) {
     wall));
 }
 
+/* Spoločný profil (GOSko web + Ghoskate): duch, doska a loot. Prihlásený má dosku uloženú v účte. */
+async function syncProfile() {
+  if (!store || store.mode !== 'live') return;
+  try {
+    if (!(await store.signedIn())) { cacheProfile(null, []); return; }
+    const [p, inv] = await Promise.all([store.myProfile(), store.myInventory().catch(() => [])]);
+    cacheProfile(p, inv.map(i => i.item));
+  } catch (err) { console.error(err); }
+}
+let loadoutTimer = null;
+function saveLoadoutSoon(look) {
+  clearTimeout(loadoutTimer);
+  if (!cachedProfile() || store?.mode !== 'live') return;
+  loadoutTimer = setTimeout(async () => {
+    // vlastná fotka na doske žije len v tomto zariadení, do účtu ide posledná farba dosky
+    const deck = look.deck === 'photo' ? (cachedProfile()?.loadout?.deck || 'cream') : look.deck;
+    try { const p = await store.saveProfile({ loadout: { deck, grip: look.grip, wheels: look.wheels, trucks: look.trucks } }); cacheProfile(p); } catch (err) { console.error(err); }
+  }, 900);
+}
+
 /* 3D doska na celú šírku: scény + úprava vzhľadu */
 function boardStudio({ page = false } = {}) {
   let look = myLook();
@@ -621,7 +642,7 @@ function boardStudio({ page = false } = {}) {
   const canvas = h('canvas', { 'aria-label': 'Tvoja 3D skateboard doska. Ťahaj na otočenie, dvojklik ju prevráti.' });
   const stage = h('div', { class: 'b3-stage' }, canvas);
   let api = null;
-  const stickers = () => [...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
+  const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
   let startBoard;
   const boardP = new Promise(res => { startBoard = res; }).then(() => mountBoard(canvas, { stickers: stickers(), onSticker: go, look, scene: sceneName })).then(a => (api = a));
   if (page || !('IntersectionObserver' in window)) startBoard();
@@ -654,6 +675,7 @@ function boardStudio({ page = false } = {}) {
     look = next; LSx.set(MY_LOOK, look);
     clearTimeout(lookTimer); pendingLook = look;
     lookTimer = setTimeout(() => { api?.setLook(pendingLook); }, quick ? 140 : 0);
+    saveLoadoutSoon(look);
   };
   const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
   const fileIn = h('input', { type: 'file', accept: 'image/*', hidden: true });
@@ -1606,9 +1628,10 @@ function pagePartners(root, sub) {
 
     h('section', { class: 'sec pt-secret' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Plánované projekty 2027'),
-      h('h2', {}, 'Pripravujeme appku. Bude úplne sick.'),
-      h('p', { class: 'lead' }, 'Viac zatiaľ neprezradíme. Partneri sa o nej dozvedia ako prví.'),
-      h('div', { class: 'pt-lock', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('span', { class: 'mono' }, 'Top secret')))),
+      h('h2', {}, 'Ghoskate: skate appka, kde je mapa spotov herný svet'),
+      h('p', { class: 'lead' }, 'Check-in na spotoch, triky, crews a digitálny loot za reálnu jazdu. Výsledky z GOSko eventov majú v appke váhu. Spúšťame na jar 2027, partner môže mať v appke vlastný loot a odmeny.'),
+      h('a', { class: 'btn primary', href: 'ghoskate/' }, 'Pozrieť Ghoskate'),
+      h('div', { class: 'pt-lock', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('span', { class: 'mono' }, 'Ghoskate')))),
 
     h('section', { class: 'sec light' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Spolupráca'),
@@ -1751,7 +1774,7 @@ async function pagePost(root, id) {
 }
 
 async function pageProfile(root) {
-  root.append(pageHead('Môj profil', 'Tvoj GOSko účet. Čoskoro si tu upravíš aj svojho ducha na doske, ktorý bude tvoj avatar.'));
+  root.append(pageHead('Môj profil', 'Tvoj GOSko účet. Ten istý účet, duch a doska platia aj v appke Ghoskate.'));
   const body = h('div', { class: 'wrap page-body profile' }); root.append(body);
   const avatarSlot = h('div', { class: 'pf-avatar' });
   if (store.mode === 'live' && !(await store.signedIn())) {
@@ -1777,6 +1800,18 @@ async function pageProfile(root) {
     } }, h('label', { class: 'field' }, 'Nastav si heslo (rýchlejšie prihlásenie)', pw), h('button', { class: 'btn', type: 'submit' }, 'Uložiť heslo'), msg) : null,
     store.mode === 'live' ? h('button', { class: 'btn ghostbtn', type: 'button', onclick: async () => { await store.logout(); updateAccount(); route(); } }, 'Odhlásiť sa') : null)));
   mountAvatar(avatarSlot);
+  const ghSlot = h('section', { class: 'pf-ghoskate' });
+  put(body, ghSlot);
+  (async () => {
+    await syncProfile();
+    const p = cachedProfile(), inv = cachedInventory();
+    const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
+    ghSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Tvoj duch a Ghoskate'),
+      p ? h('p', {}, 'Prezývka ', h('b', {}, p.nickname), '. Ducha a dosku máš uložené v účte, takže ich uvidíš tu na webe aj v appke Ghoskate.')
+        : h('p', {}, 'Ešte nemáš svojho ducha. Vytvor si ho v Ghoskate, našej skate appke, a pridaj prvý spot. Do spustenia dostaneš aj Founder loot.'),
+      items.length ? h('ul', { class: 'pf-loot' }, items) : null,
+      h('a', { class: 'btn primary', href: 'ghoskate/#vytvor' }, p ? 'Upraviť ducha v Ghoskate' : 'Vytvoriť ducha v Ghoskate'));
+  })();
   const xpSlot = h('section', { class: 'pf-xp' }, h('p', { class: 'empty' }, 'Načítavam XP…'));
   const rpSlot = h('section', { class: 'pf-rider' });
   put(body, h('div', { class: 'pf-grid2' }, xpSlot, rpSlot));
@@ -1811,11 +1846,11 @@ async function pageProfile(root) {
 const LOW_END = (() => { try { const c = navigator.connection; return !!(c && (c.saveData || /2g/.test(c.effectiveType || ''))) || (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2); } catch { return false; } })();
 /* 3D duch na doske (avatar). Načíta sa až keď treba. */
 function mountAvatar(slot, opts = {}) {
-  if (LOW_END || REDUCED()) { slot.append(h('img', { class: 'mascot-still', src: 'img/ghost.svg', alt: '' })); return () => {}; }
+  if (LOW_END || REDUCED()) { const still = h('span', { class: 'mascot-still', 'aria-hidden': 'true' }); ghostSvg(localGhost()).then(svg => { still.innerHTML = svg; }); slot.append(still); return () => {}; }
   const canvas = h('canvas', { 'aria-label': 'GOSko duch na skateboarde' });
   slot.append(canvas);
   let stop = null;
-  import('./mascot.js').then(m => m.mountMascot(canvas, { look: { ...DEFAULT_LOOK, deck: LSx.get(MY_DECK, 'cream'), ...LSx.get('gosko:board-look', {}) }, ...opts })).then(f => { stop = f; }).catch(err => console.error(err));
+  import('./mascot.js').then(m => m.mountMascot(canvas, { look: { ...DEFAULT_LOOK, ...localLoadout() }, ghost: localGhost(), ...opts })).then(f => { stop = f; }).catch(err => console.error(err));
   return () => stop && stop();
 }
 async function updateAccount() {
@@ -1914,22 +1949,23 @@ async function pageAdmin(root) {
     x.photo_url && h('img', { class: 'thumb', src: x.photo_url, alt: '' }), h('span', {}, `${x.author}${x.caption ? ': ' + x.caption : ''}`),
     safeUrl(x.clip_url) && h('a', { href: x.clip_url, target: '_blank', rel: 'noopener' }, 'klip'), modBtns('photos', x.id)))) : none()));
   put(body, section('Spoty na schválenie', spots.length ? h('ul', { class: 'admin-list' }, spots.map(s => h('li', {},
-    s.photo_url && h('img', { class: 'thumb', src: s.photo_url, alt: '' }), h('span', {}, `${s.name}, ${s.city}`), h('a', { href: navLink(s.lat, s.lng), target: '_blank', rel: 'noopener' }, 'na mape'), modBtns('spots', s.id)))) : none()));
+    s.photo_url && h('img', { class: 'thumb', src: s.photo_url, alt: '' }), h('span', {}, [`${s.name}, ${s.city}`, s.kind, s.difficulty ? `náročnosť ${s.difficulty}/5` : '', s.bust ? `Bustmeter ${s.bust}/5` : '', (s.features || []).join(', '), s.source === 'ghoskate' ? 'z Ghoskate' : ''].filter(Boolean).join(' · ')), s.description ? h('small', {}, s.description) : null, h('a', { href: navLink(s.lat, s.lng), target: '_blank', rel: 'noopener' }, 'na mape'), modBtns('spots', s.id)))) : none()));
   put(body, section('Parky na schválenie', parks.length ? h('ul', { class: 'admin-list' }, parks.map(p => h('li', {},
     p.thumb && h('img', { class: 'thumb', src: p.thumb, alt: '' }), h('span', {}, `${p.name}, od ${p.author}, ${p.location}`), modBtns('parks', p.id)))) : none()));
   put(body, section('Eventy na schválenie', events.length ? h('ul', { class: 'admin-list' }, events.map(e => h('li', {},
     h('span', {}, `${e.name}, ${fmtDate(e.date)}, ${e.city}, ${e.country}`), safeUrl(e.link) && h('a', { href: e.link, target: '_blank', rel: 'noopener' }, 'odkaz'), modBtns('events', e.id)))) : none()));
+  const cell = v => (v && typeof v === 'object' ? JSON.stringify(v) : String(v ?? ''));
   for (const [table, label] of Object.entries(INBOX)) {
     const rows = await store.inbox(table).catch(() => []);
     const keys = rows.length ? Object.keys(rows[0]).filter(k => !['id', 'created'].includes(k)) : [];
     const extra = table === 'registrations' && rows.length ? h('p', { class: 'note' }, `Na evente zapísaných: ${rows.filter(r => r.checked_in_at).length} z ${rows.length}.`) : null;
     const csv = () => {
-      const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const q = v => `"${cell(v).replace(/"/g, '""')}"`;
       const text = [keys.join(';'), ...rows.map(r => keys.map(k => q(r[k])).join(';'))].join('\n');
       const a = h('a', { href: URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/csv' })), download: `${table}.csv` }); document.body.append(a); a.click(); a.remove();
     };
     put(body, section(`${label} (${rows.length})`, rows.length ? [extra,
-      h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, keys.map(k => h('th', {}, k)))), h('tbody', {}, rows.map(r => h('tr', {}, keys.map(k => h('td', {}, String(r[k] ?? '')))))))),
+      h('div', { class: 'table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, keys.map(k => h('th', {}, k)))), h('tbody', {}, rows.map(r => h('tr', {}, keys.map(k => h('td', {}, cell(r[k])))))))),
       h('button', { class: 'btn small', type: 'button', onclick: csv }, 'Stiahnuť CSV')] : h('p', { class: 'empty' }, 'Zatiaľ nič.')));
   }
 }
@@ -2696,7 +2732,7 @@ function pageCommunity(root) {
         card('#/mapa', 'Mapa', 'Spoty s hodnotením', 'Pridaj spot, ohodnoť povrch, svetlo aj to, či je kryté.'),
         card('#/profil', 'Profil', 'XP a odznaky', 'Za check-in, triky, spoty aj parky zbieraš XP a odomykáš odznaky.'),
         card('#/rodicia', 'U16', 'Pre rodičov', 'Bezpečnosť, súhlas, čo priniesť. Všetko na jednom mieste.'),
-        h('div', { class: 'cm-card soon' }, h('span', { class: 'mono' }, 'Pripravujeme'), h('b', {}, 'Online Game of S.K.A.T.E.'), h('span', {}, 'Vyzvi kamaráta na diaľku: nahráš trik, on ho musí dať. Príde v našej appke, o ktorej zatiaľ nesmieme prezradiť viac.')))));
+        card('ghoskate/', 'Pripravujeme', 'Ghoskate appka', 'Mapa spotov ako herný svet: check-in, triky, crews a loot. Vytvor si ducha a pridaj prvý spot už teraz.', 'red'))));
 }
 
 /* =====================================================================
@@ -2864,8 +2900,9 @@ function initSwipeBack() {
     history.replaceState({ n: 0 }, '', APP_BASE + 'profil');
     if (err) setTimeout(() => toast('Prihlasovací odkaz nefungoval: ' + err.replace(/\+/g, ' ') + '. Pošli si nový.'), 800);
   }
-  store.onAuth(() => { updateAccount(); onAuthChange && onAuthChange(); });
+  store.onAuth(() => { updateAccount(); syncProfile(); onAuthChange && onAuthChange(); });
   updateAccount();
+  syncProfile();
   // profily jazdcov a výsledky z databázy načítame naraz; dlhšie ako 2,5 s na ne nečakáme
   let dataLate = false;
   const dataP = Promise.all([loadRiderProfiles(), refreshRemote()]);
@@ -2884,7 +2921,7 @@ function initSwipeBack() {
     const u = new URL(a.href, location.href);
     if (u.origin !== location.origin || !u.pathname.startsWith(APP_BASE)) return;
     const rest = u.pathname.slice(APP_BASE.length);
-    if (/^hub(\/|$)/.test(rest) || /\.[a-z0-9]{2,5}$/i.test(rest)) return;
+    if (/^(hub|ghoskate)(\/|$)/.test(rest) || /\.[a-z0-9]{2,5}$/i.test(rest)) return;
     if (u.pathname === location.pathname && u.search === location.search && u.hash && !u.hash.startsWith('#/')) return;
     e.preventDefault();
     if (u.pathname + u.search !== location.pathname + location.search) pushNav(u.pathname + u.search);
