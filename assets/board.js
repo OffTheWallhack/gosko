@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const FONT = '"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -11,12 +12,75 @@ export function loadLogo() {
       const img = new Image(); img.src = 'img/logo.webp'; await img.decode();
       try { const g = new Image(); g.src = 'img/ghost.svg'; await g.decode(); GHOST = g; } catch { /* duch je len ozdoba */ }
       try { const w = new Image(); w.src = 'img/gosko-wordmark.svg'; await w.decode(); WORD = w; } catch { /* nápis je len ozdoba */ }
+      try { const d = localStorage.getItem(PHOTO_KEY); if (d) { const p = new Image(); p.src = d; await p.decode(); PHOTO = p; } } catch { /* bez fotky ide doska aj tak */ }
       return img;
     })();
   }
   return logoPromise;
 }
-let GHOST = null, WORD = null;
+let GHOST = null, WORD = null, PHOTO = null;
+const PHOTO_KEY = 'gosko:deck-photo';
+/* vlastná fotka na spodku dosky (pixel art). null ju zmaže. */
+export function setDeckPhoto(canvasOrImg) {
+  PHOTO = canvasOrImg || null;
+  try { if (PHOTO) localStorage.setItem(PHOTO_KEY, (PHOTO.toDataURL ? PHOTO : toCanvas(PHOTO)).toDataURL('image/png')); else localStorage.removeItem(PHOTO_KEY); } catch { /* plné úložisko: fotka ostane len do zatvorenia */ }
+}
+export const hasDeckPhoto = () => !!PHOTO;
+export const deckPhoto = () => PHOTO;
+const toCanvas = img => { const c = document.createElement('canvas'); c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height; c.getContext('2d').drawImage(img, 0, 0); return c; };
+
+/* ---------- fotka -> pixel art ----------
+   Fotka sa oreže na tvar spodku dosky (na výšku), zmenší na mriežku „pixelov“ a farby sa zlúčia
+   do palety (median cut). Ostane rozpoznateľná, len rozkockovaná. */
+export const PHOTO_ASPECT = 540 / 1380;   // šírka / dĺžka plochy na fotku medzi pásmi
+export const PIXEL_LEVELS = { coarse: { name: 'Hrubé', cols: 22, colors: 16 }, mid: { name: 'Stredné', cols: 34, colors: 24 }, fine: { name: 'Jemné', cols: 50, colors: 32 } };
+export async function photoToPixelArt(source, level = 'mid', { focus = .5 } = {}) {
+  const L = PIXEL_LEVELS[level] || PIXEL_LEVELS.mid;
+  const img = source instanceof Blob ? await blobImage(source) : source;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  // orez na tvar dosky (cover); focus posúva výrez po tej osi, ktorá sa orezáva (0 = začiatok, 1 = koniec)
+  let sw = iw, sh = iw / PHOTO_ASPECT;
+  if (sh > ih) { sh = ih; sw = ih * PHOTO_ASPECT; }
+  const f = Math.max(0, Math.min(1, focus)), sx = (iw - sw) * f, sy = (ih - sh) * f;
+  const cols = L.cols, rows = Math.round(cols / PHOTO_ASPECT);
+  // zmenšenie v dvoch krokoch, aby sa farby spriemerovali a nevznikal šum
+  const mid = document.createElement('canvas'); mid.width = cols * 4; mid.height = rows * 4;
+  const mx = mid.getContext('2d'); mx.imageSmoothingQuality = 'high'; mx.drawImage(img, sx, sy, sw, sh, 0, 0, mid.width, mid.height);
+  const out = document.createElement('canvas'); out.width = cols; out.height = rows;
+  const ox = out.getContext('2d'); ox.imageSmoothingQuality = 'high'; ox.drawImage(mid, 0, 0, cols, rows);
+  const data = ox.getImageData(0, 0, cols, rows), px = data.data;
+  // trochu viac sýtosti a kontrastu, nech to pôsobí ako pixel art, nie ako rozmazaná fotka
+  for (let i = 0; i < px.length; i += 4) {
+    let r = px[i], g = px[i + 1], b = px[i + 2]; const l = .299 * r + .587 * g + .114 * b;
+    r = l + (r - l) * 1.28; g = l + (g - l) * 1.28; b = l + (b - l) * 1.28;
+    px[i] = clamp8((r - 128) * 1.08 + 128); px[i + 1] = clamp8((g - 128) * 1.08 + 128); px[i + 2] = clamp8((b - 128) * 1.08 + 128); px[i + 3] = 255;
+  }
+  const pal = medianCut(px, L.colors);
+  for (let i = 0; i < px.length; i += 4) { const c = nearest(pal, px[i], px[i + 1], px[i + 2]); px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; }
+  ox.putImageData(data, 0, 0);
+  return out;
+}
+const clamp8 = v => v < 0 ? 0 : v > 255 ? 255 : v;
+function blobImage(blob) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => { URL.revokeObjectURL(i.src); res(i); }; i.onerror = rej; i.src = URL.createObjectURL(blob); });
+}
+function medianCut(px, k) {
+  const all = []; for (let i = 0; i < px.length; i += 4) all.push([px[i], px[i + 1], px[i + 2]]);
+  let boxes = [all];
+  while (boxes.length < k) {
+    let bi = -1, best = -1, ch = 0;
+    boxes.forEach((b, i) => { if (b.length < 2) return; for (let c = 0; c < 3; c++) { let lo = 255, hi = 0; for (const p of b) { if (p[c] < lo) lo = p[c]; if (p[c] > hi) hi = p[c]; } if (hi - lo > best) { best = hi - lo; bi = i; ch = c; } } });
+    if (bi < 0 || best <= 2) break;
+    const b = boxes[bi].sort((p, q) => p[ch] - q[ch]), m = b.length >> 1;
+    boxes.splice(bi, 1, b.slice(0, m), b.slice(m));
+  }
+  return boxes.map(b => { const s = [0, 0, 0]; for (const p of b) { s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; } return s.map(v => Math.round(v / b.length)); });
+}
+function nearest(pal, r, g, b) {
+  let best = pal[0], d = Infinity;
+  for (const c of pal) { const dr = c[0] - r, dg = c[1] - g, db = c[2] - b, e = dr * dr * .3 + dg * dg * .59 + db * db * .11; if (e < d) { d = e; best = c; } }
+  return best;
+}
 
 /* ---------- kreslenie nálepiek ---------- */
 function rr(ctx, x, y, w, h, r) {
@@ -28,10 +92,12 @@ function fit(ctx, text, weight, maxW, size) {
 }
 function stretch(ctx, v) { if ('fontStretch' in ctx) ctx.fontStretch = v; }
 
-/* spec: { kind: 'band'|'round'|'next'|'medal'|'trick', title, sub, place } */
-export function stickerCanvas(spec, logo) {
-  const c = document.createElement('canvas'); c.width = c.height = 512;
-  const x = c.getContext('2d'); x.textAlign = 'center'; x.textBaseline = 'middle';
+/* spec: { kind: 'band'|'round'|'next'|'medal'|'trick', title, sub, place }
+   size: rozlíšenie v px (kreslí sa v súradniciach 512 a zväčší sa, nech je nálepka ostrá aj na veľkom displeji) */
+export function stickerCanvas(spec, logo, size = 512) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'); x.scale(size / 512, size / 512); x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.imageSmoothingQuality = 'high';
   const title = (spec.title || '').toLocaleUpperCase('sk'), sub = (spec.sub || '').toLocaleUpperCase('sk');
   switch (spec.kind) {
     case 'round': {
@@ -41,13 +107,20 @@ export function stickerCanvas(spec, logo) {
       if (title) { stretch(x, 'expanded'); x.fillStyle = '#F3EBDD'; fit(x, title, 900, 280, 60); x.fillText(title, 256, 52 + lh + 38); }
       break;
     }
-    case 'next': {
-      x.fillStyle = 'rgba(17,17,17,.72)'; rr(x, 36, 60, 440, 392, 36); x.fill();
-      x.setLineDash([22, 14]); x.lineWidth = 8; x.strokeStyle = '#F3EBDD'; rr(x, 36, 60, 440, 392, 36); x.stroke();
+    case 'next': { // ďalší stop: červená nálepka s bielym okrajom, otáznik a mesto na krémovej páske
+      x.fillStyle = '#fff'; rr(x, 16, 36, 480, 440, 40); x.fill();
+      x.fillStyle = '#A01414'; rr(x, 30, 50, 452, 412, 28); x.fill();
+      x.save(); rr(x, 30, 50, 452, 412, 28); x.clip();
+      x.fillStyle = 'rgba(0,0,0,.16)';   // jemný raster ako pri sieťotlači
+      for (let gy = 58; gy < 462; gy += 12) for (let gx = 36 + (gy / 12 % 2) * 6; gx < 482; gx += 12) { x.beginPath(); x.arc(gx, gy, 1.6, 0, 7); x.fill(); }
+      x.restore();
+      x.setLineDash([14, 10]); x.lineWidth = 4; x.strokeStyle = 'rgba(243,235,221,.6)'; rr(x, 48, 68, 416, 376, 18); x.stroke(); x.setLineDash([]);
       x.fillStyle = '#F3EBDD'; stretch(x, 'expanded');
-      x.font = `900 150px ${FONT}`; x.fillText('?', 256, 205);
-      fit(x, 'ĎALŠÍ STOP', 900, 360, 54); x.fillText('ĎALŠÍ STOP', 256, 330);
-      stretch(x, 'condensed'); fit(x, title, 600, 360, 44); x.fillText(title, 256, 385);
+      x.font = `900 176px ${FONT}`; x.fillText('?', 256, 176);
+      fit(x, 'ĎALŠÍ STOP', 900, 340, 54); x.fillText('ĎALŠÍ STOP', 256, 286);
+      x.fillStyle = '#F3EBDD'; x.fillRect(30, 322, 452, 70);
+      x.fillStyle = '#111'; fit(x, title, 900, 400, 52); x.fillText(title, 256, 358);
+      stretch(x, 'condensed'); x.fillStyle = '#F3EBDD'; const s2 = sub || 'COMING SOON'; fit(x, s2, 700, 300, 30); x.fillText(s2, 256, 420);
       break;
     }
     case 'medal': {
@@ -122,12 +195,83 @@ export const TRUCKS = {
   red: { name: 'Červené', color: 0xa01d21, metal: .2 },
 };
 export const DEFAULT_LOOK = { deck: 'cream', grip: 'black', wheels: 'cream', trucks: 'silver' };
-const lookOf = l => ({ deck: DECKS[l?.deck] ? l.deck : 'cream', grip: GRIPS[l?.grip] ? l.grip : 'black', wheels: WHEELS[l?.wheels] ? l.wheels : 'cream', trucks: TRUCKS[l?.trucks] ? l.trucks : 'silver' });
+
+/* Farebné palety (okrem vzorov hore sa dá vybrať aj ľubovoľná vlastná farba ako #rrggbb). */
+export const DECK_COLORS = [
+  { name: 'Biela', hex: '#F5F2EA' }, { name: 'Uhľová', hex: '#1C1B1A' }, { name: 'Betónová', hex: '#7A7772' }, { name: 'Červená', hex: '#E5322D' },
+  { name: 'Oranžová', hex: '#FF7A1A' }, { name: 'Žltá', hex: '#FFC61A' }, { name: 'Piesková', hex: '#E8D6A8' }, { name: 'Okrová', hex: '#C49A4A' },
+  { name: 'Trávová', hex: '#6DBE45' }, { name: 'Lesná', hex: '#1E6B45' }, { name: 'Olivová', hex: '#5A6B2F' }, { name: 'Tyrkysová', hex: '#2FB3A6' },
+  { name: 'Ľadová', hex: '#CFE3F1' }, { name: 'Modrá', hex: '#2D6CC0' }, { name: 'Námornícka', hex: '#18264F' }, { name: 'Fialová', hex: '#6B3FB8' },
+  { name: 'Levanduľová', hex: '#C9B8EC' }, { name: 'Ružová', hex: '#EE6FAE' }, { name: 'Bledoružová', hex: '#F6C3D2' }, { name: 'Hnedá', hex: '#7A4A26' },
+];
+export const GRIP_COLORS = [   // pastelové
+  { name: 'Ružová', hex: '#F4C2D7' }, { name: 'Cukrová vata', hex: '#F9D3EC' }, { name: 'Broskyňová', hex: '#FAD3B8' }, { name: 'Marhuľová', hex: '#F8C49B' },
+  { name: 'Koralová', hex: '#F6B6AA' }, { name: 'Citrónová', hex: '#F6EFA4' }, { name: 'Vanilková', hex: '#F5E7C2' }, { name: 'Piesková', hex: '#E8D8BD' },
+  { name: 'Pistáciová', hex: '#D2E8AE' }, { name: 'Mätová', hex: '#BDEBD5' }, { name: 'Šalviová', hex: '#C6D7BE' }, { name: 'Tyrkysová', hex: '#B3E4E2' },
+  { name: 'Ľadová', hex: '#D9F0F6' }, { name: 'Nebeská', hex: '#BCDCF5' }, { name: 'Periwinkle', hex: '#C3C8F2' }, { name: 'Levanduľová', hex: '#D5CBF2' },
+  { name: 'Lila', hex: '#E2C7EE' }, { name: 'Fialková', hex: '#C8B6E7' }, { name: 'Holubia', hex: '#C9CED6' }, { name: 'Perlová', hex: '#EFECE7' },
+];
+export const WHEEL_COLORS = [  // kričiace, svietia
+  { name: 'Neónová zelená', hex: '#39FF14' }, { name: 'Limetková', hex: '#C6FF00' }, { name: 'Kyselinová', hex: '#E4FF1A' }, { name: 'Neónová žltá', hex: '#FFF200' },
+  { name: 'Mango', hex: '#FFB300' }, { name: 'Neónová oranžová', hex: '#FF6A00' }, { name: 'Lávová', hex: '#FF3D00' }, { name: 'Neónová červená', hex: '#FF1744' },
+  { name: 'Hot pink', hex: '#FF1F7A' }, { name: 'Malinová', hex: '#FF0090' }, { name: 'Neónová ružová', hex: '#FF2BD6' }, { name: 'Neónová fialová', hex: '#B026FF' },
+  { name: 'Ultrafialová', hex: '#7A00FF' }, { name: 'Kobaltová', hex: '#2D5BFF' }, { name: 'Elektrická modrá', hex: '#00A8FF' }, { name: 'Azúrová', hex: '#00F0FF' },
+  { name: 'Ľadová modrá', hex: '#7DF9FF' }, { name: 'Laserová tyrkys', hex: '#00FFC3' }, { name: 'Korálová neón', hex: '#FF5E5B' }, { name: 'Žiarivá biela', hex: '#FFFFFF' },
+].map(w => ({ ...w, glow: .55 }));
+export const TRUCK_COLORS = [  // kovové
+  { name: 'Chróm', hex: '#E9ECEF', metal: 1, rough: .12 }, { name: 'Leštené striebro', hex: '#C9CCD0', metal: .95, rough: .22 }, { name: 'Platina', hex: '#D8D6CC', metal: .95, rough: .18 },
+  { name: 'Titán', hex: '#8E9196', metal: .9, rough: .3 }, { name: 'Gunmetal', hex: '#4A4E55', metal: .9, rough: .3 }, { name: 'Grafit', hex: '#34363A', metal: .85, rough: .35 },
+  { name: 'Čierny chróm', hex: '#1E1F23', metal: 1, rough: .16 }, { name: 'Zlatá', hex: '#E2B53C', metal: 1, rough: .18 }, { name: 'Matné zlato', hex: '#B8973E', metal: .95, rough: .42 },
+  { name: 'Šampanské', hex: '#E6D3A3', metal: .95, rough: .2 }, { name: 'Ružové zlato', hex: '#E0A28C', metal: 1, rough: .2 }, { name: 'Meď', hex: '#C47A45', metal: 1, rough: .25 },
+  { name: 'Bronz', hex: '#A97142', metal: .95, rough: .32 }, { name: 'Červený elox', hex: '#D02B2B', metal: .9, rough: .25 }, { name: 'Ružový elox', hex: '#E0409A', metal: .9, rough: .25 },
+  { name: 'Fialový elox', hex: '#7B3FD1', metal: .9, rough: .25 }, { name: 'Modrý elox', hex: '#2F6FD6', metal: .9, rough: .25 }, { name: 'Petrolej', hex: '#2E6E7E', metal: .9, rough: .28 },
+  { name: 'Zelený elox', hex: '#2FAE6B', metal: .9, rough: .25 }, { name: 'Oceľová modrá', hex: '#5B7A99', metal: .9, rough: .3 },
+];
+export const isHex = v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+const hexNum = v => parseInt(v.slice(1), 16);
+const hexRgb = v => [hexNum(v) >> 16 & 255, hexNum(v) >> 8 & 255, hexNum(v) & 255];
+const luma = v => { const [r, g, b] = hexRgb(v); return (.299 * r + .587 * g + .114 * b) / 255; };
+const findHex = (list, v) => list.find(c => c.hex.toLowerCase() === String(v).toLowerCase());
+/* názov časti vzhľadu pre popis (vzor, farba z palety alebo vlastná) */
+export function lookName(part, v) {
+  const T = { deck: [DECKS, DECK_COLORS], grip: [GRIPS, GRIP_COLORS], wheels: [WHEELS, WHEEL_COLORS], trucks: [TRUCKS, TRUCK_COLORS] }[part];
+  if (part === 'deck' && v === 'photo') return 'Tvoja fotka';
+  return T?.[0][v]?.name || findHex(T?.[1] || [], v)?.name || (isHex(v) ? 'Vlastná farba ' + v.toUpperCase() : '');
+}
+const lookOf = l => ({
+  deck: DECKS[l?.deck] || isHex(l?.deck) || l?.deck === 'photo' ? l.deck : 'cream',
+  grip: GRIPS[l?.grip] || isHex(l?.grip) ? l.grip : 'black',
+  wheels: WHEELS[l?.wheels] || isHex(l?.wheels) ? l.wheels : 'cream',
+  trucks: TRUCKS[l?.trucks] || isHex(l?.trucks) ? l.trucks : 'silver',
+});
+
+/* lesklé odrazy pre kovové podvozky a kolieska (jedno prostredie na renderer) */
+const ENVS = new WeakMap();
+function envFor(renderer) {
+  if (!ENVS.has(renderer)) {
+    try { const pm = new THREE.PMREMGenerator(renderer); ENVS.set(renderer, pm.fromScene(new RoomEnvironment(), .04).texture); pm.dispose(); }
+    catch { ENVS.set(renderer, null); }
+  }
+  return ENVS.get(renderer);
+}
 
 function deckGraphic(deck = 'cream') {
-  const D = DECKS[deck] || DECKS.cream;
   const c = document.createElement('canvas'); c.width = 2048; c.height = 540;
   const x = c.getContext('2d');
+  if (deck === 'photo') {   // vlastná fotka ako pixel art medzi pásmi
+    x.fillStyle = '#0e0d0c'; x.fillRect(0, 0, c.width, c.height);
+    if (PHOTO) { x.save(); x.imageSmoothingEnabled = false; x.translate(1024, 270); x.rotate(Math.PI / 2); x.drawImage(PHOTO, -270, -690, 540, 1380); x.restore(); }
+    else if (GHOST) { const gh = 380, gw = gh * GHOST.width / GHOST.height; x.save(); x.translate(1024, 270); x.rotate(Math.PI / 2); x.drawImage(GHOST, -gw / 2, -gh / 2, gw, gh); x.restore(); }
+    for (const bx of [150, 1748]) {
+      x.fillStyle = '#0e0d0c'; x.fillRect(bx, 0, 150, c.height);
+      x.save(); x.translate(bx + 75, c.height / 2); x.rotate(Math.PI / 2);
+      x.fillStyle = '#F3EBDD'; x.textAlign = 'center'; x.textBaseline = 'middle'; stretch(x, 'expanded');
+      fit(x, 'GAME OF S.K.A.T.E.', 900, 470, 58); x.fillText('GAME OF S.K.A.T.E.', 0, 4); x.restore();
+    }
+    x.fillStyle = '#0e0d0c'; x.fillRect(320, 0, 14, c.height); x.fillRect(1714, 0, 14, c.height);
+    return c;
+  }
+  const D = DECKS[deck] || (isHex(deck) ? { base: deck, stripe: luma(deck) > .6 ? '#0e0d0c' : '#F3EBDD', ink: deck } : DECKS.cream);
   x.fillStyle = D.base; x.fillRect(0, 0, c.width, c.height);
   if (D.pattern === 'ghosts' && GHOST) {
     for (let i = 0; i < 26; i++) {
@@ -149,6 +293,18 @@ function deckGraphic(deck = 'cream') {
   return c;
 }
 function gripTexture(grip = 'black') {
+  if (isHex(grip)) {   // farebný grip: farba + zrnitý povrch (svetlejšie a tmavšie zrnká)
+    const [r, g, b] = hexRgb(grip);
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
+    const x = c.getContext('2d');
+    x.fillStyle = grip; x.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < 36000; i++) {
+      const k = (Math.random() - .5) * 70;
+      x.fillStyle = `rgba(${clamp8(r + k)},${clamp8(g + k)},${clamp8(b + k)},${(.35 + Math.random() * .5).toFixed(2)})`;
+      x.fillRect(Math.random() * c.width, Math.random() * c.height, 1.4, 1.4);
+    }
+    return c;
+  }
   const G = GRIPS[grip] || GRIPS.black;
   const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
   const x = c.getContext('2d');
@@ -211,9 +367,13 @@ function buildBoard(stickers, logo, renderer, look) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   }
 
-  const TR = TRUCKS[look.trucks], WH = WHEELS[look.wheels];
-  const steel = mat({ color: TR.color, metalness: TR.metal, roughness: .38 });
-  const wheel = mat({ color: WH.color, roughness: .5 });
+  const tc = isHex(look.trucks) ? (findHex(TRUCK_COLORS, look.trucks) || { hex: look.trucks, metal: .9, rough: .26 }) : null;
+  const TR = tc ? { color: hexNum(tc.hex), metal: tc.metal, rough: tc.rough } : { ...TRUCKS[look.trucks], rough: .38 };
+  const wc = isHex(look.wheels) ? (findHex(WHEEL_COLORS, look.wheels) || { hex: look.wheels, glow: 0 }) : null;
+  const WH = wc ? { color: hexNum(wc.hex), core: luma(wc.hex) > .55 ? 0x1b1918 : 0xf3ebdd, glow: wc.glow } : WHEELS[look.wheels];
+  const env = envFor(renderer);
+  const steel = mat({ color: TR.color, metalness: TR.metal, roughness: TR.rough, envMap: env, envMapIntensity: tc ? 1.15 : .6 });
+  const wheel = mat({ color: WH.color, roughness: WH.glow ? .35 : .5, envMap: env, envMapIntensity: .35, ...(WH.glow ? { emissive: WH.color, emissiveIntensity: WH.glow } : {}) });
   const core = mat({ color: WH.core, roughness: .45, metalness: .15 });
   const board = new THREE.Group();
   const grip = tex(gripTexture(look.grip)); grip.wrapS = grip.wrapT = THREE.RepeatWrapping; grip.repeat.set(1.5, 1);

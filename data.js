@@ -222,6 +222,7 @@ export const SKATEPARKS = [
      look:      { deck: 'black', grip: 'ghost', wheels: 'red', trucks: 'black' }   (vzhľad dosky v rebríčku)
                 deck: cream | black | red | ghosts | poster, grip: black | ghost | red,
                 wheels: cream | red | black, trucks: silver | black | red
+                Každá časť môže byť aj farba, napr. grip: '#F4C2D7', wheels: '#39FF14', trucks: '#E2B53C'.
    Príklad:
      'sebastian-kozmann': { instagram: 'sebo', city: 'Bratislava', look: { deck: 'black', wheels: 'red' } }, */
 export const RIDERS = {};
