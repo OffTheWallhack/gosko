@@ -2,7 +2,7 @@
    každý event, jazdec, článok a hlavné sekcie dostanú vlastnú adresu s náhľadom (og:title, og:image…).
    Spúšťa sa samo cez GitHub Actions (.github/workflows/pages.yml), ručne: node scripts/build-pages.mjs
    Pri zmene domény uprav SITE_URL (a <base href> v index.html). */
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,6 +56,20 @@ try {
 } catch (err) { console.warn('Články sa nenačítali:', err.message); }
 if (!posts.length && process.env.POSTS_FILE) posts = JSON.parse(readFileSync(process.env.POSTS_FILE, 'utf8'));
 
+/* stránky článkov: z databázy, a keď sa nedá pripojiť, zo starých vygenerovaných stránok (nech neostanú so starou hlavičkou) */
+const unesc = t => String(t || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+let postPages = posts.map(x => ({ id: x.id, title: x.title, image: x.image_url, description: clip(x.summary || x.body || x.title), body: `<p>${esc(clip(x.body || '', 1200))}</p>` }));
+if (!postPages.length && existsSync(join(ROOT, 'novinka'))) {
+  for (const id of readdirSync(join(ROOT, 'novinka'))) {
+    const f = join(ROOT, 'novinka', id, 'index.html'); if (!existsSync(f)) continue;
+    const old = readFileSync(f, 'utf8');
+    const meta = n => unesc((old.match(new RegExp(`<meta property="og:${n}" content="([^"]*)"`)) || [])[1]);
+    const body = (old.match(/<div class="wrap seo-pre"><h1>[\s\S]*?<\/h1><p>[\s\S]*?<\/p>([\s\S]*?)<\/div><\/main>/) || [])[1] || '';
+    postPages.push({ id, title: meta('title').replace(/ \| GOSko$/, ''), image: meta('image'), description: meta('description'), body });
+  }
+  if (postPages.length) console.warn(`Články z databázy nie sú dostupné, prestaval som ${postPages.length} existujúcich.`);
+}
+
 /* sekcie */
 const SECTIONS = [
   ['eventy', 'Eventy', 'GOSko zastávky Game of S.K.A.T.E. a skate kalendár eventov na Slovensku, v Česku aj vo svete.'],
@@ -72,7 +86,7 @@ const SECTIONS = [
   ['rodicia', 'Pre rodičov', 'Ako funguje GOSko pre jazdcov do 16 rokov: bezpečnosť, súhlas rodiča, čo priniesť.'],
   ['shop', 'Shop', 'GOSko merch a podpora komunity.'],
   ['partneri', 'Pre partnerov', 'Spolupráca s GOSko: čísla, plán a ako sa pridať.'],
-  ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku. Slovenská Federácia Skateboardingu (o. z. v príprave).'],
+  ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku. Za projektom stojí občianske združenie Slovenská Federácia Skateboardingu.'],
   ['pravidla', 'Pravidlá', 'Pravidlá Game of S.K.A.T.E. na GOSko eventoch.'],
 ];
 
@@ -83,14 +97,13 @@ writeFileSync(join(ROOT, 'index.html'), home);
 writeFileSync(join(ROOT, '404.html'), home.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"'));
 
 for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d,
-  body: p === 'eventy' ? list(EVENTS.map(e => link(`event/${e.id}`, e.name))) : p === 'jazdci' || p === 'rebricek' ? list([...riders.values()].map(r => link(`jazdec/${r.slug}`, r.name))) : p === 'novinky' ? list(posts.map(x => link(`novinka/${x.id}`, x.title))) : '' });
+  body: p === 'eventy' ? list(EVENTS.map(e => link(`event/${e.id}`, e.name))) : p === 'jazdci' || p === 'rebricek' ? list([...riders.values()].map(r => link(`jazdec/${r.slug}`, r.name))) : p === 'novinky' ? list(postPages.map(x => link(`novinka/${x.id}`, x.title))) : '' });
 for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', image: e.photos?.[0]?.src,
   description: clip([e.status === 'next' ? 'Ďalší stop GOSko' : 'GOSko', e.place, e.date ? fmt(e.date) : e.when || 'coming soon', e.about].filter(Boolean).join(' · ')),
   body: e.results ? list(Object.entries(e.results).flatMap(([c, n]) => n.map((x, i) => `${esc(c)} ${i + 1}. ${link(`jazdec/${slug(x)}`, x)}`))) : '' });
 for (const r of riders.values()) page(`jazdec/${r.slug}`, { title: r.name, type: 'profile', image: RIDERS[r.slug]?.photo,
   description: clip(`${r.name} na GOSko: ${r.res.join('; ')}.`), body: list(r.res.map(esc)) });
-for (const x of posts) page(`novinka/${x.id}`, { title: x.title, type: 'article', image: x.image_url,
-  description: clip(x.summary || x.body || x.title), body: `<p>${esc(clip(x.body || '', 1200))}</p>` });
+for (const x of postPages) page(`novinka/${x.id}`, { title: x.title, type: 'article', image: x.image, description: x.description, body: x.body });
 for (const c of CREWS) page(`crew/${c.id}`, { title: c.name, description: clip(c.about || `${c.name}: skate crew na GOSko.`), image: c.image });
 
 /* sitemap a robots */

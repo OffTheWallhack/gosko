@@ -196,6 +196,19 @@ Pre každý event, jazdca, článok a sekciu sa generuje statická stránka s n�
 Generuje ich `scripts/build-pages.mjs`; spúšťa sa samo cez GitHub Actions (`.github/workflows/pages.yml`) po každej zmene a každé 3 hodiny.
 Pri zmene domény: uprav `SITE_URL` v skripte a `<base href>` v `index.html`.
 
+## Navigácia na mobile
+
+- Hore je stále pripnutá lišta s logom a skate kalendárom (aj v oblasti hodín a batérie).
+- Na podstránkach je vľavo hore tlačidlo **Späť**. Keď človek prišiel rovno cez odkaz, vedie o úroveň vyššie (event → Eventy, jazdec → Rebríček, článok → Novinky).
+- V appke pridanej na plochu funguje aj potiahnutie prstom od ľavého okraja = späť.
+- Menu je v spodnej lište (posledná položka). Na počítači ho otvorí tlačidlo Menu vpravo hore.
+
+## 3D doska
+
+Grip má pastelové farby, kolieska neónové, podvozky kovové a doska 20 základných farieb. Pri každej časti je aj vlastná farba (dúhové koliesko).
+Na spodok dosky si človek môže dať vlastnú fotku: web ju oreže na tvar dosky a prerobí na pixel art (hrubé, stredné alebo jemné pixely, posun výrezu).
+Fotka ostáva len v telefóne toho človeka, nikam sa neposiela.
+
 ## Komunita
 
 - **Trik týždňa** (`/trik-tyzdna`): zadanie a fázy riadiš v admine (posielanie → výber 3 finalistov → hlasovanie → víťaz).
