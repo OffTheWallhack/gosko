@@ -96,7 +96,9 @@ export const EVENTS = [
     stickerDate: '27.06.2026',
     lat: null, lng: null,
     about: 'Druhé GOSko, tentoraz ako súčasť festivalu Shred Fest v žilinskom skateparku Solinky.',
-    results: {},
+    results: {
+      open: ['Marián Holík', 'Jakub Sluka', 'Dominik Hreus'],
+    },
     awards: [],
     partners: [],
     photos: [],
