@@ -72,7 +72,7 @@ if (!postPages.length && existsSync(join(ROOT, 'novinka'))) {
 
 /* sekcie */
 const SECTIONS = [
-  ['eventy', 'Eventy', 'GOSko zastávky Game of S.K.A.T.E. a skate kalendár eventov na Slovensku, v Česku aj vo svete.'],
+  ['eventy', 'Eventy a skate kalendár', 'GOSko, skate eventy na Slovensku a v Česku a veľké eventy vo svete na jednom mieste.'],
   ['rebricek', 'Rebríček', `Rebríček jazdcov GOSko ${SITE.season}: body, výsledky a najlepší skejteri.`],
   ['jazdci', 'Jazdci', 'Skejteri, ktorí jazdili GOSko: profily, výsledky a dosky.'],
   ['sien-slavy', 'Sieň slávy', 'Víťazi GOSko eventov a ocenenia.'],

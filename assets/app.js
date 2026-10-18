@@ -563,10 +563,10 @@ function newsRotator(next) {
 function mountRoller(host) {
   const inner = h('div', { class: 'ticker-in' });
   const nav = h('nav', { class: 'ticker er er-top', 'aria-label': 'Skate eventy doma a vo svete' },
-    h('a', { class: 'er-label mono', href: 'hub/' }, 'Skate kalendár'), h('div', { class: 'er-track' }, inner));
+    h('a', { class: 'er-label mono', href: '#/eventy#kalendar' }, 'Skate kalendár'), h('div', { class: 'er-track' }, inner));
   const fill = list => {
     const gk = EVENTS.filter(e => e.status === 'next').map(e => ({ ours: true, name: e.name, country: 'Slovensko', label: e.date ? shortDate(e.date) : 'čoskoro', href: '#/event/' + e.id }));
-    const items = [...gk, ...list.slice(0, 20).map(e => ({ ...e, label: shortDate(e.date), href: 'hub/#e-' + e.id }))];
+    const items = [...gk, ...list.slice(0, 20).map(e => ({ ...e, label: shortDate(e.date), href: '#/eventy#kalendar' }))];
     const run = () => items.map(e => h('a', { href: e.href, class: e.ours ? 'ours' : '' }, flag(e.country), h('b', {}, e.label), e.city ? h('span', { class: 'er-city' }, e.city) : null, h('span', {}, e.name)));
     inner.replaceChildren(...run(), ...run(), ...(items.length < 6 ? [...run(), ...run()] : []));
     inner.style.animationDuration = `${Math.max(24, items.length * 7)}s`;
@@ -788,7 +788,7 @@ function eventWidget() {
   const t = todayStr();
   const row = e => {
     const p = parseDate(e.date), live = e.date <= t && (e.end_date || e.date) >= t, n = dayDiff(t, e.date);
-    return h('li', {}, h('a', { href: 'hub/#e-' + e.id, class: live ? 'live' : '' },
+    return h('li', {}, h('a', { href: '#/eventy#kalendar', class: live ? 'live' : '' },
       h('span', { class: 'ew-d' }, h('b', {}, p ? p.d : '?'), h('small', {}, p ? MON[p.m - 1] : '')),
       flag(e.country),
       h('span', { class: 'ew-t' }, h('b', {}, e.name), h('small', {}, [e.city, e.country, e.organizer].filter(Boolean).join(' · '))),
@@ -812,11 +812,11 @@ function eventWidget() {
     h('div', { class: 'ew-copy' },
       h('span', { class: 'mono hs-k' }, 'Skate kalendár'), h('h2', {}, 'Eventy doma aj vo svete'),
       h('p', { class: 'lead' }, 'Contesty, jamy a festivaly od iných crew, skateshopov a svetových sérií. Nech ti nič neujde.'),
-      h('div', { class: 'actions cta-row' }, h('a', { class: 'btn primary cta', href: 'hub/' }, 'Celý kalendár', icon('arrow')), h('a', { class: 'btn cta', href: '#/eventy?pridat' }, 'Pridať event'))),
+      h('div', { class: 'actions cta-row' }, h('a', { class: 'btn primary cta', href: '#/eventy#kalendar' }, 'Celý kalendár', icon('arrow')), h('a', { class: 'btn cta', href: '#/eventy?pridat' }, 'Pridať event'))),
     h('div', { class: 'ew' },
       h('div', { class: 'ew-head' }, h('span', { class: 'ew-live' }, h('i', { 'aria-hidden': 'true' }), 'Live feed'), meta, tabs),
       h('div', { class: 'ew-win' }, track),
-      h('a', { class: 'ew-foot mono', href: 'hub/' }, 'Celý kalendár, filtre a mapa v event hube →'))));
+      h('a', { class: 'ew-foot mono', href: '#/eventy#kalendar' }, 'Celý kalendár a hľadanie'))));
 }
 
 function pageHome(root) {
@@ -1129,35 +1129,55 @@ async function pageEvents(root) {
       h('span', { class: 'ab-main' }, h('span', { class: 'ab-city' }, e.city), h('span', { class: 'ab-name' }, e.title), h('span', { class: 'mono ab-meta' }, [dateText(e), e.country, e.place].filter(Boolean).join(' · '))),
       h('span', { class: 'ab-side' }, badges(e), h('span', { class: 'actions' }, e.link && h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Viac'), icsBtn(e))));
   }
+  /* jedna stránka pre všetky eventy: 1) GOSko (organizujeme my), 2) Slovensko a Česko (iní organizátori, pridáva komunita aj my),
+     3) veľké eventy vo svete (len prehľad). Hľadanie a čas filtrujú 2) aj 3). */
+  let q = '', worldAll = false;
+  const localBox = h('div'), worldBox = h('div');
+  let orgBox = null;
+  const localCount = h('span', { class: 'mono lead' }), worldCount = h('span', { class: 'mono lead' });
+  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const match = e => !q || norm([e.title, e.city, e.place, e.country, e.organizer, e.kind].join(' ')).includes(norm(q));
   function render() {
     const isUp = e => (e.date ? lastDay(e) >= today : true);
     const sortUp = (a, b) => (a.date || '9').localeCompare(b.date || '9'), sortDown = (a, b) => (b.date || '').localeCompare(a.date || '');
-    const pick = arr => arr.filter(e => when === 'upcoming' ? isUp(e) : !isUp(e)).sort(when === 'upcoming' ? sortUp : sortDown);
-    const local = pick(community.filter(e => e.country === 'Slovensko' || e.country === 'Česko'));
-    const abroad = pick(community.filter(e => e.country !== 'Slovensko' && e.country !== 'Česko'));
-    list.replaceChildren(
-      h('section', { class: 'ev-sec gk' },
-        h('div', { class: 'sec-head' }, h('h2', {}, 'GOSko stopy'), h('span', { class: 'mono lead' }, 'Ťukni na nálepku')),
-        stickerWall({ bare: true })),
-      h('div', { class: 'ev-divider' }, h('span', { class: 'mono hs-k' }, 'Skate kalendár'), h('h2', {}, 'Ďalšie eventy doma a vo svete'),
-        h('p', { class: 'lead' }, 'Organizujú ich iné crew, skateshopy a federácie. Chýba tu nejaký? Pridaj ho a po schválení sa ukáže.')),
-      h('div', { class: 'controls ev-when' }, chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; })),
-      h('section', { class: 'ev-sec' },
-        h('div', { class: 'sec-head' }, h('h2', {}, 'Slovensko a Česko'), h('span', { class: 'mono lead' }, `${local.length} ${plural(local.length, 'event', 'eventy', 'eventov')}`)),
-        local.length ? h('ul', { class: 'ec-grid' }, local.map(localCard)) : h('p', { class: 'empty' }, 'Zatiaľ nič. Poznáš event? Pridaj ho.')),
-      h('section', { class: 'ev-sec' },
-        h('div', { class: 'sec-head' }, h('h2', {}, 'Zahraničie'), h('span', { class: 'mono lead' }, `${abroad.length} ${plural(abroad.length, 'event', 'eventy', 'eventov')}`)),
-        abroad.length ? h('ul', { class: 'ab-list' }, abroad.map(abroadRow)) : h('p', { class: 'empty' }, 'Zatiaľ nič.')));
+    const pick = arr => arr.filter(e => (when === 'upcoming' ? isUp(e) : !isUp(e)) && match(e)).sort(when === 'upcoming' ? sortUp : sortDown);
+    const home = e => e.country === 'Slovensko' || e.country === 'Česko';
+    const local = pick(community.filter(home)), world = pick(community.filter(e => !home(e)));
+    const cnt = n => `${n} ${plural(n, 'event', 'eventy', 'eventov')}`;
+    localCount.textContent = cnt(local.length); worldCount.textContent = cnt(world.length);
+    if (orgBox) orgBox.hidden = !local.length;
+    localBox.replaceChildren(local.length ? h('ul', { class: 'ec-grid' }, local.map(localCard))
+      : h('div', { class: 'empty-cta' }, h('div', {}, h('b', {}, q ? 'Nič sme nenašli.' : 'Zatiaľ tu nič nie je.'), h('p', {}, 'Poznáš skate event na Slovensku alebo v Česku? Pridaj ho a po schválení sa ukáže.'),
+          h('button', { class: 'btn primary small', type: 'button', onclick: addEventDialog }, 'Pridať event'))));
+    const shown = worldAll ? world : world.slice(0, 6);
+    worldBox.replaceChildren(...(world.length ? [h('ul', { class: 'ab-list' }, shown.map(abroadRow)),
+      world.length > shown.length ? h('button', { class: 'btn small more-btn', type: 'button', onclick: () => { worldAll = true; render(); } }, `Zobraziť všetky (${world.length})`) : null].filter(Boolean)
+      : [h('p', { class: 'empty' }, q ? 'Nič sme nenašli.' : 'Zatiaľ nič.')]));
   }
-  const chipGroup = (label, items, get, set) => {
+  function chipGroup(label, items, get, set) {
     const g = h('div', { class: 'chips', role: 'group', 'aria-label': label }, items.map(([v, t]) =>
       h('button', { type: 'button', class: 'chip', 'aria-pressed': String(v === get()), onclick: ev => { set(v); g.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c === ev.currentTarget))); render(); } }, t)));
     return g;
-  };
-  root.append(pageHead('Eventy', 'Naše GOSko stopy a skate kalendár so všetkým, čo sa deje doma aj vo svete.',
-    h('button', { class: 'btn primary', type: 'button', onclick: addEventDialog }, 'Pridať event')),
+  }
+  const search = h('input', { type: 'search', class: 'ev-search', placeholder: 'Hľadaj event, mesto alebo organizátora', 'aria-label': 'Hľadať event' });
+  search.addEventListener('input', () => { q = search.value.trim(); render(); });
+  list.replaceChildren(
+    h('section', { class: 'ev-sec gk', id: 'gosko' },
+      h('div', { class: 'sec-head' }, h('div', {}, h('h2', {}, 'GOSko'), h('p', { class: 'lead ev-sub' }, 'Naša séria Game of S.K.A.T.E. Ťukni na nálepku a pozri si výsledky, fotky a videá.'))),
+      stickerWall({ bare: true })),
+    h('section', { class: 'ev-sec', id: 'kalendar' },
+      h('div', { class: 'sec-head' }, h('div', {}, h('h2', {}, 'Slovensko a Česko'), h('p', { class: 'lead ev-sub' }, 'Skate eventy od iných crew, skateshopov a organizátorov.')), localCount),
+      h('div', { class: 'ev-tools' }, search, chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; })),
+      localBox,
+      orgBox = h('div', { class: 'ev-org' }, h('div', {}, h('b', {}, 'Organizuješ skate event?'), h('p', {}, 'Pridaj ho do kalendára. Zobrazí sa po schválení, zvyčajne do 24 hodín.')),
+        h('button', { class: 'btn primary', type: 'button', onclick: addEventDialog }, 'Pridať event'))),
+    h('section', { class: 'ev-sec ev-world', id: 'svet' },
+      h('div', { class: 'sec-head' }, h('div', {}, h('h2', {}, 'Veľké eventy vo svete'), h('p', { class: 'lead ev-sub' }, 'Contesty a série, ktoré sa oplatí sledovať.')), worldCount),
+      worldBox));
+  root.append(pageHead('Eventy', 'GOSko, skate eventy na Slovensku a v Česku a veľké eventy vo svete na jednom mieste.'),
     h('div', { class: 'wrap page-body' }, list));
   render();
+  const jumpTo = location.hash.slice(1); if (jumpTo) requestAnimationFrame(() => document.getElementById(jumpTo)?.scrollIntoView());
   if (new URLSearchParams(location.search).has('pridat')) addEventDialog();
 
   function addEventDialog() {
@@ -1361,7 +1381,7 @@ async function pageEvent(root, id) {
     return h('a', { href: '#/event/' + e.id, class: 'evw-mi' }, im, h('b', {}, e.name), h('span', { class: 'mono' }, e.status === 'next' ? 'coming soon' : fmtDate(e.date)));
   }));
   const cal = h('ul', { class: 'cal-mini' });
-  moreBox.append(mini, h('div', { class: 'cal-box' }, h('div', { class: 'cal-head' }, h('h3', { class: 'mono' }, 'Zo skate kalendára'), h('a', { class: 'linkish', href: 'hub/' }, 'Event hub →')), cal));
+  moreBox.append(mini, h('div', { class: 'cal-box' }, h('div', { class: 'cal-head' }, h('h3', { class: 'mono' }, 'Zo skate kalendára'), h('a', { class: 'linkish', href: '#/eventy#kalendar' }, 'Celý kalendár')), cal));
   upcomingCommunity().then(list => cal.replaceChildren(...list.slice(0, 4).map(e => { const p = parseDate(e.date); return h('li', {},
     h('span', { class: 'cm-d' }, h('b', {}, p.d), h('small', {}, MON[p.m - 1])), flag(e.country),
     h('span', { class: 'cm-t' }, h('b', {}, e.name), h('small', {}, [e.city, e.country].filter(Boolean).join(', '))),
@@ -2911,6 +2931,9 @@ function initSwipeBack() {
 }
 
 (async function start() {
+  // bez približovania stránky: iOS ignoruje maximum-scale pri dvoch prstoch, preto gesto zastavíme (okrem mapy a 3D)
+  const zoomOk = t => t && t.closest && t.closest('.map, .picker, canvas, .leaflet-container');
+  ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (!zoomOk(e.target)) e.preventDefault(); }, { passive: false }));
   initPwa();
   $('#footer-news').addEventListener('click', () => newsletterDialog('footer'));
   updateMenu();
@@ -2953,7 +2976,8 @@ function initSwipeBack() {
     if (/^(hub|ghoskate)(\/|$)/.test(rest) || /\.[a-z0-9]{2,5}$/i.test(rest)) return;
     if (u.pathname === location.pathname && u.search === location.search && u.hash && !u.hash.startsWith('#/')) return;
     e.preventDefault();
-    if (u.pathname + u.search !== location.pathname + location.search) pushNav(u.pathname + u.search);
+    if (u.pathname + u.search !== location.pathname + location.search) pushNav(u.pathname + u.search + u.hash);
+    else if (u.hash) { document.getElementById(u.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }); return; }
     route();
   });
   route();
