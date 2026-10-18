@@ -2502,3 +2502,24 @@ body::before{content:none;display:none;animation:none}
 .after-solid .sw-sec{border-top:0}
 .acct,.acct.acct{padding-right:80px}
 @media (max-width:760px){ .acct,.acct.acct{padding-right:72px} }
+
+/* v11.1: Môj profil bez pozadia, kreslená šípka na malého ducha */
+.acct,.acct.acct,.acct.in{height:44px;padding:0 50px 0 0;gap:4px;border:0;background:none;box-shadow:none}
+.acct .acct-t{font-size:.92rem;font-weight:700;color:var(--bone)}
+.acct-arrow-w{display:inline-flex}
+.acct-arrow{width:30px;height:18px;fill:none;stroke:var(--bone);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.85;transform:rotate(6deg) translateY(2px)}
+.acct-ghost,.acct img.acct-ghost{width:44px;right:0;top:0}
+@media (max-width:760px){ .acct,.acct.acct,.acct.in{padding-right:46px;height:44px} .acct-ghost,.acct img.acct-ghost{width:42px;top:1px} .acct .acct-t{font-size:.88rem} }
+.acct:hover .acct-t{text-decoration:underline;text-underline-offset:3px}
+
+/* Skate kalendár v lište: kompaktné písmo */
+.tb-cal .er-label,.tb-cal > .er-label{font-family:"Archivo",sans-serif;font-stretch:62%;font-weight:800;font-size:.8rem;letter-spacing:.02em;padding:0 9px 0 10px;gap:5px}
+.tb-cal .er-label::before{width:6px;height:6px}
+
+/* novinky: vždy rovnaká výška (nadpis 2 riadky, popis 1 riadok) */
+.nr-stage{min-height:0}
+.nr-slide{align-items:center}
+.nr-k{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nr-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.2;height:2.4em}
+.nr-s{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;height:1.35em}
+.acct span.acct-arrow-w,.acct .acct-arrow-w{display:inline-flex !important}

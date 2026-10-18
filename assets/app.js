@@ -528,7 +528,7 @@ function newsRotator(next) {
   let slides = [], i = 0, timer = null, paused = false;
   const slideEl = sl => h('a', { class: 'nr-slide', href: sl.href },
     h('span', { class: 'nr-img' + (sl.img ? '' : ' ghost') }, h('img', { src: sl.img || 'img/ghost-cream.svg', alt: '' })),
-    h('span', { class: 'nr-txt' }, h('span', { class: 'nr-k' }, sl.kicker), h('span', { class: 'nr-t' }, sl.title), sl.sub ? h('span', { class: 'nr-s' }, sl.sub) : null),
+    h('span', { class: 'nr-txt' }, h('span', { class: 'nr-k' }, sl.kicker), h('span', { class: 'nr-t' }, sl.title), h('span', { class: 'nr-s' }, sl.sub || '')),
     h('span', { class: 'nr-go', 'aria-hidden': 'true' }, '→'));
   const restart = () => { clearTimeout(timer); if (!paused && slides.length > 1) timer = setTimeout(() => show(i + 1, 1), 6000); };
   function show(k, dir = 1) {
@@ -1853,7 +1853,7 @@ async function updateAccount() {
   a.classList.toggle('in', inn);
   const adm = inn && await store.isAdmin().catch(() => false);
   document.querySelectorAll('[data-admin-link]').forEach(x => { x.hidden = !adm; });
-  a.replaceChildren(h('span', { class: 'acct-t' }, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('img', { class: 'acct-ghost', src: 'img/ghost-cream.svg', alt: '', width: 96, height: 108 }));
+  a.replaceChildren(h('span', { class: 'acct-t' }, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('span', { class: 'acct-arrow-w', html: '<svg class="acct-arrow" viewBox="0 0 40 24" aria-hidden="true"><path d="M3 15c7-9 18-11 29-6"/><path d="M27 4.5 33 9l-6.5 3.5"/></svg>' }), h('img', { class: 'acct-ghost', src: 'img/ghost-cream.svg', alt: '', width: 96, height: 108 }));
   a.setAttribute('aria-label', inn ? 'Môj profil' : 'Prihlásiť sa');
   const sa = document.getElementById('sh-acct');
   if (sa) sa.querySelector('span').replaceChildren(h('b', {}, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('small', {}, inn ? 'XP, odznaky a profil jazdca' : 'Hlasuj, posielaj spoty a zbieraj XP'));
