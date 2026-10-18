@@ -84,3 +84,13 @@ a{color:inherit}
 .hb-foot p{margin:0 0 6px;max-width:80ch}
 .hb-small{font-family:"IBM Plex Mono",monospace;font-size:.7rem;opacity:.7;text-transform:uppercase;letter-spacing:.06em}
 @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} .ev.hl{animation:none;background:var(--acid)} }
+
+/* späť na GOSko web: v appke na ploche nie je tlačidlo prehliadača */
+.hb-back{flex:none;display:inline-flex;align-items:center;gap:4px;height:42px;padding:0 16px 0 10px;border:1px solid rgba(239,233,222,.35);border-radius:999px;color:var(--paper);text-decoration:none;font-weight:700;font-size:.95rem}
+.hb-back svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.hb-back:hover,.hb-back:active{background:var(--paper);color:var(--ink)}
+.hb-top{justify-content:flex-start}
+.hb-links{margin-left:auto}
+@media (max-width:560px){ .hb-gosko{display:none} .hb-name{font-size:1.3rem} }
+.hb-name,.hb-links a{white-space:nowrap}
+@media (max-width:560px){ .hb-top{gap:10px;padding-inline:12px} .hb-beta{display:none} }

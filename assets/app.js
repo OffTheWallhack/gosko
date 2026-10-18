@@ -1201,7 +1201,7 @@ function registerDialog(ev) {
       { name: 'contact', label: 'E-mail alebo telefón', required: true, max: 120, value: LSx.get('gosko:reg-me', {}).contact },
       { name: 'parent_consent', label: 'Mám súhlas rodiča s účasťou a so zverejnením výsledkov.', type: 'checkbox', showIf: v => v.category === 'u16', requiredIfShown: true },
       { name: 'newsletter', label: 'Pošlite mi e-mail aj o ďalších GOSko eventoch.', type: 'checkbox' },
-      { name: 'gdpr', label: 'Súhlasím, že GOSko použije moje údaje na organizáciu eventu.', type: 'checkbox', required: true },
+      { name: 'gdpr', label: ['Súhlasím, že GOSko použije moje údaje na organizáciu eventu. ', h('a', { href: '#/sukromie', target: '_blank', rel: 'noopener' }, 'Ako narábame s údajmi'), '.'], type: 'checkbox', required: true },
     ],
     onSubmit: async v => {
       const token = newToken();
@@ -1989,7 +1989,7 @@ function videoEmbed(id, title) {
 function newsletterFields() {
   return [
     { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email' },
-    { name: 'consent', label: 'Súhlasím so zasielaním správ o GOSko eventoch. Odhlásiť sa dá kedykoľvek.', type: 'checkbox', required: true },
+    { name: 'consent', label: ['Súhlasím so zasielaním správ o GOSko eventoch. Odhlásiť sa dá kedykoľvek. ', h('a', { href: '#/sukromie', target: '_blank', rel: 'noopener' }, 'Ako narábame s údajmi'), '.'], type: 'checkbox', required: true },
   ];
 }
 async function subscribe(email, source) {
@@ -2006,7 +2006,7 @@ function newsletterInline(source) {
   const msg = h('p', { class: 'form-msg', role: 'status' });
   const form = h('form', { class: 'news-form', novalidate: true },
     h('div', { class: 'news-row' }, email, h('button', { class: 'btn primary', type: 'submit' }, 'Chcem vedieť')),
-    h('label', { class: 'check' }, consent, h('span', {}, 'Súhlasím so zasielaním správ o GOSko eventoch. Odhlásiť sa dá kedykoľvek.')), msg);
+    h('label', { class: 'check' }, consent, h('span', {}, 'Súhlasím so zasielaním správ o GOSko eventoch. Odhlásiť sa dá kedykoľvek. ', h('a', { href: '#/sukromie', target: '_blank', rel: 'noopener' }, 'Ako narábame s údajmi'), '.')), msg);
   form.addEventListener('submit', async e => {
     e.preventDefault(); msg.textContent = '';
     if (!isEmail(email.value.trim())) { msg.textContent = 'Skontroluj e-mail.'; return; }
@@ -2710,7 +2710,7 @@ function pageParents(root) {
       qa('Stojí to niečo?', h('p', {}, 'Registrácia aj účasť sú zadarmo. Ceny pre víťazov dávajú partneri.')),
       qa('Musím byť pri tom?', h('p', {}, 'U mladších detí odporúčame, aby bol rodič alebo dospelý na mieste. Pri U16 stačí súhlas pri registrácii.')),
       qa('Ako zmením alebo zmažem údaje dieťaťa?', h('p', {}, h('button', { class: 'linklike', type: 'button', onclick: () => privacyDialog() }, 'Pošlite nám žiadosť'), ' a vybavíme ju.')),
-      h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/eventy' }, 'Najbližšie eventy'), h('a', { class: 'btn', href: '#/pravidla' }, 'Pravidlá'))));
+      h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/eventy' }, 'Najbližšie eventy'), RULES.length || FAQ.length ? h('a', { class: 'btn', href: '#/pravidla' }, 'Pravidlá') : null, h('a', { class: 'btn', href: '#/sukromie' }, 'Ochrana osobných údajov'))));
 }
 
 /* komunita */
@@ -2729,6 +2729,40 @@ function pageCommunity(root) {
         card('#/profil', 'Profil', 'XP a odznaky', 'Za check-in, triky, spoty aj parky zbieraš XP a odomykáš odznaky.'),
         card('#/rodicia', 'U16', 'Pre rodičov', 'Bezpečnosť, súhlas, čo priniesť. Všetko na jednom mieste.'),
         card('ghoskate/', 'Pripravujeme', 'Ghoskate appka', 'Mapa spotov ako herný svet: check-in, triky, crews a loot. Vytvor si ducha a pridaj prvý spot už teraz.', 'red'))));
+}
+
+/* ochrana osobných údajov (GDPR). Návrh: pred spustením ho nech skontroluje niekto, kto sa v tom vyzná. */
+function pagePrivacy(root) {
+  const O = SITE.org || {}, miss = 'doplníme';
+  const contact = SITE.email ? h('a', { href: 'mailto:' + SITE.email }, SITE.email) : igLink(SITE.instagram);
+  const sec = (t, ...kids) => h('section', { class: 'pv-sec' }, h('h2', {}, t), kids);
+  const li = items => h('ul', {}, items.map(x => h('li', {}, x)));
+  root.append(pageHead('Ochrana osobných údajov', 'Aké údaje o tebe máme, prečo, ako dlho a čo s nimi môžeš urobiť. Bez právnických kľučiek.'),
+    h('div', { class: 'wrap page-body pv' },
+      sec('Kto sa o údaje stará',
+        h('p', {}, h('b', {}, O.name || 'GOSko'), O.address ? `, ${O.address}` : `, sídlo ${miss}`, O.ico ? `, IČO ${O.ico}` : `, IČO ${miss}`, '.'),
+        h('p', {}, 'Kontakt na otázky a žiadosti: ', contact, '.')),
+      sec('Čo zbierame a prečo',
+        li([
+          [h('b', {}, 'Registrácia na event: '), 'meno alebo prezývka, Instagram, mesto, kategória, e-mail alebo telefón a pri jazdcoch do 16 rokov súhlas rodiča. Potrebujeme ich na organizáciu eventu a check-in. Základ: tvoj súhlas pri registrácii.'],
+          [h('b', {}, 'Výsledky a fotky z eventov: '), 'meno, kategória a umiestnenie sú verejne v rebríčku, na eventoch fotíme. Je to dokumentácia podujatia a história série (oprávnený záujem). Na požiadanie skrátime priezvisko alebo fotku odstránime.'],
+          [h('b', {}, 'Odber noviniek: '), 'e-mail. Pošleme ti správu, keď vyhlásime ďalšie GOSko. Základ: tvoj súhlas, odhlásiť sa dá kedykoľvek.'],
+          [h('b', {}, 'Účet: '), 'e-mail na prihlásenie a to, čo si sám doplníš do profilu jazdca (fotka, Instagram, mesto, spot, crew).'],
+          [h('b', {}, 'Čo pošleš ty: '), 'fotky a klipy z eventov, spoty na mapu, parky, triky týždňa, hodnotenia a hlasy. Zobrazujú sa po schválení, pri obsahu uvádzame autora, ktorého zadáš.'],
+          [h('b', {}, 'Formuláre: '), 'Zavolaj si GOSko, záujem o shop, pridanie eventu a žiadosti o súkromie. Kontakt použijeme len na odpoveď.'],
+        ])),
+      sec('Jazdci do 16 rokov',
+        h('p', {}, 'Jazdec v kategórii U16 sa registruje so súhlasom rodiča alebo zákonného zástupcu. Rodič môže kedykoľvek požiadať o skrátenie mena v rebríčku, odstránenie fotky alebo zmazanie údajov. ', h('a', { href: '#/rodicia' }, 'Viac pre rodičov'), '.')),
+      sec('Kto ešte s údajmi pracuje',
+        h('p', {}, 'Údaje ukladáme v databáze Supabase. Web beží na GitHub Pages. Pri načítaní stránky sa tvoja IP adresa dostane aj k službám, z ktorých web načítava písma, knižnice a mapy (Google Fonts, jsDelivr, OpenStreetMap, flagcdn). Video z YouTube sa načíta až po ťuknutí na prehrať. Údaje nepredávame a nedávame ich partnerom.')),
+      sec('Ako dlho',
+        li(['Registrácie: do konca sezóny, potom ich zmažeme. Výsledky ostávajú ako história série.', 'Odber noviniek: kým sa neodhlásiš.', 'Účet a obsah, ktorý pošleš: kým ich nezmažeš ty alebo nepožiadaš o zmazanie.', 'Správy z formulárov: najviac 2 roky.'])),
+      sec('Cookies a úložisko v prehliadači',
+        h('p', {}, 'Nepoužívame reklamné ani analytické cookies. V tvojom prehliadači si web pamätá len nastavenia, napríklad vzhľad tvojej dosky, prihlásenie a vstupný QR pass.')),
+      sec('Tvoje práva',
+        h('p', {}, 'Môžeš požiadať o prístup k údajom, ich opravu, vymazanie, obmedzenie spracovania alebo prenos, namietať proti spracovaniu a kedykoľvek odvolať súhlas. Ak máš pocit, že s údajmi nenarábame správne, môžeš sa obrátiť na Úrad na ochranu osobných údajov SR.'),
+        h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => privacyDialog() }, 'Poslať žiadosť'))),
+      h('p', { class: 'note' }, 'Platné od 18. 10. 2026.')));
 }
 
 /* =====================================================================
@@ -2759,6 +2793,7 @@ const ROUTES = [
   [/^#\/crew$/, pageCrews, 'komunita'],
   [/^#\/crew\/([\w-]+)$/, pageCrew, 'komunita'],
   [/^#\/rodicia$/, pageParents, 'komunita'],
+  [/^#\/sukromie$/, pagePrivacy, 'sukromie'],
   [/^#\/sien-slavy$/, root => pageStandings(root, 'sien-slavy'), 'rebricek'],
   [/^#\/partner\/([\w-]+)$/, pagePartner, 'partneri'],
   [/^#\/tv\/([\w-]+)(?:\/(\w+))?$/, pageTv, ''],

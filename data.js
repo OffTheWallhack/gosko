@@ -24,6 +24,8 @@ export const SITE = {
   discord: '',          // pozvánka na Discord komunitu, napr. 'https://discord.gg/xxxx' (kým je prázdne, ukáže sa „čoskoro“)
   spotOfMonth: 'Skatepark Liptovský Mikuláš',   // spot mesiaca = presný názov parku zo SKATEPARKS
   spotOfMonthNote: 'Nový betónový park pod Tatrami. Hladký povrch, poriadne lajny a pokoj od davov. Ak ste tam ešte neboli, je čas.',
+  /* Kto prevádzkuje web a spracúva údaje (stránka Ochrana osobných údajov). Doplň sídlo a IČO občianskeho združenia. */
+  org: { name: 'Slovenská Federácia Skateboardingu, o. z.', address: '', ico: '' },
 };
 
 /* Bodovanie do rebríčka podľa umiestnenia. Body sa rátajú len za Game of Skate. */
