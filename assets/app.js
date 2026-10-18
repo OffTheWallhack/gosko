@@ -274,8 +274,8 @@ function lightbox(photos, index) {
 }
 
 /* ---------- spoločné kúsky stránok ---------- */
-const ghostTag = () => h('img', { class: 'ghost-tag', src: 'img/ghost.svg', alt: '', width: 92, height: 104, 'aria-hidden': 'true' });
-const pageHead = (title, lead, ...extra) => h('div', { class: 'wrap page-head' }, h('div', { class: 'ph-row' }, h('h1', { class: 'wide' }, title), ghostTag()), lead && h('p', { class: 'lead' }, lead), extra);
+const ghostTag = () => h('img', { class: 'ghost-tag', src: 'img/ghost-cream.svg', alt: '', width: 92, height: 104, 'aria-hidden': 'true' });
+const pageHead = (title, lead, ...extra) => h('div', { class: 'wrap page-head' }, h('div', { class: 'ph-row' }, h('h1', { class: 'wide' }, title)), lead && h('p', { class: 'lead' }, lead), extra);
 function bands() {
   return h('nav', { class: 'bands', 'aria-label': 'Eventy GOSko' }, EVENTS.filter(e => e.status === 'done' || e.status === 'next').map(ev =>
     h('a', { class: 'band' + (ev.status === 'next' ? ' next' : ''), href: '#/event/' + ev.id },
@@ -527,7 +527,7 @@ function newsRotator(next) {
   const bar = h('span', { class: 'nr-bar', 'aria-hidden': 'true' }, h('i'));
   let slides = [], i = 0, timer = null, paused = false;
   const slideEl = sl => h('a', { class: 'nr-slide', href: sl.href },
-    h('span', { class: 'nr-img' + (sl.img ? '' : ' ghost') }, h('img', { src: sl.img || 'img/ghost.svg', alt: '' })),
+    h('span', { class: 'nr-img' + (sl.img ? '' : ' ghost') }, h('img', { src: sl.img || 'img/ghost-cream.svg', alt: '' })),
     h('span', { class: 'nr-txt' }, h('span', { class: 'nr-k' }, sl.kicker), h('span', { class: 'nr-t' }, sl.title), sl.sub ? h('span', { class: 'nr-s' }, sl.sub) : null),
     h('span', { class: 'nr-go', 'aria-hidden': 'true' }, '→'));
   const restart = () => { clearTimeout(timer); if (!paused && slides.length > 1) timer = setTimeout(() => show(i + 1, 1), 6000); };
@@ -827,11 +827,9 @@ function pageHome(root) {
     h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '.webm'), type: 'video/webm' }), h('source', { src: SITE.heroVideo, type: 'video/mp4' }));
   else media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
   if (media.tagName === 'VIDEO') media.muted = true;
-  const mascotSlot = h('div', { class: 'vh-mascot', title: 'Klikni a duch skočí trik' });
-  const stopMascot = mountAvatar(mascotSlot);
   const rot = newsRotator(next);
   const heroIn = h('div', { class: 'wrap vh-in' },
-    h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-ghost', src: 'img/ghost.svg', alt: '', width: 120, height: 135 }), h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
+    h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
     h('p', { class: 'vh-tag2' }, 'Game of S.K.A.T.E. po Slovensku'),
     rot.el);
   /* video je pevné pozadie: pri scrollovaní stmavne do čiernej, cez nálepky eventov ešte presvitá,
@@ -855,11 +853,11 @@ function pageHome(root) {
   const shade = h('div', { class: 'vh-shade', 'aria-hidden': 'true' });
   const hero = h('header', { class: 'vh' },
     shade,
-    mascotSlot, heroIn);
+    heroIn);
   const studio = boardStudio();
   setTimeout(onboarding, 1800);
-  const solid = h('div', { class: 'after-solid' }, skaterSection(), studio.el, eventWidget(), partnersStrip());
-  const after = h('div', { class: 'after-hero' }, h('div', { class: 'after-clear' }, stickerWall()), solid);
+  const solid = h('div', { class: 'after-solid' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
+  const after = h('div', { class: 'after-hero' }, solid);
   let raf = 0;
   const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
     raf = 0;
@@ -878,7 +876,7 @@ function pageHome(root) {
   addEventListener('resize', onScroll, { passive: true });
   root.append(vbg, hero, after);
   onScroll(); tryPlay();
-  return () => { wantPlay = false; removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); rot.stop(); stopMascot(); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
+  return () => { wantPlay = false; removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); rot.stop(); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
 }
 
 function pageBoard(root) {
@@ -902,7 +900,7 @@ function onboarding() {
   const nextBtn = h('button', { class: 'btn small primary', type: 'button', onclick: () => { if (++i >= steps.length) return close(); paint(); } });
   const paint = () => { t.textContent = steps[i][0]; d.textContent = steps[i][1]; nextBtn.textContent = i === steps.length - 1 ? 'Ideme' : 'Ďalej'; [...dots.children].forEach((x, k) => x.classList.toggle('on', k === i)); };
   const box = h('div', { class: 'onb', role: 'dialog', 'aria-label': 'Sprievodca webom' },
-    h('img', { class: 'onb-ghost', src: 'img/ghost.svg', alt: '' }),
+    h('img', { class: 'onb-ghost', src: 'img/ghost-cream.svg', alt: '' }),
     h('div', { class: 'onb-body' }, t, d, h('div', { class: 'onb-act' }, dots, h('button', { class: 'linklike', type: 'button', onclick: close }, 'Preskočiť'), nextBtn)));
   paint(); document.body.append(box); requestAnimationFrame(() => requestAnimationFrame(() => box.classList.add('show')));
 }
@@ -945,7 +943,7 @@ function siteFeed() {
           h('a', { class: 'btn cta', href: '#/o-nas' }, 'Kto za tým stojí', icon('arrow'))),
         h('div', { class: 'fb-card news-card' }, h('h3', { class: 'letterg news-title' }, 'Nezmeškaj ďalšie GOSko'),
           h('p', {}, 'Keď vyhlásime dátum a miesto, pošleme ti jeden e-mail. Žiadny spam.'), newsletterInline('feed'),
-          h('div', { class: 'news-ghosts', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('img', { src: 'img/ghost.svg', alt: '' }), h('img', { src: 'img/ghost.svg', alt: '' }))),
+          h('div', { class: 'news-ghosts', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }))),
         h('a', { class: 'fb-card cm-mini', href: SITE.discord || '#/komunita', target: SITE.discord ? '_blank' : null, rel: SITE.discord ? 'noopener' : null },
           h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.discord ? 'Pridaj sa na Discord' : 'Trik týždňa, crew a Discord'), h('span', {}, SITE.discord ? 'Chat, sessiony, novinky skôr ako inde.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'))))));
 }
@@ -1300,7 +1298,7 @@ async function pageEvent(root, id) {
   const cats = CATEGORIES.filter(c => ev.results?.[c.id]?.length);
   if (ev.status === 'done') {
     const res = [];
-    if (!cats.length) res.push(h('div', { class: 'empty-cta' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('div', {}, h('b', {}, `Výsledky z ${ev.city === 'Žilina' ? 'Žiliny' : ev.city} práve dopĺňame.`), h('p', {}, 'Bol si tam? Pošli fotku alebo klip a pomôž nám poskladať deň.'),
+    if (!cats.length) res.push(h('div', { class: 'empty-cta' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('div', {}, h('b', {}, `Výsledky z ${ev.city === 'Žilina' ? 'Žiliny' : ev.city} práve dopĺňame.`), h('p', {}, 'Bol si tam? Pošli fotku alebo klip a pomôž nám poskladať deň.'),
       h('button', { class: 'btn primary small', type: 'button', onclick: () => requireLogin(() => photoDialog(ev, () => go('#/event/' + ev.id))).then(ok => ok && photoDialog(ev, () => go('#/event/' + ev.id))) }, 'Poslať fotku alebo klip'))));
     else res.push(h('div', { class: 'podiums' }, cats.map(c => h('div', { class: 'podium' }, h('h3', {}, c.name, c.note && h('span', { class: 'cond' }, ` ${c.note}`)), placeList(ev.results[c.id])))));
     if (ev.awards?.length) res.push(h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])));
@@ -1627,7 +1625,7 @@ function pagePartners(root, sub) {
       h('h2', {}, 'Ghoskate: skate appka, kde je mapa spotov herný svet'),
       h('p', { class: 'lead' }, 'Check-in na spotoch, triky, crews a digitálny loot za reálnu jazdu. Výsledky z GOSko eventov majú v appke váhu. Spúšťame na jar 2027, partner môže mať v appke vlastný loot a odmeny.'),
       h('a', { class: 'btn primary', href: 'ghoskate/' }, 'Pozrieť Ghoskate'),
-      h('div', { class: 'pt-lock', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('span', { class: 'mono' }, 'Ghoskate')))),
+      h('div', { class: 'pt-lock', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('span', { class: 'mono' }, 'Ghoskate')))),
 
     h('section', { class: 'sec light' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Spolupráca'),
@@ -1732,7 +1730,7 @@ async function removePostImage(post, done) {
 }
 function postCard(p, { big } = {}) {
   return h('a', { class: 'post-card' + (big ? ' big' : ''), href: '#/novinka/' + p.id },
-    p.image_url ? h('span', { class: 'pc-img' }, h('img', { src: p.image_url, alt: '', loading: 'lazy' })) : h('span', { class: 'pc-img empty', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost.svg', alt: '' })),
+    p.image_url ? h('span', { class: 'pc-img' }, h('img', { src: p.image_url, alt: '', loading: 'lazy' })) : h('span', { class: 'pc-img empty', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' })),
     h('span', { class: 'pc-body' },
       h('span', { class: 'mono pc-date' }, fmtDateTime(p.created_at), p.pinned ? ' · dôležité' : ''),
       h('span', { class: 'pc-title' }, p.title),
@@ -1825,7 +1823,7 @@ async function pageProfile(root) {
     const msg = h('p', { class: 'form-msg', role: 'status' });
     const file = h('input', { type: 'file', accept: 'image/*' });
     file.addEventListener('change', async () => { const f = file.files[0]; if (!f) return; try { photo = await resizePhoto(f, 800, .85); prev.src = URL.createObjectURL(photo); } catch { photo = null; } });
-    const prev = h('img', { class: 'rp-prev', src: mine.photo_url || 'img/ghost.svg', alt: '' });
+    const prev = h('img', { class: 'rp-prev', src: mine.photo_url || 'img/ghost-cream.svg', alt: '' });
     for (const f of riderFields(mine)) {
       const input = f.type === 'select' ? h('select', { name: f.name }, f.options.map(o => h('option', { value: o.value, selected: o.value === (mine[f.name] || '') }, o.label)))
         : f.type === 'textarea' ? h('textarea', { name: f.name, maxlength: f.max, rows: 3 }, mine[f.name] || '') : h('input', { name: f.name, maxlength: f.max, value: mine[f.name] || '', placeholder: f.placeholder });
@@ -1855,7 +1853,7 @@ async function updateAccount() {
   a.classList.toggle('in', inn);
   const adm = inn && await store.isAdmin().catch(() => false);
   document.querySelectorAll('[data-admin-link]').forEach(x => { x.hidden = !adm; });
-  a.replaceChildren(h('img', { src: 'img/ghost.svg', alt: '', width: 20, height: 22 }), h('span', {}, inn ? 'Profil' : 'Prihlásiť'));
+  a.replaceChildren(h('span', { class: 'acct-t' }, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('img', { class: 'acct-ghost', src: 'img/ghost-cream.svg', alt: '', width: 96, height: 108 }));
   a.setAttribute('aria-label', inn ? 'Môj profil' : 'Prihlásiť sa');
   const sa = document.getElementById('sh-acct');
   if (sa) sa.querySelector('span').replaceChildren(h('b', {}, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('small', {}, inn ? 'XP, odznaky a profil jazdca' : 'Hlasuj, posielaj spoty a zbieraj XP'));
@@ -2553,7 +2551,7 @@ function xpBox(a) {
     h('div', { class: 'xp-top' }, h('span', { class: 'xp-lvl' }, name), h('span', { class: 'mono' }, `${xp} XP`)),
     h('div', { class: 'xp-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct) }, h('i', { style: `width:${pct}%` })),
     h('p', { class: 'mono xp-next' }, nextL ? `Do levelu ${nextL[1]}: ${nextL[0] - xp} XP` : 'Najvyšší level. Rešpekt.'),
-    h('ul', { class: 'badges-grid' }, BADGES.map(([k, min, t, d]) => { const on = (a?.[k] || 0) >= min; return h('li', { class: on ? 'on' : '' }, h('img', { src: 'img/ghost.svg', alt: '' }), h('b', {}, t), h('small', {}, d)); })),
+    h('ul', { class: 'badges-grid' }, BADGES.map(([k, min, t, d]) => { const on = (a?.[k] || 0) >= min; return h('li', { class: on ? 'on' : '' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('b', {}, t), h('small', {}, d)); })),
     h('details', { class: 'xp-how' }, h('summary', {}, 'Ako získať XP'), h('ul', {}, XP_RULES.map(([, w, t]) => h('li', {}, h('b', {}, `+${w}`), ' ', t)))));
 }
 
