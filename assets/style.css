@@ -2467,3 +2467,13 @@ body::before{content:none;display:none;animation:none}
 .rk-info{display:grid;gap:8px;margin:0 0 30px;padding:18px 20px;border:1px solid var(--line-dark);border-left:3px solid var(--bone);border-radius:var(--r-m);background:var(--glass),var(--surf)}
 .rk-info p{margin:0;color:var(--ash);max-width:62ch}
 .rk-info b{color:var(--bone)}
+
+/* ochrana osobných údajov */
+.pv{display:grid;gap:4px;max-width:760px}
+.pv-sec{padding:20px 0;border-top:1px solid var(--line-dark)}
+.pv-sec h2{margin:0 0 10px;font-family:var(--f-display);font-weight:400;text-transform:uppercase;font-size:1.7rem;line-height:1}
+.pv-sec p,.pv-sec li{margin:0 0 8px;color:var(--ash);line-height:1.6}
+.pv-sec b{color:var(--bone)}
+.pv-sec ul{margin:0;padding-left:1.1em;display:grid;gap:4px}
+.pv-sec a{color:var(--bone)}
+.check a{color:inherit;font-weight:700}
