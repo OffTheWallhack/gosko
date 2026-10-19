@@ -874,6 +874,8 @@ function pageHome(root) {
   /* ---------- 1. hero: video, logo, novinky, maskot, pás eventov ---------- */
   let media;
   if (SITE.heroVideo && !reduced) media = h('video', { class: 'vh-video', poster: SITE.heroPoster, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
+    // mobil dostane menšie video (720p), počítač plnú kvalitu
+    h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '-720.webm'), type: 'video/webm', media: '(max-width: 900px)' }), h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '-720.mp4'), type: 'video/mp4', media: '(max-width: 900px)' }),
     h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '.webm'), type: 'video/webm' }), h('source', { src: SITE.heroVideo, type: 'video/mp4' }));
   else media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
   if (media.tagName === 'VIDEO') media.muted = true;
@@ -1429,7 +1431,7 @@ async function pageEvent(root, id) {
     ['Kedy', ev.date ? fmtDate(ev.date) : (ev.when || 'čoskoro')],
     ev.status === 'done' && cats.length && ['Kategórie', cats.map(c => c.name).join(', ')],
   ].filter(Boolean);
-  root.append(h('header', { class: 'evw-hero' + (landing ? ' landing' : '') + (isNext ? ' is-next' : ''), style: `--cover:url(${cover})` },
+  root.append(h('header', { class: 'evw-hero' + (landing ? ' landing' : '') + (isNext ? ' is-next' : ''), style: `--cover:url("${new URL(cover, document.baseURI).href}")` },
     h('div', { class: 'wrap evw-grid' },
       h('div', { class: 'evw-st' }, stk),
       h('div', { class: 'evw-copy' },
