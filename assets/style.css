@@ -2827,3 +2827,68 @@ html,body{overscroll-behavior-y:none;background:#0e0d0c}
 .acct .acct-ghost3d.live .acct-ghost-img{display:none}
 .acct .acct-ghost3d .mascot-still{display:none}
 @media (max-width:760px){ .acct .acct-ghost3d{width:62px;height:62px;right:-12px;top:-10px} }
+
+/* =====================================================================
+   v13: EVENTY ako HLTV – jeden zoznam po mesiacoch.
+   GOSko = zlaté a najväčšie, Slovensko a Česko = biele, svet = sivé a menšie.
+   ===================================================================== */
+.ev-page2{--gold:#e2b53c;--gold-2:#b88a1d}
+.evl-tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 12px}
+.evl-tools .ev-search{flex:1 1 260px;min-height:44px}
+.evl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0 0 18px;font-size:.82rem;color:var(--muted-dark)}
+.evl-legend .lead{margin-right:auto}
+.lg-t{display:inline-flex;align-items:center;gap:6px}
+.lg-t::before{content:"";width:10px;height:10px;border-radius:2px;background:currentColor}
+.lg-t.t-gosko{color:var(--gold)}.lg-t.t-local{color:var(--cream)}.lg-t.t-world{color:#8a857e}
+.evl-month{margin:0 0 22px}
+.evl-mh{margin:0 0 8px;padding:0 0 6px;border-bottom:1px solid var(--line-dark);font-family:var(--f-display);font-weight:400;text-transform:uppercase;font-size:1.25rem;letter-spacing:.02em;color:var(--cream)}
+.evl-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.evl-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;padding:12px 14px;border:1px solid var(--line-dark);border-radius:var(--r-m,10px);background:#17161a;transition:border-color .15s,background .15s}
+.evl-row:hover{border-color:rgba(243,235,221,.35)}
+.evl-date{display:grid;justify-items:center;align-content:center;min-width:64px;padding:6px 8px;border-radius:8px;background:rgba(243,235,221,.06);line-height:1}
+.evl-date b{font-family:var(--f-display);font-weight:400;font-size:1.9rem;line-height:.95;white-space:nowrap}
+.evl-date span{font-family:var(--f-mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-dark);margin-top:4px}
+.evl-date.soon b{color:var(--muted-dark)}
+.evl-main{display:grid;gap:3px;min-width:0}
+.evl-tag{display:flex;align-items:center;gap:8px;font-size:.66rem;color:var(--muted-dark)}
+.evl-tag .evb{font-style:normal}
+.evl-name{font-family:var(--f-display);font-weight:400;text-transform:uppercase;font-size:1.3rem;line-height:1.05;color:var(--cream);text-decoration:none;overflow-wrap:anywhere}
+a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
+.evl-desc{font-size:.88rem;color:var(--muted-dark)}
+.evl-prize{font-size:.82rem;font-weight:700;color:#e8d9b4}
+.evl-side{display:flex;align-items:center;gap:16px;justify-content:flex-end}
+.evl-loc{display:flex;align-items:center;gap:8px;min-width:140px}
+.evl-loc > span{display:grid;line-height:1.15}
+.evl-loc b{font-size:.92rem}
+.evl-loc small{font-size:.76rem;color:var(--muted-dark)}
+.evl-act{display:flex;align-items:center;gap:8px}
+.evl-ig{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line-dark);border-radius:50%;color:var(--cream)}
+.evl-ig:hover{border-color:var(--cream)}
+.evl-igi svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}
+/* GOSko – zlaté, najväčšie */
+.evl-row.t-gosko{padding:18px 18px;border-color:rgba(226,181,60,.55);background:linear-gradient(100deg,rgba(226,181,60,.16),rgba(226,181,60,.04) 45%,#17161a 80%)}
+.evl-row.t-gosko .evl-date{min-width:84px;padding:10px;background:linear-gradient(160deg,var(--gold),var(--gold-2));color:#1a1408}
+.evl-row.t-gosko .evl-date b{font-size:2.6rem}
+.evl-row.t-gosko .evl-date span{color:#3a2c0a}
+.evl-row.t-gosko .evl-tag{color:var(--gold)}
+.evl-row.t-gosko .evl-name{font-size:clamp(1.6rem,3vw,2.2rem);color:#f6dc8f}
+.evl-row.t-gosko:hover{border-color:var(--gold)}
+/* Slovensko a Česko – biele */
+.evl-row.t-local .evl-date{background:var(--cream);color:#151312}
+.evl-row.t-local .evl-date span{color:#5e554b}
+.evl-row.t-local .evl-tag{color:var(--cream)}
+/* svet – sivé, menšie */
+.evl-row.t-world{padding:8px 12px;gap:12px;background:#121114;border-color:rgba(243,235,221,.07)}
+.evl-row.t-world .evl-date{min-width:54px;padding:4px 6px;background:#25232a}
+.evl-row.t-world .evl-date b{font-size:1.35rem;color:#bdb6ad}
+.evl-row.t-world .evl-name{font-size:1rem;color:#c9c2b8}
+.evl-row.t-world .evl-desc{font-size:.8rem}
+.evl-row.t-world .evl-loc b{color:#bdb6ad}
+.evl-row.live{box-shadow:inset 3px 0 0 var(--red)}
+@media (max-width:760px){
+  .evl-row{grid-template-columns:auto minmax(0,1fr);gap:12px}
+  .evl-side{grid-column:1 / -1;justify-content:space-between;gap:10px;padding-top:8px;border-top:1px solid rgba(243,235,221,.06)}
+  .evl-loc{min-width:0}
+  .evl-row.t-world .evl-side{grid-column:2;border-top:0;padding-top:0}
+  .evl-row.t-world .evl-act{display:none}
+}
