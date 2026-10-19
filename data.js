@@ -214,7 +214,7 @@ export const SKATEPARKS = [
   { name: 'Skatepark Rača (Urbanpark Tbiliská)', city: 'Bratislava', area: 'Rača', lat: 48.2049, lng: 17.1516, about: 'Domovský park prvého GOSka (31. 5. 2026).', tag: 'GOSko' },
   { name: 'Hangair', city: 'Bratislava', area: 'Vajnory', lat: 48.2045, lng: 17.1890, about: 'Akadémia akčných športov. Vnútorný park s minirampou a vonkajší betónový park.', tag: 'indoor' },
   { name: 'Skatepark Solinky', city: 'Žilina', area: 'Solinky', lat: 49.2160, lng: 18.7650, about: 'Tu bolo druhé GOSko na Shred Feste (27. 6. 2026).', tag: 'GOSko' },
-  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v roku 2025.', tag: 'betón' },
+  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v roku 2025.', tag: 'betón', photo: 'img/park-liptovsky-mikulas.webp' },
   { name: 'Skatepark KVP', city: 'Košice', area: 'Sídlisko KVP', lat: 48.7166, lng: 21.2145, about: 'Moderný park na Moskovskej triede, tu sa jazdili Majstrovstvá SR 2026.', tag: 'betón' },
   { name: 'Sketon Skatepark', city: 'Sládkovičovo', area: '', lat: 48.2003, lng: 17.6371, about: 'Domov Cube Skate Day.', tag: 'betón' },
 ];

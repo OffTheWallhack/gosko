@@ -2892,3 +2892,6 @@ a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
   .evl-row.t-world .evl-side{grid-column:2;border-top:0;padding-top:0}
   .evl-row.t-world .evl-act{display:none}
 }
+/* spot mesiaca s fotkou */
+.som.has-photo{position:relative;overflow:hidden}
+.som-img{display:block;width:calc(100% + 2px);margin:-1px -1px 12px;aspect-ratio:16 / 8;object-fit:cover;border-radius:var(--r-l,14px) var(--r-l,14px) 0 0}
