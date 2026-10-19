@@ -1008,8 +1008,8 @@ function siteFeed() {
         h('div', { class: 'fb-card news-card' }, h('h3', { class: 'letterg news-title' }, 'Nezmeškaj ďalšie GOSko'),
           h('p', {}, 'Keď vyhlásime dátum a miesto, pošleme ti jeden e-mail. Žiadny spam.'), newsletterInline('feed'),
           h('div', { class: 'news-ghosts', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }))),
-        h('a', { class: 'fb-card cm-mini', href: SITE.discord || '#/komunita', target: SITE.discord ? '_blank' : null, rel: SITE.discord ? 'noopener' : null },
-          h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.discord ? 'Pridaj sa na Discord' : 'Trik týždňa, crew a Discord'), h('span', {}, SITE.discord ? 'Chat, sessiony, novinky skôr ako inde.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'))))));
+        h('a', { class: 'fb-card cm-mini', href: SITE.whatsapp || '#/komunita', target: SITE.whatsapp ? '_blank' : null, rel: SITE.whatsapp ? 'noopener' : null },
+          h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.whatsapp ? 'Pridaj sa do WhatsApp skupiny' : 'Trik týždňa, crew a WhatsApp'), h('span', {}, SITE.whatsapp ? 'Sessiony, novinky a info o GOSku skôr ako inde.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'))))));
 }
 
 /* podstránky: na konci už len krátky odber noviniek, nie celá úvodka dookola */
@@ -2015,13 +2015,36 @@ function mountAvatar(slot, opts = {}) {
   off.api = api;
   return off;
 }
+/* 3D duch vpravo hore pri „Môj profil“: ten istý duch ako v profile (farby, grimasy, doska).
+   Vytvorí sa raz a ostáva aj pri prechode medzi stránkami. Na slabých telefónoch ostane obrázok. */
+let acctGhost = null;
+function headerGhost() {
+  if (acctGhost) return acctGhost.slot;
+  const slot = h('span', { class: 'acct-ghost acct-ghost3d', 'aria-hidden': 'true' }, h('img', { class: 'acct-ghost-img', src: 'img/ghost-cream.svg', alt: '', width: 96, height: 108 }));
+  acctGhost = { slot, off: null };
+  if (LOW_END || REDUCED() || !('IntersectionObserver' in window)) return slot;
+  const start = () => {
+    if (acctGhost.off) return;
+    const off = mountAvatar(slot, { interactive: false });
+    acctGhost.off = off;
+    off.api.then(api => {
+      if (!api) return;
+      slot.classList.add('live');
+      // pri myši spraví grimasu; inak ich robí sám
+      slot.closest('a')?.addEventListener('pointerenter', () => import('./ghost.js').then(m => api.emote?.(m.randomEmote())));
+    });
+  };
+  // až keď je stránka načítaná, aby duch nebrzdil prvé zobrazenie
+  (window.requestIdleCallback || (f => setTimeout(f, 1200)))(start);
+  return slot;
+}
 async function updateAccount() {
   const a = document.getElementById('acct'); if (!a || !store) return;
   const inn = store.mode === 'live' ? await store.signedIn().catch(() => false) : false;
   a.classList.toggle('in', inn);
   const adm = inn && await store.isAdmin().catch(() => false);
   document.querySelectorAll('[data-admin-link]').forEach(x => { x.hidden = !adm; });
-  a.replaceChildren(h('span', { class: 'acct-t' }, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('span', { class: 'acct-arrow-w', html: '<svg class="acct-arrow" viewBox="0 0 40 24" aria-hidden="true"><path d="M3 15c7-9 18-11 29-6"/><path d="M27 4.5 33 9l-6.5 3.5"/></svg>' }), h('img', { class: 'acct-ghost', src: 'img/ghost-cream.svg', alt: '', width: 96, height: 108 }));
+  a.replaceChildren(h('span', { class: 'acct-t' }, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('span', { class: 'acct-arrow-w', html: '<svg class="acct-arrow" viewBox="0 0 40 24" aria-hidden="true"><path d="M3 15c7-9 18-11 29-6"/><path d="M27 4.5 33 9l-6.5 3.5"/></svg>' }), headerGhost());
   a.setAttribute('aria-label', inn ? 'Môj profil' : 'Prihlásiť sa');
   const sa = document.getElementById('sh-acct');
   if (sa) sa.querySelector('span').replaceChildren(h('b', {}, inn || store.mode !== 'live' ? 'Môj profil' : 'Prihlásiť sa'), h('small', {}, inn ? 'XP, odznaky a profil jazdca' : 'Hlasuj, posielaj spoty a zbieraj XP'));
@@ -2896,8 +2919,8 @@ function pageCommunity(root) {
   root.append(pageHead('Komunita', 'GOSko nie je len súťaž. Je to partia ľudí, ktorí jazdia, točia, stavajú a chodia na spoty.'),
     h('div', { class: 'wrap page-body' },
       h('div', { class: 'cm-grid' },
-        SITE.discord ? card(SITE.discord, 'Discord', 'Pridaj sa na Discord', 'Chat s jazdcami, dohadovanie sessionov, novinky skôr ako inde.', 'discord')
-          : h('div', { class: 'cm-card discord soon' }, h('span', { class: 'mono' }, 'Discord'), h('b', {}, 'Discord komunita čoskoro'), h('span', {}, 'Chystáme miesto na chat, sessiony a novinky. Odkaz pridáme sem aj na Instagram.')),
+        SITE.whatsapp ? card(SITE.whatsapp, 'WhatsApp', 'Pridaj sa do WhatsApp skupiny', 'Dohadovanie sessionov, novinky a info o GOSku skôr ako inde.', 'whatsapp')
+          : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu na sessiony a novinky. Odkaz pridáme sem aj na Instagram.')),
         card('#/trik-tyzdna', 'Každý týždeň', 'Trik týždňa', 'Pošli klip, vyberieme troch finalistov a ty hlasuješ.', 'red'),
         card('#/crew', 'Partie', 'Crew', CREWS.filter(c => !c.hidden).map(c => c.name).join(', ') + ' a ďalšie. Jazdci, eventy, spoty.'),
         park ? card('#/mapa', 'Spot mesiaca', park.name, SITE.spotOfMonthNote || park.about, 'cream') : null,
