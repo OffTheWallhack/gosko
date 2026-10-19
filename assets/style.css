@@ -2632,3 +2632,10 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 .pf-avatar[data-scene=rooftop]{background:radial-gradient(60% 55% at 50% 55%,rgba(255,160,80,.25),transparent 70%)}
 .pf-avatar canvas.pixel,.pf-avatar canvas.ps1{image-rendering:pixelated;image-rendering:crisp-edges}
 .pf-avatar canvas.pixel{aspect-ratio:1/1}
+
+/* v13: duch na úvodke malý, vľavo hore nad nápisom GOSko (v toku, nezakrýva video) */
+.vh-in > .vh-bigghost{position:relative;z-index:1;left:auto;right:auto;top:auto;bottom:auto;width:clamp(56px,6.5vw,92px);opacity:1;margin:0 0 -4px 4px;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.55));transform:translate3d(calc(var(--gx,0px) * .25),calc(var(--gy,0px) * .25),0) rotate(-8deg)}
+@media (max-width:720px){ .vh-in > .vh-bigghost{left:auto;right:auto;top:auto;width:58px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))} }
+@media (prefers-reduced-motion:no-preference){ .vh-in > .vh-bigghost{animation:vhGhostBob 4.5s ease-in-out infinite} }
+@keyframes vhGhostBob{0%,100%{translate:0 0}50%{translate:0 -6px}}
