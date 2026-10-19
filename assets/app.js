@@ -1122,6 +1122,40 @@ const flag = country => {
 const MONTHS_NOM = ['Január', 'Február', 'Marec', 'Apríl', 'Máj', 'Jún', 'Júl', 'August', 'September', 'Október', 'November', 'December'];
 const dayDiff = (a, b) => Math.round((Date.UTC(...b.split('-').map((x, i) => i === 1 ? x - 1 : +x)) - Date.UTC(...a.split('-').map((x, i) => i === 1 ? x - 1 : +x))) / 864e5);
 
+/* GOSko nálepky ako 3D kolotoč: vodorovný pás, nálepka v strede je rovno, ostatné sa natáčajú do hĺbky.
+   Scroll/ťah ich krúti, šípky posúvajú, klik odlepí nálepku ako doteraz. */
+function stickerCarousel() {
+  const wall = stickerWall({ bare: true });
+  const items = [...wall.children];
+  const track = h('div', { class: 'sw3d-track', tabindex: '0', 'aria-label': 'Nálepky eventov GOSko' }, items);
+  const update = () => {
+    const r = track.getBoundingClientRect(), mid = r.left + r.width / 2;
+    for (const it of items) {
+      const b = it.getBoundingClientRect(), d = (b.left + b.width / 2 - mid) / Math.max(b.width, 1);
+      const c = Math.max(-2.2, Math.min(2.2, d));
+      it.style.setProperty('--ry', `${(-c * 28).toFixed(1)}deg`);
+      it.style.setProperty('--tz', `${(-Math.abs(c) * 90).toFixed(0)}px`);
+      it.style.setProperty('--sc', `${(1 - Math.abs(c) * .1).toFixed(3)}`);
+      it.style.setProperty('--op', `${Math.max(.5, 1 - Math.abs(c) * .22).toFixed(3)}`);
+      it.classList.toggle('center', Math.abs(c) < .5);
+    }
+  };
+  let raf = 0;
+  track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); }, { passive: true });
+  const step = dir => { const w = items[0]?.getBoundingClientRect().width || 260; track.scrollBy({ left: dir * (w + 24), behavior: 'smooth' }); };
+  const box = h('div', { class: 'sw3d' },
+    h('button', { type: 'button', class: 'sw3d-btn prev', 'aria-label': 'Predošlá nálepka', onclick: () => step(-1) }, '←'),
+    track,
+    h('button', { type: 'button', class: 'sw3d-btn next', 'aria-label': 'Ďalšia nálepka', onclick: () => step(1) }, '→'));
+  const ro = new ResizeObserver(update); ro.observe(track);
+  requestAnimationFrame(() => {
+    // na začiatok do stredu ďalšie GOSko (prvá nálepka)
+    const first = items[0]; if (first) track.scrollLeft = first.offsetLeft - (track.clientWidth - first.offsetWidth) / 2;
+    update();
+  });
+  return box;
+}
+
 async function pageEvents(root) {
   let when = 'upcoming';
   const list = h('div', { class: 'event-list' });
@@ -1158,30 +1192,38 @@ async function pageEvents(root) {
     when_(e), e.pending && h('span', { class: 'evb' }, 'Čaká na schválenie'));
   const dateText = e => { const p = parseDate(e.date); if (!p) return 'Dátum čoskoro'; const q = parseDate(lastDay(e)); return q.d !== p.d || q.m !== p.m ? `${p.d}. ${p.m}. – ${q.d}. ${q.m}. ${q.y}` : `${p.d}. ${p.m}. ${p.y}`; };
 
-  function localCard(e) {
-    return h('li', { class: 'ec' + (e.date && e.date <= today && lastDay(e) >= today ? ' live' : '') },
-      cover(e),
-      h('span', { class: 'ec-date' }, dateBlock(e)),
-      h('div', { class: 'ec-body' },
-        h('div', { class: 'ev-title' }, flag(e.country), h('b', { class: 'ec-name' }, e.title)),
-        h('span', { class: 'ev-meta' }, [[e.place, e.city].filter(Boolean).join(', '), e.organizer ? `organizuje ${e.organizer}` : null].filter(Boolean).join(' · ')),
-        badges(e),
-        h('div', { class: 'actions' }, e.link && h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Viac info'), icsBtn(e))));
-  }
-  function abroadRow(e) {
-    return h('li', { class: 'ab-row' + (e.date && e.date <= today && lastDay(e) >= today ? ' live' : '') },
-      h('span', { class: 'ab-flag' }, flag(e.country)),
-      h('span', { class: 'ab-main' }, h('span', { class: 'ab-city' }, e.city), h('span', { class: 'ab-name' }, e.title), h('span', { class: 'mono ab-meta' }, [dateText(e), e.country, e.place].filter(Boolean).join(' · '))),
-      h('span', { class: 'ab-side' }, badges(e), h('span', { class: 'actions' }, e.link && h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Viac'), icsBtn(e))));
-  }
-  /* jedna stránka pre všetky eventy: 1) GOSko (organizujeme my), 2) Slovensko a Česko (iní organizátori, pridáva komunita aj my),
-     3) veľké eventy vo svete (len prehľad). Hľadanie a čas filtrujú 2) aj 3). */
-  let q = '', worldAll = false;
+  let q = '';
   const localBox = h('div'), worldBox = h('div');
-  let orgBox = null;
   const localCount = h('span', { class: 'mono lead' }), worldCount = h('span', { class: 'mono lead' });
   const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const match = e => !q || norm([e.title, e.city, e.place, e.country, e.organizer, e.kind].join(' ')).includes(norm(q));
+  /* malá karta SK/CZ eventu do bežiaceho pásu */
+  const linkProps = e => e.link ? { href: e.link, target: '_blank', rel: 'noopener' } : { href: '#/eventy#kalendar' };
+  function laneCard(e) {
+    return h('a', { class: 'lc' + (e.date && e.date <= today && lastDay(e) >= today ? ' live' : ''), ...linkProps(e) },
+      cover(e),
+      h('span', { class: 'lc-body' },
+        h('span', { class: 'mono lc-date' }, dateText(e)),
+        h('b', { class: 'lc-name' }, e.title),
+        h('span', { class: 'lc-meta' }, flag(e.country), [e.city, e.organizer].filter(Boolean).join(' · ')),
+        when_(e)));
+  }
+  /* malá karta svetového eventu: vlajka, mesto, názov, dátum */
+  function worldCard(e) {
+    return h('a', { class: 'wc' + (e.date && e.date <= today && lastDay(e) >= today ? ' live' : ''), ...linkProps(e) },
+      h('span', { class: 'wc-flag' }, flag(e.country)),
+      h('span', { class: 'wc-body' }, h('b', {}, e.title), h('span', { class: 'mono' }, [e.city, dateText(e)].filter(Boolean).join(' · '))),
+      e.prize ? h('span', { class: 'evb prize' }, '🏆 ' + e.prize) : null);
+  }
+  /* bežiaci pás: položky sa zdvoja, aby pás išiel dokola; pri myši/dotyku sa zastaví. dir: 1 = zľava doprava, -1 = sprava doľava */
+  function lane(cards, dir) {
+    if (!cards.length) return null;
+    const run = () => cards.map(c => c.cloneNode(true));
+    const moving = cards.length > 3;
+    const track = h('div', { class: 'lane-track' + (moving ? ' move' : '') }, cards, moving ? run() : []);
+    if (moving) track.style.animationDuration = `${Math.max(30, cards.length * 9)}s`;
+    return h('div', { class: 'lane' + (dir > 0 ? ' to-right' : ' to-left'), onpointerenter: () => track.classList.add('hold'), onpointerleave: () => track.classList.remove('hold'), ontouchstart: () => track.classList.add('hold'), ontouchend: () => setTimeout(() => track.classList.remove('hold'), 1500) }, track);
+  }
   function render() {
     const isUp = e => (e.date ? lastDay(e) >= today : true);
     const sortUp = (a, b) => (a.date || '9').localeCompare(b.date || '9'), sortDown = (a, b) => (b.date || '').localeCompare(a.date || '');
@@ -1190,14 +1232,10 @@ async function pageEvents(root) {
     const local = pick(community.filter(home)), world = pick(community.filter(e => !home(e)));
     const cnt = n => `${n} ${plural(n, 'event', 'eventy', 'eventov')}`;
     localCount.textContent = cnt(local.length); worldCount.textContent = cnt(world.length);
-    if (orgBox) orgBox.hidden = !local.length;
-    localBox.replaceChildren(local.length ? h('ul', { class: 'ec-grid' }, local.map(localCard))
+    localBox.replaceChildren(local.length ? lane(local.map(laneCard), 1)
       : h('div', { class: 'empty-cta' }, h('div', {}, h('b', {}, q ? 'Nič sme nenašli.' : 'Zatiaľ tu nič nie je.'), h('p', {}, 'Poznáš skate event na Slovensku alebo v Česku? Pridaj ho a po schválení sa ukáže.'),
           h('button', { class: 'btn primary small', type: 'button', onclick: addEventDialog }, 'Pridať event'))));
-    const shown = worldAll ? world : world.slice(0, 6);
-    worldBox.replaceChildren(...(world.length ? [h('ul', { class: 'ab-list' }, shown.map(abroadRow)),
-      world.length > shown.length ? h('button', { class: 'btn small more-btn', type: 'button', onclick: () => { worldAll = true; render(); } }, `Zobraziť všetky (${world.length})`) : null].filter(Boolean)
-      : [h('p', { class: 'empty' }, q ? 'Nič sme nenašli.' : 'Zatiaľ nič.')]));
+    worldBox.replaceChildren(world.length ? lane(world.map(worldCard), -1) : h('p', { class: 'empty' }, q ? 'Nič sme nenašli.' : 'Zatiaľ nič.'));
   }
   function chipGroup(label, items, get, set) {
     const g = h('div', { class: 'chips', role: 'group', 'aria-label': label }, items.map(([v, t]) =>
@@ -1206,21 +1244,22 @@ async function pageEvents(root) {
   }
   const search = h('input', { type: 'search', class: 'ev-search', placeholder: 'Hľadaj event, mesto alebo organizátora', 'aria-label': 'Hľadať event' });
   search.addEventListener('input', () => { q = search.value.trim(); render(); });
+  /* jedna stránka, tri pásy pod sebou: GOSko nálepky (3D kolotoč), Slovensko a Česko (karty zľava doprava),
+     svet (malé karty sprava doľava). Hľadanie a čas filtrujú druhý a tretí pás. */
   list.replaceChildren(
-    h('section', { class: 'ev-sec gk', id: 'gosko' },
-      h('div', { class: 'sec-head' }, h('div', {}, h('h2', {}, 'GOSko'), h('p', { class: 'lead ev-sub' }, 'Naša séria Game of S.K.A.T.E. Ťukni na nálepku a pozri si výsledky, fotky a videá.'))),
-      stickerWall({ bare: true })),
-    h('section', { class: 'ev-sec', id: 'kalendar' },
-      h('div', { class: 'sec-head' }, h('div', {}, h('h2', {}, 'Slovensko a Česko'), h('p', { class: 'lead ev-sub' }, 'Skate eventy od iných crew, skateshopov a organizátorov.')), localCount),
-      h('div', { class: 'ev-tools' }, search, chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; })),
-      localBox,
-      orgBox = h('div', { class: 'ev-org' }, h('div', {}, h('b', {}, 'Organizuješ skate event?'), h('p', {}, 'Pridaj ho do kalendára. Zobrazí sa po schválení, zvyčajne do 24 hodín.')),
-        h('button', { class: 'btn primary', type: 'button', onclick: addEventDialog }, 'Pridať event'))),
-    h('section', { class: 'ev-sec ev-world', id: 'svet' },
-      h('div', { class: 'sec-head' }, h('div', {}, h('h2', {}, 'Veľké eventy vo svete'), h('p', { class: 'lead ev-sub' }, 'Contesty a série, ktoré sa oplatí sledovať.')), worldCount),
+    h('section', { class: 'ev-lane gk', id: 'gosko' },
+      h('div', { class: 'lane-head' }, h('span', { class: 'mono hs-k' }, 'GOSko · Game of S.K.A.T.E.'), h('span', { class: 'mono lead' }, 'Ťukni na nálepku: výsledky, fotky, videá')),
+      stickerCarousel()),
+    h('section', { class: 'ev-lane', id: 'kalendar' },
+      h('div', { class: 'lane-head' }, h('span', { class: 'mono hs-k' }, 'Slovensko a Česko'), localCount),
+      h('div', { class: 'ev-tools' }, search, chipGroup('Čas', [['upcoming', 'Nadchádzajúce'], ['past', 'Odjazdené']], () => when, v => { when = v; }),
+        h('button', { class: 'btn small', type: 'button', onclick: addEventDialog }, '+ Pridať event')),
+      localBox),
+    h('section', { class: 'ev-lane ev-world', id: 'svet' },
+      h('div', { class: 'lane-head' }, h('span', { class: 'mono hs-k' }, 'Svet'), worldCount),
       worldBox));
   root.append(pageHead('Eventy', 'GOSko, skate eventy na Slovensku a v Česku a veľké eventy vo svete na jednom mieste.'),
-    h('div', { class: 'wrap page-body' }, list));
+    h('div', { class: 'wrap page-body ev-page' }, list));
   render();
   const jumpTo = location.hash.slice(1); if (jumpTo) requestAnimationFrame(() => document.getElementById(jumpTo)?.scrollIntoView());
   if (new URLSearchParams(location.search).has('pridat')) addEventDialog();
