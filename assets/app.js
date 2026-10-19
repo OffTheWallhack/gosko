@@ -2215,10 +2215,17 @@ async function pageMap(root) {
     const parkLink = p => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.city)}`;
     const parkPoints = SKATEPARKS.map(p => ({ lat: p.lat, lng: p.lng, kind: 'park', title: p.name,
       popup: h('div', { class: 'pop' }, h('strong', {}, p.name), h('span', {}, [p.area, p.city].filter(Boolean).join(', ')), h('span', {}, p.about), h('a', { href: parkLink(p), target: '_blank', rel: 'noopener' }, 'Navigovať')) }));
-    parksList.replaceChildren(...SKATEPARKS.map(p => h('li', { class: 'park-card' },
-      h('span', { class: 'pk-tag mono' + (p.tag === 'GOSko' ? ' hot' : '') }, p.tag),
-      h('b', {}, p.name), h('span', { class: 'pk-city' }, [p.area, p.city].filter(Boolean).join(', ')), h('p', {}, p.about), ratingEl('park:' + slug(p.name), R, load),
-      h('a', { class: 'btn small', href: parkLink(p), target: '_blank', rel: 'noopener' }, 'Navigovať'))));
+    /* karty skateparkov: fotka (p.photo v data.js), kým nie je, grafika s názvom; „Na mape“ priblíži park */
+    const showOnMap = p => { if (stopMap?.focus) { mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); stopMap.focus(p.lat, p.lng); } };
+    parksList.replaceChildren(...SKATEPARKS.map(p => h('li', { class: 'park-card' + (p.photo ? ' has-photo' : '') },
+      h('button', { type: 'button', class: 'pk-img', 'aria-label': `Ukázať ${p.name} na mape`, onclick: () => showOnMap(p) },
+        p.photo ? h('img', { src: p.photo, alt: '', loading: 'lazy' }) : h('span', { class: 'pk-ph', 'aria-hidden': 'true' }, h('span', {}, p.city)),
+        h('span', { class: 'pk-tag mono' + (p.tag === 'GOSko' ? ' hot' : '') }, p.tag)),
+      h('div', { class: 'pk-body' },
+        h('b', {}, p.name), h('span', { class: 'pk-city' }, [p.area, p.city].filter(Boolean).join(', ')), h('p', {}, p.about), ratingEl('park:' + slug(p.name), R, load),
+        h('div', { class: 'pk-act' },
+          h('button', { type: 'button', class: 'btn small', onclick: () => showOnMap(p) }, 'Na mape'),
+          h('a', { class: 'btn small primary', href: parkLink(p), target: '_blank', rel: 'noopener' }, 'Navigovať'))))));
     const spotPoints = visible.filter(s => !s.pending).map(s => ({ lat: s.lat, lng: s.lng, kind: 'spot', title: s.name,
       popup: h('div', { class: 'pop' }, s.photo_url && h('img', { src: s.photo_url, alt: '' }), h('strong', {}, s.name), h('span', {}, [s.kind, s.city].filter(Boolean).join(', ')),
         h('a', { href: navLink(s.lat, s.lng), target: '_blank', rel: 'noopener' }, 'Navigovať')) }));

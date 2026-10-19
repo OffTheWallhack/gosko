@@ -30,12 +30,20 @@ export async function mountMap(el, points) {
   const L = await loadLeaflet();
   if (!el.isConnected) return () => {};
   const inner = document.createElement('div'); inner.className = 'map-inner'; el.replaceChildren(inner);
-  const map = baseMap(L, inner);
+  // koliesko myši približuje (na mobile sa mapa približuje dvoma prstami ako doteraz)
+  const map = baseMap(L, inner, { scrollWheelZoom: true });
   const markers = points.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p =>
     L.marker([p.lat, p.lng], { icon: pinIcon(L, p.kind), title: p.title || '' }).addTo(map).bindPopup(p.popup));
   if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(.3), { maxZoom: 13 });
   setTimeout(() => map.invalidateSize(), 60);
-  return () => map.remove();
+  const stop = () => map.remove();
+  /* karta skateparku: ukáž ho na mape (priblíž a otvor popup) */
+  stop.focus = (lat, lng) => {
+    map.flyTo([lat, lng], 15, { duration: .8 });
+    const m = markers.find(x => { const ll = x.getLatLng(); return Math.abs(ll.lat - lat) < 1e-6 && Math.abs(ll.lng - lng) < 1e-6; });
+    if (m) setTimeout(() => m.openPopup(), 850);
+  };
+  return stop;
 }
 
 /* Výber presného bodu: ťuk na mapu alebo potiahnutie pinu. onChange({lat,lng}) */
