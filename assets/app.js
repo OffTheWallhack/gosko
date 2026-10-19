@@ -1,4 +1,4 @@
-import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS } from '../data.js';
+import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS } from '../data.js';
 import { tvScene } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
 import { mountBoard, MAX_STICKERS, DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, SCENES, stickerCanvas, loadLogo, renderBoardImage,
@@ -51,7 +51,7 @@ const parseDate = d => { const [y, m, dd] = (d || '').split('-').map(Number); re
 const fmtDate = d => { const p = parseDate(d); return p ? `${p.d}. ${MONTHS[p.m - 1]} ${p.y}` : ''; };
 const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 const plural = (n, one, few, many) => n === 1 ? one : n >= 2 && n <= 4 ? few : many;
-const catName = id => CATEGORIES.find(c => c.id === id)?.name || id;
+const catName = id => id === 'award' ? 'Best Trick' : (CATEGORIES.find(c => c.id === id)?.name || id);
 const pointsFor = place => POINTS.find(p => place <= p.upTo).points;
 const igLink = handle => h('a', { href: `https://www.instagram.com/${handle}/`, target: '_blank', rel: 'noopener' }, '@' + handle);
 
@@ -103,17 +103,33 @@ const bestPoints = list => {
   const s = [...list].sort((a, b) => b - a);
   return (SEASON_RULES.countBest ? s.slice(0, SEASON_RULES.countBest) : s).reduce((x, y) => x + y, 0);
 };
+/* Pri rovnakých bodoch má prednosť skorší event (GOSko 1 pred GOSko 2 …). */
+const firstDate = o => o.first || '9999';
+const awardPoints = name => AWARD_POINTS[name] || 0;
+/* Ocenenia (Best Trick) ako vlastná kategória rebríčka: cat = 'award' */
+const CAT_ORDER = ['open', 'u16', 'women', 'award'];
 function standings(cat, eventId, season = SITE.season) {
   const m = new Map();
-  for (const r of allResults()) {
-    if (r.cat !== cat) continue;
-    if (eventId ? r.ev.id !== eventId : r.ev.season !== season) continue;
-    const o = m.get(r.slug) || { name: r.name, slug: r.slug, list: [], wins: 0, best: 99, events: 0 };
-    o.list.push(pointsFor(r.place)); o.wins += r.place === 1 ? 1 : 0; o.best = Math.min(o.best, r.place); o.events++;
-    m.set(r.slug, o);
+  if (cat === 'award') {
+    for (const ev of EVENTS) {
+      if (eventId ? ev.id !== eventId : ev.season !== season) continue;
+      for (const a of ev.awards || []) {
+        const sl = slug(a.rider), o = m.get(sl) || { name: a.rider, slug: sl, list: [], wins: 0, best: 1, events: 0, first: '9999', award: a.name };
+        o.list.push(awardPoints(a.name)); o.wins++; o.events++; o.first = ev.date && ev.date < o.first ? ev.date : o.first; m.set(sl, o);
+      }
+    }
+  } else {
+    for (const r of allResults()) {
+      if (r.cat !== cat) continue;
+      if (eventId ? r.ev.id !== eventId : r.ev.season !== season) continue;
+      const o = m.get(r.slug) || { name: r.name, slug: r.slug, list: [], wins: 0, best: 99, events: 0, first: '9999' };
+      o.list.push(pointsFor(r.place)); o.wins += r.place === 1 ? 1 : 0; o.best = Math.min(o.best, r.place); o.events++;
+      if (r.ev.date && r.ev.date < o.first) o.first = r.ev.date;
+      m.set(r.slug, o);
+    }
   }
   return [...m.values()].map(o => ({ ...o, points: eventId ? o.list[0] : bestPoints(o.list) }))
-    .sort((a, b) => b.points - a.points || b.wins - a.wins || a.best - b.best || a.name.localeCompare(b.name, 'sk'));
+    .sort((a, b) => b.points - a.points || b.wins - a.wins || a.best - b.best || firstDate(a).localeCompare(firstDate(b)) || a.name.localeCompare(b.name, 'sk'));
 }
 function riders() {
   const m = new Map();
@@ -121,11 +137,16 @@ function riders() {
   for (const r of allResults()) get(r.name).results.push(r);
   for (const ev of EVENTS) for (const a of ev.awards || []) get(a.rider).awards.push({ ...a, ev });
   for (const r of m.values()) {
-    r.points = bestPoints(r.results.filter(x => x.ev.season === SITE.season).map(x => pointsFor(x.place)));
+    const season = r.results.filter(x => x.ev.season === SITE.season);
+    /* body zo súťaže + body za ocenenia (Best Trick) v tejto sezóne */
+    r.points = bestPoints(season.map(x => pointsFor(x.place))) + r.awards.filter(a => a.ev.season === SITE.season).reduce((t, a) => t + awardPoints(a.name), 0);
     r.cats = [...new Set(r.results.map(x => x.cat))];
     r.events = [...new Set([...r.results.map(x => x.ev), ...r.awards.map(x => x.ev)])];
+    r.catRank = Math.min(...r.cats.map(c => CAT_ORDER.indexOf(c)).filter(i => i >= 0), r.awards.length ? CAT_ORDER.indexOf('award') : 99);
+    r.first = [...r.results, ...r.awards].map(x => x.ev.date || '9999').sort()[0] || '9999';
   }
-  return [...m.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, 'sk'));
+  /* rovnaké body: Open pred U16 pred Babskou pred ocenením, potom skorší event, potom meno */
+  return [...m.values()].sort((a, b) => b.points - a.points || a.catRank - b.catRank || a.first.localeCompare(b.first) || a.name.localeCompare(b.name, 'sk'));
 }
 const seasonEvents = () => EVENTS.filter(e => e.status === 'done' && e.season === SITE.season && Object.values(e.results || {}).some(l => l.length));
 const riderBadges = r => badgesFor(r, { seasonEvents: seasonEvents() });
@@ -757,11 +778,20 @@ function skaterCards(rows, label = `Open ${SITE.season}`) {
   const tilt = e => { const c = e.currentTarget, r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; c.style.setProperty('--rx', `${(.5 - y) * 14}deg`); c.style.setProperty('--ry', `${(x - .5) * 18}deg`); c.style.setProperty('--mx', `${x * 100}%`); c.style.setProperty('--my', `${y * 100}%`); };
   const untilt = e => { const c = e.currentTarget; c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); };
   const stat = (n, t) => h('span', {}, h('b', {}, String(n)), h('small', {}, t));
+  /* fotka jazdca ako pozadie karty; kým ju nemáme, fotka z eventu, kde jazdil (každý jazdec inú) */
+  const cardPhoto = (r, rd) => {
+    const info = RIDERS[r.slug] || {};
+    if (info.photo) return info.photo;
+    const pools = (rd?.results || []).map(x => x.ev.photos || []).filter(p => p.length);
+    const pool = pools[0] || allPhotos();
+    return pool.length ? pool[hashStr(r.slug) % pool.length].src : 'img/ba-podium.webp';
+  };
   const card = (r, i) => {
     const rd = R.get(r.slug);
     return h('a', { class: `sk-card r${i + 1}`, href: '#/jazdec/' + r.slug, onpointermove: tilt, onpointerleave: untilt },
+      h('span', { class: 'sk-bg', 'aria-hidden': 'true' }, h('img', { class: 'sk-photo', src: cardPhoto(r, rd), alt: '', loading: 'lazy' }), h('span', { class: 'sk-shade' })),
       h('span', { class: 'sk-top' }, h('span', { class: 'sk-rank' }, `#${i + 1}`), h('span', { class: 'mono sk-cat' }, label)),
-      h('span', { class: 'sk-art' }, rd ? boardImg(rd, 'sk-bimg') : null, avatarEl(r.name, r.slug, { rank: i + 1 })),
+      h('span', { class: 'sk-art' }, rd ? boardImg(rd, 'sk-bimg') : null),
       h('span', { class: 'sk-name' }, r.name),
       h('span', { class: 'sk-stats' }, stat(r.points, 'bodov'), stat(r.events, plural(r.events, 'event', 'eventy', 'eventov')), stat(r.wins, plural(r.wins, 'výhra', 'výhry', 'výhier'))),
       h('span', { class: 'sk-holo', 'aria-hidden': 'true' }));
@@ -771,14 +801,14 @@ function skaterCards(rows, label = `Open ${SITE.season}`) {
 function skaterSection() {
   const top = standings('open');
   if (!top.length) return null;
-  const leaders = CATEGORIES.filter(c => c.id !== 'open').map(c => [c, standings(c.id)[0]]).filter(([, r]) => r);
+  const leaders = [...CATEGORIES.filter(c => c.id !== 'open'), { id: 'award', name: 'Best Trick' }].map(c => [c, standings(c.id)[0]]).filter(([, r]) => r);
   return h('section', { class: 'hs sk-sec' }, h('div', { class: 'wrap' },
     h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Rebríček'), h('h2', {}, `Najlepší skejteri ${SITE.season}`)),
       h('span', { class: 'actions cta-row' }, h('a', { class: 'btn primary cta', href: '#/rebricek' }, icon('rank'), 'Celý rebríček'), h('a', { class: 'btn cream cta', href: '#/sien-slavy' }, icon('trophy'), 'Sieň slávy'))),
     skaterCards(top),
     h('div', { class: 'sk-more' },
       top.length > 3 ? h('ol', { class: 'sk-rest', start: '4' }, top.slice(3, 8).map(r => h('li', {}, h('a', { href: '#/jazdec/' + r.slug }, avatarEl(r.name, r.slug), h('span', {}, r.name), h('b', {}, `${r.points} b.`))))) : null,
-      leaders.length ? h('ul', { class: 'sk-kings' }, leaders.map(([c, r]) => h('li', {}, h('span', { class: 'mono' }, `Líder ${c.name}`), h('a', { href: '#/jazdec/' + r.slug }, r.name), h('b', {}, `${r.points} b.`)))) : null)));
+      leaders.length ? h('ul', { class: 'sk-kings' }, leaders.map(([c, r]) => h('li', {}, h('span', { class: 'mono' }, c.id === 'award' ? 'Best Trick' : `Líder ${c.name}`), h('a', { href: '#/jazdec/' + r.slug }, r.name), h('b', {}, `${r.points} b.`)))) : null)));
 }
 
 /* EVENT WIDGET: skate kalendár doma a vo svete (plná verzia žije v hub/) */
@@ -1008,14 +1038,14 @@ function pageStandings(root, focus) {
       h('div', { class: 'controls' },
         years.length > 1 ? chips(years.map(y => [y, String(y)]), season, v => { season = v; scope = 'season'; }) : null,
         chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.name])], scope, v => { scope = v; }),
-        chips(CATEGORIES.map(c => [c.id, c.name]), cat, v => { cat = v; })),
+        chips([...CATEGORIES.map(c => [c.id, c.name]), ['award', 'Best Trick']], cat, v => { cat = v; })),
       ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])) : null,
       rows.length ? [skaterCards(rows, `${catName(cat)} · ${em ? ev.name.replace(/^GOSko\s*/, '') : season}`), standingsList(rows, { eventMode: em, from: 3 })] : standingsList(rows),
       scope === 'season' ? finaleEl(cat, season) : null);
   }
   const pts = h('div', { class: 'rk-points' }, h('h3', { class: 'mono' }, 'Bodovanie'),
     h('ul', {}, [[1, '1.'], [2, '2.'], [3, '3. – 4.'], [5, '5. – 8.'], [9, '9. – 16.'], [99, 'účasť']].map(([p, l]) => h('li', {}, h('span', {}, l), h('b', {}, `${pointsFor(p)}`)))),
-    h('p', { class: 'note' }, SEASON_RULES.countBest ? `Do rebríčka sa rátajú ${SEASON_RULES.countBest} najlepšie výsledky jazdca. ` : '', 'Body sú len za Game of S.K.A.T.E. Best Trick je ocenenie.'));
+    h('p', { class: 'note' }, SEASON_RULES.countBest ? `Do rebríčka sa rátajú ${SEASON_RULES.countBest} najlepšie výsledky jazdca. ` : '', `Best Trick je ocenenie za ${awardPoints('Best Trick')} b. Pri rovnakých bodoch je prvý Open, potom U16, Babská kategória, a skorší event má prednosť.`));
 
   /* jazdci: zoznam s rozklikávacím mini profilom */
   const q = h('input', { type: 'search', class: 'rk-search', placeholder: 'Hľadať jazdca…', 'aria-label': 'Hľadať jazdca' });
@@ -1038,8 +1068,8 @@ function pageStandings(root, focus) {
     h('div', { class: 'wrap page-body' },
       stats,
       h('section', { class: 'rk-sec' }, h('div', { class: 'sec-head' }, h('h2', {}, `Rebríček ${SITE.season}`)), h('div', { class: 'rk-grid' }, body, pts)),
-      h('section', { class: 'rk-sec', id: 'sien-slavy' }, h('div', { class: 'sec-head' }, h('h2', {}, 'Sieň slávy'), h('span', { class: 'mono lead' }, 'Víťazi eventov a ocenenia')), hallEl()),
-      ridersSec));
+      ridersSec,
+      h('section', { class: 'rk-sec', id: 'sien-slavy' }, h('div', { class: 'sec-head' }, h('h2', {}, 'Sieň slávy'), h('span', { class: 'mono lead' }, 'Víťazi eventov a ocenenia')), hallEl())));
   render(); renderRiders();
   if (focus) requestAnimationFrame(() => document.getElementById(focus)?.scrollIntoView());
 }
@@ -1051,7 +1081,7 @@ function riderRow(r) {
   const det = h('details', { class: 'rd' },
     h('summary', {},
       avatarEl(r.name, r.slug),
-      h('span', { class: 'rd-main' }, h('b', {}, r.name), h('span', { class: 'mono' }, [r.cats.map(catName).join(', ') || 'Ocenenie', info.city].filter(Boolean).join(' · '))),
+      h('span', { class: 'rd-main' }, h('b', {}, r.name), h('span', { class: 'mono' }, [r.cats.map(catName).join(', ') || r.awards.map(a => a.name).join(', ') || 'Ocenenie', info.city].filter(Boolean).join(' · '))),
       h('span', { class: 'rd-badges', 'aria-hidden': 'true' }, badges.slice(0, 4).map(b => h('span', { class: 'mini-badge', title: b.name, html: badgeSvg(b, 14) }))),
       h('span', { class: 'rd-pts' }, String(r.points), h('small', {}, ' b.')),
       h('span', { class: 'rd-chev', 'aria-hidden': 'true' }, '+')),
@@ -1067,7 +1097,7 @@ function riderRow(r) {
           rankIn.length ? h('li', {}, h('b', {}, rankIn[0].split('.')[0] + '.'), h('span', {}, 'v rebríčku ' + rankIn[0].split('. ')[1])) : null),
         h('h4', { class: 'mono' }, 'Výsledky'),
         h('ul', { class: 'rd-res' }, r.results.map(x => h('li', {}, h('span', { class: 'rd-place' }, `${x.place}.`), h('a', { href: '#/event/' + x.ev.id }, x.ev.name), h('span', { class: 'mono' }, `${catName(x.cat)} · ${pointsFor(x.place)} b.`))),
-          r.awards.map(a => h('li', {}, h('span', { class: 'rd-place' }, '★'), h('a', { href: '#/event/' + a.ev.id }, a.ev.name), h('span', { class: 'mono' }, a.name)))),
+          r.awards.map(a => h('li', {}, h('span', { class: 'rd-place' }, '★'), h('a', { href: '#/event/' + a.ev.id }, a.ev.name), h('span', { class: 'mono' }, `${a.name} · ${awardPoints(a.name)} b.`)))),
         badges.length ? h('div', { class: 'rd-blist' }, badges.map(b => h('span', { class: 'rd-b' }, h('span', { class: 'mini-badge', html: badgeSvg(b, 14) }), b.name))) : null,
         h('div', { class: 'actions' },
           h('a', { class: 'btn small primary', href: '#/jazdec/' + r.slug }, 'Celý profil a 3D doska'),
