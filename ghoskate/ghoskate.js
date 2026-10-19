@@ -2,7 +2,7 @@
    profil (duch, doska, loot) je spoločný: tabuľky profiles a inventory. */
 import { CONFIG, SKATEPARKS } from '../data.js';
 import { getStore, isEmail } from '../assets/store.js';
-import { GHOST_SKINS, ITEMS, ghostOf, ghostSvg, cacheProfile, cachedProfile, localGhost, localLoadout, DEFAULT_LOADOUT } from '../assets/profile.js';
+import { GHOST_SKINS, ITEMS, ghostOf, withSkin, ghostSvg, cacheProfile, cachedProfile, localGhost, localLoadout, DEFAULT_LOADOUT } from '../assets/profile.js';
 import { STR, PARTS, LANGS, HTML_LANG } from './i18n.js';
 
 /* ---------- pomocníci ---------- */
@@ -207,7 +207,7 @@ function renderA() {
         'aria-label': s.name[lang] + (locked ? '. ' + t('create.skinLocked') : ''), title: s.name[lang],
         onclick: () => {
           if (locked) { skinName.textContent = s.name[lang] + ': ' + t('create.skinLocked'); return; }
-          d.ghost = { skin: k }; saveDraft(); drawSkins(); updatePreview(); autosave();
+          d.ghost = withSkin(d.ghost, k); saveDraft(); drawSkins(); updatePreview(); autosave();
         } },
         locked ? h('span', { class: 'lock', 'aria-hidden': 'true' }) : null,
         !locked && s.locked && S.justFounder ? h('span', { class: 'new' }, t('create.skinNew')) : null);
@@ -237,7 +237,7 @@ function renderA() {
 
   $('#body-a').replaceChildren(
     field(t('create.nick'), nick, t('create.nickHint')), nickMsg,
-    h('div', { class: 'field' }, t('create.skin'), skins, skinName),
+    h('div', { class: 'field' }, t('create.skin'), skins, skinName, h('p', { class: 'hint' }, h('a', { href: '../#/profil' }, t('create.moreGhost')))),
     h('div', { class: 'field' }, t('create.board'), tabs, parts));
 }
 

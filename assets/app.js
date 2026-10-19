@@ -11,7 +11,7 @@ import { qrCanvas, startScanner } from './qr.js';
 import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
-import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg } from './profile.js';
+import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg, cacheGhost, ghostOf, unlockedGhost } from './profile.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -1827,18 +1827,40 @@ async function pageProfile(root) {
       catch (err) { console.error(err); msg.textContent = 'Heslo sa nepodarilo uložiť. Skús iné.'; }
     } }, h('label', { class: 'field' }, 'Nastav si heslo (rýchlejšie prihlásenie)', pw), h('button', { class: 'btn', type: 'submit' }, 'Uložiť heslo'), msg) : null,
     store.mode === 'live' ? h('button', { class: 'btn ghostbtn', type: 'button', onclick: async () => { await store.logout(); updateAccount(); route(); } }, 'Odhlásiť sa') : null)));
-  mountAvatar(avatarSlot);
+  const avatar = mountAvatar(avatarSlot);
+  const edSlot = h('section', { class: 'pf-ghost-ed' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha'), h('p', {}, 'Načítavam…'));
+  put(body, edSlot);
   const ghSlot = h('section', { class: 'pf-ghoskate' });
   put(body, ghSlot);
   (async () => {
     await syncProfile();
     const p = cachedProfile(), inv = cachedInventory();
+    // editor ducha: zmeny sa hneď ukážu na 3D modeli a uložia do profilu (alebo len do prehliadača, kým profil nie je)
+    const { mountGhostEditor } = await import('./ghost-editor.js');
+    const edBox = h('div');
+    let saveTimer = null;
+    const persist = g => {
+      cacheGhost(g);
+      if (!p || store.mode !== 'live') return;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => { try { const np = await store.saveProfile({ ghost: unlockedGhost(g, inv) }); cacheProfile(np, inv); } catch (err) { console.error(err); } }, 900);
+    };
+    let autoOn = true; try { autoOn = localStorage.getItem('gosko:ghost-auto') !== '0'; } catch { /* bez úložiska */ }
+    mountGhostEditor(edBox, { ghost: localGhost(), inventory: inv, autoOn,
+      onChange: g => { persist(g); avatar.api.then(a => a?.setGhost?.(g)); },
+      onEmote: k => avatar.api.then(a => a?.emote?.(k)),
+      onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
+    avatar.api.then(a => a?.setAuto?.(autoOn));
+    edSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Uprav si ducha'),
+      h('p', {}, p ? 'Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Ťuk na ducha ho zľakne, ťuk vedľa spraví kickflip.'
+        : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu.'),
+      edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
     ghSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Tvoj duch a Ghoskate'),
       p ? h('p', {}, 'Prezývka ', h('b', {}, p.nickname), '. Ducha a dosku máš uložené v účte, takže ich uvidíš tu na webe aj v appke Ghoskate.')
-        : h('p', {}, 'Ešte nemáš svojho ducha. Vytvor si ho v Ghoskate, našej skate appke, a pridaj prvý spot. Do spustenia dostaneš aj Founder loot.'),
+        : h('p', {}, 'Ešte nemáš svojho ducha v účte. Vytvor si ho v Ghoskate, našej skate appke, a pridaj prvý spot. Do spustenia dostaneš aj Founder loot.'),
       items.length ? h('ul', { class: 'pf-loot' }, items) : null,
-      h('a', { class: 'btn primary', href: 'ghoskate/#vytvor' }, p ? 'Upraviť ducha v Ghoskate' : 'Vytvoriť ducha v Ghoskate'));
+      h('a', { class: 'btn primary', href: 'ghoskate/#vytvor' }, p ? 'Doska a prezývka v Ghoskate' : 'Vytvoriť ducha v Ghoskate'));
   })();
   const xpSlot = h('section', { class: 'pf-xp' }, h('p', { class: 'empty' }, 'Načítavam XP…'));
   const rpSlot = h('section', { class: 'pf-rider' });
@@ -1874,12 +1896,14 @@ async function pageProfile(root) {
 const LOW_END = (() => { try { const c = navigator.connection; return !!(c && (c.saveData || /2g/.test(c.effectiveType || ''))) || (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2); } catch { return false; } })();
 /* 3D duch na doske (avatar). Načíta sa až keď treba. */
 function mountAvatar(slot, opts = {}) {
-  if (LOW_END || REDUCED()) { const still = h('span', { class: 'mascot-still', 'aria-hidden': 'true' }); ghostSvg(localGhost()).then(svg => { still.innerHTML = svg; }); slot.append(still); return () => {}; }
+  if (LOW_END || REDUCED()) { const still = h('span', { class: 'mascot-still', 'aria-hidden': 'true' }); const draw = g => ghostSvg(g).then(svg => { still.innerHTML = svg; }); draw(localGhost()); slot.append(still); const off = () => {}; off.api = Promise.resolve({ setGhost: draw, emote() {}, setAuto() {}, trick() {} }); return off; }
   const canvas = h('canvas', { 'aria-label': 'GOSko duch na skateboarde' });
   slot.append(canvas);
   let stop = null;
-  import('./mascot.js').then(m => m.mountMascot(canvas, { look: { ...DEFAULT_LOOK, ...localLoadout() }, ghost: localGhost(), ...opts })).then(f => { stop = f; }).catch(err => console.error(err));
-  return () => stop && stop();
+  const api = import('./mascot.js').then(m => m.mountMascot(canvas, { look: { ...DEFAULT_LOOK, ...localLoadout() }, ghost: localGhost(), stickers: lootStickers(cachedInventory()), onScene: sc => { slot.dataset.scene = sc; }, ...opts })).then(f => { stop = f; return f; }).catch(err => { console.error(err); return null; });
+  const off = () => stop && stop();
+  off.api = api;
+  return off;
 }
 async function updateAccount() {
   const a = document.getElementById('acct'); if (!a || !store) return;

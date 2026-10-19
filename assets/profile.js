@@ -2,18 +2,9 @@
    jeden účet, jeden duch, jedna doska (loadout) a jeden inventár (loot).
    Databáza: tabuľky profiles a inventory (supabase-ghoskate.sql). */
 
-/* Skiny ducha. locked = odomkne sa len vecou z inventára (napr. Founder loot). */
-export const GHOST_SKINS = {
-  classic: { color: '#F3EBDD', name: { sk: 'Klasik', cs: 'Klasik', en: 'Classic' } },
-  red: { color: '#C9332C', name: { sk: 'Červený', cs: 'Červený', en: 'Red' } },
-  mint: { color: '#A6EFC9', name: { sk: 'Mätový', cs: 'Mátový', en: 'Mint' } },
-  ice: { color: '#A3DCF5', name: { sk: 'Ľadový', cs: 'Ledový', en: 'Ice' } },
-  violet: { color: '#C4ADFF', name: { sk: 'Fialový', cs: 'Fialový', en: 'Violet' } },
-  founder: { color: '#F2E6FF', holo: true, locked: 'skin:founder', name: { sk: 'Founder holo', cs: 'Founder holo', en: 'Founder holo' } },
-};
-export const DEFAULT_GHOST = { skin: 'classic' };
-export const ghostOf = g => ({ skin: GHOST_SKINS[g?.skin] ? g.skin : 'classic' });
-export const skinColor = g => GHOST_SKINS[ghostOf(g).skin].color;
+/* Vzhľad ducha: katalóg, normalizácia (ghostOf) a staré skiny sú v ghost.js. Tu sa len preposielajú. */
+import { GHOST_SKINS, DEFAULT_GHOST, ghostOf, skinColor, withSkin, EYE_COLORS, ghostLocks, unlockedGhost } from './ghost.js';
+export { GHOST_SKINS, DEFAULT_GHOST, ghostOf, skinColor, withSkin, ghostLocks, unlockedGhost };
 
 /* Katalóg lootu. Kľúč = item v tabuľke inventory. */
 export const ITEMS = {
@@ -23,6 +14,24 @@ export const ITEMS = {
     about: { sk: 'Sedí na tvojej doske na GOSko webe aj v appke.', cs: 'Sedí na tvé desce na GOSko webu i v appce.', en: 'Sits on your board on the GOSko site and in the app.' } },
   'badge:founder': { kind: 'badge', name: { sk: 'Odznak Founder', cs: 'Odznak Founder', en: 'Founder badge' },
     about: { sk: 'Znamená, že si bol pri tom pred spustením.', cs: 'Znamená, že jsi byl u toho před spuštěním.', en: 'Means you were here before launch.' } },
+  'head:horns': { kind: 'item', name: { sk: 'Rohy pre ducha', cs: 'Rohy pro ducha', en: 'Ghost horns' }, about: { sk: 'Malý čertík. Len pre prvú vlnu.', cs: 'Malý čertík. Jen pro první vlnu.', en: 'A little devil. First wave only.' } },
+  'extra:halo': { kind: 'item', name: { sk: 'Svätožiara', cs: 'Svatozář', en: 'Halo' }, about: { sk: 'Vznáša sa duchovi nad hlavou. Len pre prvú vlnu.', cs: 'Vznáší se duchovi nad hlavou. Jen pro první vlnu.', en: 'Floats above your ghost. First wave only.' } },
+  'mark:number': { kind: 'item', name: { sk: 'Číslo ducha', cs: 'Číslo ducha', en: 'Ghost number' }, about: { sk: 'Tvoje číslo ako znak na tele. Len pre prvú vlnu.', cs: 'Tvé číslo jako znak na těle. Jen pro první vlnu.', en: 'Your number as a body mark. First wave only.' } },
+  'buddy:mini': { kind: 'item', name: { sk: 'Mini duch', cs: 'Mini duch', en: 'Mini ghost' }, about: { sk: 'Malý kamoš v tvojej farbe. Len pre prvú vlnu.', cs: 'Malý kamarád ve tvé barvě. Jen pro první vlnu.', en: 'A tiny buddy in your colour. First wave only.' } },
+  'pattern:split': { kind: 'item', name: { sk: 'Dvojfarebný duch', cs: 'Dvoubarevný duch', en: 'Two-tone ghost' }, about: { sk: 'Hlava v druhej farbe. Za účasť na GOSku.', cs: 'Hlava v druhé barvě. Za účast na GOSku.', en: 'Head in a second colour. For riding a GOSko.' } },
+  'finish:chrome': { kind: 'item', name: { sk: 'Chrómový duch', cs: 'Chromový duch', en: 'Chrome ghost' }, about: { sk: 'Zrkadlový povrch. Za 3 odjazdené GOSká.', cs: 'Zrcadlový povrch. Za 3 odjeté GOSka.', en: 'Mirror finish. For riding 3 GOSkos.' } },
+  'finish:glow': { kind: 'item', name: { sk: 'Glow duch', cs: 'Glow duch', en: 'Glow ghost' }, about: { sk: 'Svieti v tme. Len pre víťazov.', cs: 'Svítí ve tmě. Jen pro vítěze.', en: 'Glows in the dark. Winners only.' } },
+  'eyes:neon': { kind: 'item', name: { sk: 'Neónové oči', cs: 'Neonové oči', en: 'Neon eyes' }, about: { sk: 'Z afterparty GOSka.', cs: 'Z afterparty GOSka.', en: 'From the GOSko afterparty.' } },
+  'eyes:gold': { kind: 'item', name: { sk: 'Zlaté oči', cs: 'Zlaté oči', en: 'Gold eyes' }, about: { sk: 'Len pre víťazov.', cs: 'Jen pro vítěze.', en: 'Winners only.' } },
+  'face:slits': { kind: 'item', name: { sk: 'Oči štrbiny', cs: 'Oči štěrbiny', en: 'Slit eyes' }, about: { sk: 'Za check-in na GOSku.', cs: 'Za check-in na GOSku.', en: 'For checking in at a GOSko.' } },
+  'face:fangs': { kind: 'item', name: { sk: 'Tesáky', cs: 'Tesáky', en: 'Fangs' }, about: { sk: 'Z afterparty GOSka.', cs: 'Z afterparty GOSka.', en: 'From the GOSko afterparty.' } },
+  'head:bandana': { kind: 'item', name: { sk: 'Šatka', cs: 'Šátek', en: 'Bandana' }, about: { sk: 'Z GOSko 3 Bratislava.', cs: 'Z GOSko 3 Bratislava.', en: 'From GOSko 3 Bratislava.' } },
+  'head:crown': { kind: 'item', name: { sk: 'Koruna', cs: 'Koruna', en: 'Crown' }, about: { sk: 'Pre víťaza GOSka.', cs: 'Pro vítěze GOSka.', en: 'For a GOSko winner.' } },
+  'extra:chain': { kind: 'item', name: { sk: 'Retiazka', cs: 'Řetízek', en: 'Chain' }, about: { sk: 'Zlatá s doskou. Za check-in na evente.', cs: 'Zlatý s deskou. Za check-in na eventu.', en: 'Gold with a board. For an event check-in.' } },
+  'mark:star': { kind: 'item', name: { sk: 'Hviezda na tele', cs: 'Hvězda na těle', en: 'Star mark' }, about: { sk: 'Za Best Trick na GOSku.', cs: 'Za Best Trick na GOSku.', en: 'For Best Trick at a GOSko.' } },
+  'buddy:rat': { kind: 'item', name: { sk: 'Potkan', cs: 'Potkan', en: 'Rat' }, about: { sk: 'Behá okolo dosky. Za nočný check-in.', cs: 'Běhá kolem desky. Za noční check-in.', en: 'Runs around your board. For a night check-in.' } },
+  'scene:winter': { kind: 'item', name: { sk: 'Scéna GOSko Winter', cs: 'Scéna GOSko Winter', en: 'GOSko Winter scene' }, about: { sk: 'Sneží okolo ducha. Za GOSko Winter.', cs: 'Sněží kolem ducha. Za GOSko Winter.', en: 'Snow around your ghost. For GOSko Winter.' } },
+  'fx:flames': { kind: 'item', name: { sk: 'Horiaca doska', cs: 'Hořící deska', en: 'Flaming board' }, about: { sk: 'Len pre víťazov.', cs: 'Jen pro vítěze.', en: 'Winners only.' } },
   'sticker:spot-hunter': { kind: 'sticker', sticker: { kind: 'loot', title: 'SPOT HUNTER', sub: 'GHOSKATE' }, name: { sk: 'Nálepka Spot hunter', cs: 'Samolepka Spot hunter', en: 'Spot hunter sticker' },
     about: { sk: 'Za prvý spot, ktorý schválime.', cs: 'Za první spot, který schválíme.', en: 'For your first approved spot.' } },
 };
@@ -44,10 +53,10 @@ async function loadDark() {
 }
 let uid = 0;
 export async function ghostSvg(g, { title = '' } = {}) {
-  const s = GHOST_SKINS[ghostOf(g).skin], d = await loadDark(), id = 'gh' + (++uid);
-  const fill = s.holo ? `url(#${id})` : s.color;
-  const defs = s.holo ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9ff3ff"/><stop offset=".45" stop-color="#ffc6f1"/><stop offset=".75" stop-color="#fff2a8"/><stop offset="1" stop-color="#b9ffcf"/></linearGradient></defs>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="160 220 480 540" role="img" aria-label="${title.replace(/"/g, '&quot;')}">${defs}<path fill="${fill}" d="${BODY}"/><path fill="#0e0d0c" fill-rule="evenodd" d="${d}"/></svg>`;
+  const gh = ghostOf(g), holo = gh.finish === 'holo', d = await loadDark(), id = 'gh' + (++uid);
+  const fill = holo ? `url(#${id})` : gh.color, ink = EYE_COLORS[gh.eyes]?.glow ? EYE_COLORS[gh.eyes].color : '#0e0d0c';
+  const defs = holo ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9ff3ff"/><stop offset=".45" stop-color="#ffc6f1"/><stop offset=".75" stop-color="#fff2a8"/><stop offset="1" stop-color="#b9ffcf"/></linearGradient></defs>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="160 220 480 540" role="img" aria-label="${title.replace(/"/g, '&quot;')}">${defs}<path fill="${fill}" d="${BODY}"/><path fill="${ink}" fill-rule="evenodd" d="${d}"/></svg>`;
 }
 
 /* Lokálna kópia profilu, aby duch a doska sedeli aj pred načítaním z databázy. */
@@ -67,4 +76,6 @@ export function cacheProfile(p, inv) {
   if (p?.ghost) write('gosko:ghost', ghostOf(p.ghost));
 }
 export const localGhost = () => ghostOf(read('gosko:ghost', DEFAULT_GHOST));
+/* Duch uložený len v tomto prehliadači (keď človek ešte nemá profil alebo kým sa uloží). */
+export const cacheGhost = g => write('gosko:ghost', ghostOf(g));
 export const localLoadout = () => ({ ...DEFAULT_LOADOUT, deck: read('gosko:deck', 'cream'), ...read('gosko:board-look', {}) });

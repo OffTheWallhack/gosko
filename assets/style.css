@@ -2576,3 +2576,46 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 /* v12.1: duch za nápisom menší a s čiernym obrysom (img/ghost.svg) */
 .vh-in > .vh-bigghost{left:clamp(190px,27%,380px);width:clamp(220px,26vw,400px);bottom:-2%;opacity:.95;filter:blur(1px) drop-shadow(0 20px 36px rgba(0,0,0,.5))}
 @media (max-width:720px){ .vh-in > .vh-bigghost{right:-4%;top:-2%;width:50vw} }
+
+/* ---------- úprava ducha (Môj profil) ---------- */
+.pf-ghost-ed{margin-top:30px;max-width:980px}
+.pf-ghost-ed>h2{margin-bottom:6px}
+.pf-ghost-ed>p{max-width:62ch;color:var(--muted-dark);margin-top:0}
+.pf-avatar canvas{touch-action:none}
+.pf-avatar[data-scene=sunset]{background:radial-gradient(60% 55% at 50% 55%,rgba(255,140,60,.28),transparent 70%)}
+.pf-avatar[data-scene=snow]{background:radial-gradient(60% 55% at 50% 55%,rgba(190,210,255,.22),transparent 70%)}
+.pf-avatar[data-scene=rain]{background:radial-gradient(60% 55% at 50% 55%,rgba(90,110,180,.22),transparent 70%)}
+.ge{border:2px solid var(--line-dark);background:rgba(14,13,12,.6);display:flex;flex-direction:column;min-width:0}
+.ge-tabs{display:flex;overflow-x:auto;border-bottom:2px solid var(--line-dark);scrollbar-width:none}
+.ge-tabs::-webkit-scrollbar{display:none}
+.ge-tab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted-dark);font:800 .92rem/1 var(--f-body,inherit);padding:15px 14px 13px;cursor:pointer;white-space:nowrap}
+.ge-tab[aria-selected="true"]{color:var(--cream);border-bottom-color:var(--red)}
+.ge-pane{padding:16px;display:grid;gap:20px;max-height:min(62vh,560px);overflow-y:auto;overscroll-behavior:contain}
+.ge-sec h3{margin:0 0 10px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-dark)}
+.ge-sws{display:flex;flex-wrap:wrap;gap:10px}
+.ge-sw{appearance:none;width:40px;height:40px;border-radius:50%;border:2px solid var(--line-dark);cursor:pointer;position:relative;padding:0}
+.ge-sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--black),0 0 0 5px var(--cream)}
+.ge-sw.custom{background:conic-gradient(#ff3d00,#ffc61a,#39ff14,#00a8ff,#b026ff,#ff1f7a,#ff3d00);overflow:hidden}
+.ge-sw.custom input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.ge-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(136px,1fr));gap:8px}
+.ge-opt{appearance:none;position:relative;text-align:left;background:rgba(255,255,255,.03);border:1px solid var(--line-dark);color:var(--cream);padding:11px;cursor:pointer;display:grid;gap:5px;font:inherit;min-height:80px;align-content:start}
+.ge-opt[aria-pressed="true"]{border-color:var(--cream);background:rgba(243,235,221,.08)}
+.ge-opt.locked{cursor:help}
+.ge-opt.locked b,.ge-opt.locked small{opacity:.45}
+.ge-opt b{font-size:.95rem;line-height:1.15}
+.ge-opt small{color:var(--muted-dark);font-size:.78rem;line-height:1.3}
+.ge-lock{position:absolute;right:8px;top:8px;width:16px;height:16px;border:2px solid var(--muted-dark);border-radius:3px}
+.ge-lock::before{content:"";position:absolute;left:2px;top:-8px;width:6px;height:8px;border:2px solid var(--muted-dark);border-bottom:0;border-radius:4px 4px 0 0}
+.ge-chip{justify-self:start;font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 5px;border:1px solid currentColor}
+.r-free{color:var(--muted-dark)} .r-event{color:#5cc8ff} .r-wave{color:#c4adff} .r-win{color:#f2c23a}
+.ge-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.ge-fine{display:grid;gap:14px}
+.ge-sl{display:grid;grid-template-columns:96px 1fr 40px;gap:10px;align-items:center;font-weight:700;font-size:.9rem}
+.ge-sl output{font-size:.8rem;color:var(--muted-dark);text-align:right;font-variant-numeric:tabular-nums}
+.ge-sl input[type=range]{width:100%;accent-color:var(--red);min-width:0}
+.ge-tgl{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.9rem;cursor:pointer}
+.ge-tgl input{width:20px;height:20px;accent-color:var(--red)}
+.ge-legend{display:grid;gap:8px;font-size:.85rem;color:var(--muted-dark)}
+.ge-legend div{display:flex;gap:10px;align-items:baseline}
+.ge-note{font-size:.85rem;color:var(--muted-dark);max-width:62ch;margin:0}
+.ge-note:empty{display:none}
