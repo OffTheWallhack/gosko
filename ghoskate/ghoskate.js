@@ -124,10 +124,12 @@ async function updateAcct() {
 /* ---------- 3D duch (titulka + karta) ---------- */
 const use3d = () => !LOW_END && !REDUCED && 'WebGLRenderingContext' in window;
 async function mountGhost(slot, interactive) {
-  const canvas = h('canvas', { 'aria-hidden': 'true' });
+  const style = ghostOf(S.draft.ghost).style;
+  const canvas = h('canvas', { 'aria-hidden': 'true', class: style === '3d' ? '' : style });
   slot.append(canvas);
+  if (style === 'pixel') { const m = await import('../assets/pixel-ghost.js'); return m.mountPixelGhost(canvas, { look: S.draft.loadout, ghost: S.draft.ghost, interactive }); }
   const m = await import('../assets/mascot.js');
-  return m.mountMascot(canvas, { look: S.draft.loadout, ghost: S.draft.ghost, interactive });
+  return m.mountMascot(canvas, { look: S.draft.loadout, ghost: S.draft.ghost, interactive, ps1: style === 'ps1' });
 }
 let lookTimer = null;
 async function updatePreview({ look = false } = {}) {

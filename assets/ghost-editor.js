@@ -1,6 +1,6 @@
 /* Úprava ducha (Môj profil): nálada, farba, tvár, povrch, stav, veci, scéna.
    Zamknuté voľby ukazuje so zámkom; vybrať ich môže len ten, kto má vec v inventári. Bez three.js. */
-import { RARITY, BODY_COLORS, ITEM_COLORS, PATTERNS, FINISHES, EYE_COLORS, EYE_SHAPES, MOUTHS, HEADS, EXTRAS, MARKS, BUDDIES, SCENES, EFFECTS, WEAR_PRESETS, EMOTES, ghostOf, DEFAULT_GHOST } from './ghost.js';
+import { BODY_COLORS, ITEM_COLORS, SHOE_COLORS, PATTERNS, FINISHES, EYE_COLORS, EYE_SHAPES, MOUTHS, FACE_EXTRAS, HEADS, EXTRAS, MARKS, BUDDIES, SCENES, EFFECTS, SHOES, BOARD_EXTRAS, WEAR_PRESETS, EMOTES, LEVELS, FLAGS, CATS, STYLES, ghostOf, DEFAULT_GHOST, isUnlocked, chipOf } from './ghost.js';
 
 function h(tag, props, ...kids) {
   const el = document.createElement(tag);
@@ -8,14 +8,14 @@ function h(tag, props, ...kids) {
   for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k instanceof Node ? k : String(k));
   return el;
 }
-const TABS = [['nalada', 'Nálada'], ['farba', 'Farba'], ['tvar', 'Tvár'], ['povrch', 'Povrch'], ['stav', 'Stav'], ['veci', 'Veci'], ['scena', 'Scéna']];
+const TABS = [['level', 'Level'], ['nalada', 'Nálada'], ['farba', 'Farba'], ['tvar', 'Tvár'], ['povrch', 'Povrch'], ['stav', 'Stav'], ['veci', 'Veci'], ['doska', 'Doska'], ['kamos', 'Kamoš'], ['scena', 'Scéna']];
 
 /* root: kam sa editor vykreslí. ghost: nastavenie. inventory: zoznam vecí. onChange(ghost, { full }) sa volá pri každej zmene; onEmote(k); onAuto(bool). */
-export function mountGhostEditor(root, { ghost, inventory = [], onChange, onEmote, onAuto, autoOn = true } = {}) {
-  let G = ghostOf(ghost), tab = 'nalada';
-  const has = lock => !lock || inventory.includes(lock);
+export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onChange, onEmote, onAuto, onStyle, autoOn = true } = {}) {
+  let G = ghostOf(ghost), tab = 'level';
+  const ctx = () => ({ level, inventory });
   const emit = (full = true) => onChange?.(ghostOf(G), { full });
-  const chip = r => h('span', { class: 'ge-chip ' + RARITY[r].cls }, RARITY[r].label.sk);
+  const chip = o => { const [cls, lbl] = chipOf(typeof o === 'string' ? { lvl: 1 } : o); return h('span', { class: 'ge-chip ' + cls }, lbl); };
   const named = arr => arr.map((hex, i) => ['Farba ' + (i + 1), hex]);
   const tabsEl = h('div', { class: 'ge-tabs', role: 'tablist' }), pane = h('div', { class: 'ge-pane', role: 'tabpanel' });
   root.replaceChildren(h('div', { class: 'ge' }, tabsEl, pane));
@@ -33,10 +33,10 @@ export function mountGhostEditor(root, { ghost, inventory = [], onChange, onEmot
   function options(cat, cur, onPick) {
     const w = h('div', { class: 'ge-opts' });
     for (const [k, o] of Object.entries(cat)) {
-      const locked = !has(o.lock);
+      const locked = !isUnlocked(o, ctx());
       w.append(h('button', { type: 'button', class: 'ge-opt' + (locked ? ' locked' : ''), 'aria-pressed': String(k === cur), 'aria-disabled': locked ? 'true' : null,
-        onclick: () => { if (locked) { note.textContent = o.name + ': ' + (o.src || 'Zamknuté.') + ' Odomkne sa vecou v inventári.'; return; } note.textContent = ''; onPick(k); } },
-        chip(o.r), h('b', {}, o.name), h('small', {}, o.src || o.about), locked ? h('span', { class: 'ge-lock', 'aria-hidden': 'true' }) : null));
+        onclick: () => { if (locked) { note.textContent = o.name + ': ' + (o.lock ? 'odomkne sa za ' + FLAGS[o.lock] + '.' : 'odomkne sa na leveli ' + o.lvl + ' (' + LEVELS[o.lvl - 1][1] + ').'); return; } note.textContent = ''; onPick(k); } },
+        chip(o), h('b', {}, o.name), h('small', {}, o.about), locked ? h('span', { class: 'ge-lock', 'aria-hidden': 'true' }) : null));
     }
     return w;
   }
@@ -55,6 +55,14 @@ export function mountGhostEditor(root, { ghost, inventory = [], onChange, onEmot
     const keep = pane.scrollTop;
     tabsEl.replaceChildren(...TABS.map(([k, n]) => h('button', { type: 'button', class: 'ge-tab', role: 'tab', 'aria-selected': String(k === tab), onclick: () => { tab = k; render(); pane.scrollTop = 0; } }, n)));
     const p = [];
+    if (tab === 'level') {
+      const [, lname, how] = LEVELS[Math.min(10, Math.max(1, level)) - 1];
+      p.push(sec('Tvoj level', h('p', { class: 'ge-lvl' }, h('b', {}, 'Level ' + level + ' · ' + lname), h('span', {}, how)), h('p', { class: 'ge-note' }, 'Level rastie s XP: check-iny na GOSku, spoty, triky, fotky. Eventy a prvá vlna odomykajú špeciálne veci cez inventár.')));
+      const st = h('div', { class: 'ge-opts' }, Object.entries(STYLES).map(([k, o]) => { const locked = o.lvl && level < o.lvl; return h('button', { type: 'button', class: 'ge-opt' + (locked ? ' locked' : ''), 'aria-pressed': String(G.style === k), 'aria-disabled': locked ? 'true' : null, onclick: () => { if (locked) { note.textContent = o.name + ': odomkne sa na leveli ' + o.lvl + '.'; return; } G.style = k; emit(); onStyle?.(k); render(); } }, chip(o.lvl ? { lvl: o.lvl } : { lvl: 1 }), h('b', {}, o.name), h('small', {}, o.about), locked ? h('span', { class: 'ge-lock', 'aria-hidden': 'true' }) : null); }));
+      p.push(sec('Ako sa duch zobrazuje', st, h('p', { class: 'ge-note' }, 'Je to stále ten istý duch. 3D je hlavný, pixel sa používa v malom (mapa, zoznamy) a dá sa nastaviť aj ako hlavný.')));
+      const ol = h('ol', { class: 'ge-lvls' }, LEVELS.map(([n, name, how2]) => { const items = []; for (const cat of Object.values(CATS)) for (const o of Object.values(cat)) if (o.lvl === n && !o.lock) items.push(o.name); return h('li', { class: n <= level ? 'on' : '' }, h('b', {}, n + ' · ' + name), h('small', {}, how2), h('span', {}, items.join(', ') || 'bez nových vecí')); }));
+      p.push(sec('Čo kedy', ol));
+    }
     if (tab === 'nalada') {
       const cb = h('input', { id: 'ge-auto', type: 'checkbox', checked: autoOn || null });
       cb.addEventListener('change', () => { autoOn = cb.checked; onAuto?.(autoOn); });
@@ -70,6 +78,8 @@ export function mountGhostEditor(root, { ghost, inventory = [], onChange, onEmot
       p.push(sec('Tvar očí', options(EYE_SHAPES, G.eyeShape, k => set({ eyeShape: k }))));
       p.push(sec('Farba očí', options(EYE_COLORS, G.eyes, k => set({ eyes: k }))));
       p.push(sec('Ústa', options(MOUTHS, G.mouth, k => set({ mouth: k }))));
+      p.push(sec('Tvár navyše', options(FACE_EXTRAS, G.faceExtra, k => set({ faceExtra: k }))));
+      if (FACE_EXTRAS[G.faceExtra].color) p.push(sec('Farba: ' + FACE_EXTRAS[G.faceExtra].name.toLowerCase(), swatches(named(ITEM_COLORS), G.faceColor, (hex, l) => live('faceColor', hex, l))));
     }
     if (tab === 'povrch') {
       p.push(sec('Povrch', options(FINISHES, G.finish, k => set({ finish: k }))));
@@ -92,10 +102,20 @@ export function mountGhostEditor(root, { ghost, inventory = [], onChange, onEmot
       if (EXTRAS[G.extra].color) p.push(sec('Farba: ' + EXTRAS[G.extra].name.toLowerCase(), swatches(named(ITEM_COLORS), G.extraColor, (hex, l) => live('extraColor', hex, l))));
       p.push(sec('Znak na tele', options(MARKS, G.mark, k => set({ mark: k }))));
       if (G.mark !== 'none') p.push(sec('Farba znaku', swatches(named(ITEM_COLORS), G.markColor, (hex, l) => live('markColor', hex, l))));
-      p.push(sec('Kamoš', options(BUDDIES, G.buddy, k => set({ buddy: k }))));
+      if (G.mark === 'initials') { const inp = h('input', { id: 'ge-ini', class: 'ge-ini', type: 'text', maxlength: 2, value: G.initials, 'aria-label': 'Iniciály' }); inp.addEventListener('input', () => { G.initials = inp.value.toUpperCase().slice(0, 2); emit(false); }); p.push(sec('Iniciály', inp)); }
       p.push(sec('Odkiaľ sa veci berú', h('div', { class: 'ge-legend' },
         h('div', {}, chip('free'), h('span', {}, 'Má každý od registrácie.')), h('div', {}, chip('event'), h('span', {}, 'Za účasť alebo check-in na GOSku. Neskôr sa nedajú kúpiť.')),
         h('div', {}, chip('wave'), h('span', {}, 'Len prvá vlna pred spustením. Potom už nikdy, maximálne výmenou.')), h('div', {}, chip('win'), h('span', {}, 'Len víťazi a top 3.')))));
+    }
+    if (tab === 'doska') {
+      p.push(sec('Tenisky na doske', options(SHOES, G.shoes, k => set({ shoes: k }))));
+      if (SHOES[G.shoes].color) p.push(sec('Farba tenisiek', swatches(named(SHOE_COLORS), G.shoeColor, (hex, l) => live('shoeColor', hex, l))));
+      p.push(sec('Doplnok dosky', options(BOARD_EXTRAS, G.boardExtra, k => set({ boardExtra: k }))));
+      p.push(h('p', { class: 'ge-note' }, 'Farby dosky, grip, kolieska a nálepky si nastavíš v garáži (Doska).'));
+    }
+    if (tab === 'kamos') {
+      p.push(sec('Kamoš', options(BUDDIES, G.buddy, k => set({ buddy: k }))));
+      if (BUDDIES[G.buddy].color) p.push(sec('Farba', swatches(named(ITEM_COLORS), G.buddyColor, (hex, l) => live('buddyColor', hex, l))));
     }
     if (tab === 'scena') {
       p.push(sec('Kde jazdí', options(SCENES, G.scene, k => set({ scene: k }))));
@@ -106,5 +126,5 @@ export function mountGhostEditor(root, { ghost, inventory = [], onChange, onEmot
     pane.scrollTop = keep;
   }
   render();
-  return { get: () => ghostOf(G), set: g => { G = ghostOf(g); render(); }, setInventory: inv => { inventory = inv; render(); } };
+  return { get: () => ghostOf(G), set: g => { G = ghostOf(g); render(); }, setInventory: inv => { inventory = inv; render(); }, setLevel: l => { level = l; render(); } };
 }

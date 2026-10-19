@@ -287,3 +287,5 @@ details.help p{margin:8px 0}
 
 /* hláška */
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:80;max-width:min(92vw,460px);padding:12px 16px;background:var(--cream);color:var(--ink);font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+
+canvas.pixel,canvas.ps1{image-rendering:pixelated;image-rendering:crisp-edges}
