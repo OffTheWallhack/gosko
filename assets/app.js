@@ -2234,7 +2234,8 @@ async function pageMap(root) {
     let spots = [];
     const [R] = await Promise.all([ratingsMap(), store.listSpots().then(x => { spots = x; }).catch(err => console.error(err))]);
     const som = SKATEPARKS.find(p => p.name === SITE.spotOfMonth);
-    somBox.replaceChildren(...(som ? [h('section', { class: 'som' },
+    somBox.replaceChildren(...(som ? [h('section', { class: 'som' + (som.photo ? ' has-photo' : '') },
+      som.photo ? h('img', { class: 'som-img', src: som.photo, alt: som.name, loading: 'lazy' }) : null,
       h('span', { class: 'som-k mono' }, 'Spot mesiaca'), h('h2', {}, som.name), h('p', { class: 'som-c mono' }, [som.area, som.city].filter(Boolean).join(', ')),
       h('p', {}, SITE.spotOfMonthNote || som.about), ratingEl('park:' + slug(som.name), R, load),
       h('a', { class: 'btn small', href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(som.name + ' ' + som.city)}`, target: '_blank', rel: 'noopener' }, 'Navigovať'))] : []));
