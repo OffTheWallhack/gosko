@@ -214,9 +214,6 @@ export const FAQ = [];
 export const EVENT_MEDIA = {
   '3473b315-274b-4190-a3e8-9f37cab0f274': {
     title: 'Otvorenie skateparku v Liptovskom Mikuláši',
-    text: 'Nový betónový park pod Tatrami sme otvárali s Red Bull autom, plným parkom ľudí a večer pokračovali afterkou na minirampe. S nami jazdil aj @smetak.',
-    instagram: ['smetak'],
-    video: { src: 'video/ev/lm-2026.mp4', poster: 'img/ev/lm-2026/klip.webp' },
     photos: [
       { src: 'img/ev/lm-2026/park.webp', alt: 'Skatepark Liptovský Mikuláš plný ľudí' },
       { src: 'img/ev/lm-2026/dav.webp', alt: 'Ľudia pri otvorení skateparku' },
@@ -235,7 +232,7 @@ export const SKATEPARKS = [
   { name: 'Skatepark Rača (Urbanpark Tbiliská)', city: 'Bratislava', area: 'Rača', lat: 48.2049, lng: 17.1516, about: 'Domovský park prvého GOSka (31. 5. 2026).', tag: 'GOSko' },
   { name: 'Hangair', city: 'Bratislava', area: 'Vajnory', lat: 48.2045, lng: 17.1890, about: 'Akadémia akčných športov. Vnútorný park s minirampou a vonkajší betónový park.', tag: 'indoor' },
   { name: 'Skatepark Solinky', city: 'Žilina', area: 'Solinky', lat: 49.2160, lng: 18.7650, about: 'Tu bolo druhé GOSko na Shred Feste (27. 6. 2026).', tag: 'GOSko' },
-  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v roku 2025.', tag: 'betón', photo: 'img/park-liptovsky-mikulas.webp' },
+  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v roku 2025.', tag: 'betón', photo: 'img/ev/lm-2026/park.webp', photosFrom: '3473b315-274b-4190-a3e8-9f37cab0f274' },
   { name: 'Skatepark KVP', city: 'Košice', area: 'Sídlisko KVP', lat: 48.7166, lng: 21.2145, about: 'Moderný park na Moskovskej triede, tu sa jazdili Majstrovstvá SR 2026.', tag: 'betón' },
   { name: 'Sketon Skatepark', city: 'Sládkovičovo', area: '', lat: 48.2003, lng: 17.6371, about: 'Domov Cube Skate Day.', tag: 'betón' },
 ];

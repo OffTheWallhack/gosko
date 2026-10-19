@@ -1176,7 +1176,7 @@ async function pageEvents(root) {
     }
     const ig = e.instagram ? (/^https?:/.test(e.instagram) ? e.instagram : `https://www.instagram.com/${String(e.instagram).replace(/^@/, '')}/`) : (/instagram\.com/.test(e.link || '') ? e.link : null);
     const web = e.link && e.link !== ig ? e.link : null;
-    return [EVENT_MEDIA[e.id] ? h('a', { class: 'btn small', href: '#/kalendar/' + e.id }, 'Fotky a video') : null,
+    return [EVENT_MEDIA[e.id] ? h('a', { class: 'btn small', href: '#/kalendar/' + e.id }, 'Fotky') : null,
       web ? h('a', { class: 'btn small', href: web, target: '_blank', rel: 'noopener' }, 'Web') : null,
       ig ? h('a', { class: 'evl-ig', href: ig, target: '_blank', rel: 'noopener', 'aria-label': `${e.title} na Instagrame` }, igIcon()) : null];
   }
@@ -1354,22 +1354,18 @@ async function pageCalEvent(root, id) {
   const p = e ? parseDate(e.date) : null;
   const when = p ? `${p.d}. ${p.m}. ${p.y}` : '';
   const where = e ? [e.place, e.city].filter(Boolean).join(', ') : '';
-  const linkify = t => String(t).split(/(@[\w.]*\w)/g).map(x => /^@[\w.]*\w$/.test(x) ? h('a', { href: `https://www.instagram.com/${x.slice(1)}/`, target: '_blank', rel: 'noopener' }, x) : x);
   const photos = m.photos || [];
   root.append(pageHead(title, [when, where].filter(Boolean).join(' · ')),
     h('div', { class: 'wrap page-body cev' },
       h('div', { class: 'cev-top' },
-        m.video ? h('div', { class: 'cev-video' }, h('video', { src: m.video.src, poster: m.video.poster, controls: true, muted: true, playsinline: true, loop: true, preload: 'metadata', autoplay: true })) : null,
         h('div', { class: 'cev-info' },
           h('span', { class: 'mono hs-k' }, e ? [e.country, e.kind].filter(Boolean).join(' · ') : 'Event'),
-          m.text ? h('p', { class: 'lead' }, linkify(m.text)) : null,
           h('ul', { class: 'cev-facts' },
             when ? h('li', {}, h('span', { class: 'mono' }, 'Kedy'), h('b', {}, when)) : null,
             where ? h('li', {}, h('span', { class: 'mono' }, 'Kde'), h('b', {}, where)) : null,
             e?.organizer ? h('li', {}, h('span', { class: 'mono' }, 'Organizuje'), h('b', {}, e.organizer)) : null),
           h('div', { class: 'actions' },
             e?.link ? h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Web eventu') : null,
-            (m.instagram || []).map(x => h('a', { class: 'btn small', href: `https://www.instagram.com/${x}/`, target: '_blank', rel: 'noopener' }, '@' + x)),
             h('a', { class: 'btn small', href: '#/eventy' }, 'Všetky eventy')))),
       photos.length ? h('section', { class: 'cev-photos' }, h('h2', { class: 'wide sub' }, 'Fotky'),
         h('div', { class: 'cev-grid' }, photos.map((ph, i) => h('button', { type: 'button', class: 'cev-ph', onclick: () => lightbox(photos, i), 'aria-label': 'Zväčšiť: ' + ph.alt }, h('img', { src: ph.src, alt: ph.alt, loading: 'lazy' }))))) : null));
@@ -2253,6 +2249,11 @@ function spotDialog(refresh) {
     },
   });
 }
+/* fotky skateparku: hlavná fotka + fotky z eventu v tom parku (photosFrom = id eventu v EVENT_MEDIA) */
+const parkPhotos = p => {
+  const extra = p.photosFrom ? (EVENT_MEDIA[p.photosFrom]?.photos || []) : [];
+  return [...(p.photo ? [{ src: p.photo, alt: p.name }] : []), ...extra.filter(x => x.src !== p.photo)];
+};
 async function pageMap(root) {
   const mapEl = h('div', { class: 'map' });
   const list = h('ul', { class: 'spot-list' }), parksList = h('ul', { class: 'park-list' }), somBox = h('div');
@@ -2267,7 +2268,8 @@ async function pageMap(root) {
     const [R] = await Promise.all([ratingsMap(), store.listSpots().then(x => { spots = x; }).catch(err => console.error(err))]);
     const som = SKATEPARKS.find(p => p.name === SITE.spotOfMonth);
     somBox.replaceChildren(...(som ? [h('section', { class: 'som' + (som.photo ? ' has-photo' : '') },
-      som.photo ? h('img', { class: 'som-img', src: som.photo, alt: som.name, loading: 'lazy' }) : null,
+      som.photo ? h('button', { type: 'button', class: 'som-imgb', onclick: () => lightbox(parkPhotos(som).length ? parkPhotos(som) : [{ src: som.photo, alt: som.name }], 0), 'aria-label': `Fotky: ${som.name}` }, h('img', { class: 'som-img', src: som.photo, alt: som.name, loading: 'lazy' })) : null,
+      parkPhotos(som).length ? h('div', { class: 'som-strip' }, parkPhotos(som).slice(1).map((ph, i) => h('button', { type: 'button', onclick: () => lightbox(parkPhotos(som), i + 1), 'aria-label': 'Zväčšiť: ' + ph.alt }, h('img', { src: ph.src, alt: '', loading: 'lazy' })))) : null,
       h('span', { class: 'som-k mono' }, 'Spot mesiaca'), h('h2', {}, som.name), h('p', { class: 'som-c mono' }, [som.area, som.city].filter(Boolean).join(', ')),
       h('p', {}, SITE.spotOfMonthNote || som.about), ratingEl('park:' + slug(som.name), R, load),
       h('a', { class: 'btn small', href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(som.name + ' ' + som.city)}`, target: '_blank', rel: 'noopener' }, 'Navigovať'))] : []));
@@ -2280,8 +2282,9 @@ async function pageMap(root) {
     /* karty skateparkov: fotka (p.photo v data.js), kým nie je, grafika s názvom; „Na mape“ priblíži park */
     const showOnMap = p => { if (stopMap?.focus) { mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); stopMap.focus(p.lat, p.lng); } };
     parksList.replaceChildren(...SKATEPARKS.map(p => h('li', { class: 'park-card' + (p.photo ? ' has-photo' : '') },
-      h('button', { type: 'button', class: 'pk-img', 'aria-label': `Ukázať ${p.name} na mape`, onclick: () => showOnMap(p) },
+      h('button', { type: 'button', class: 'pk-img', 'aria-label': parkPhotos(p).length ? `Fotky: ${p.name}` : `Ukázať ${p.name} na mape`, onclick: () => parkPhotos(p).length ? lightbox(parkPhotos(p), 0) : showOnMap(p) },
         p.photo ? h('img', { src: p.photo, alt: '', loading: 'lazy' }) : h('span', { class: 'pk-ph', 'aria-hidden': 'true' }, h('span', {}, p.city)),
+        parkPhotos(p).length > 1 ? h('span', { class: 'pk-count mono' }, `${parkPhotos(p).length} fotiek`) : null,
         h('span', { class: 'pk-tag mono' + (p.tag === 'GOSko' ? ' hot' : '') }, p.tag)),
       h('div', { class: 'pk-body' },
         h('b', {}, p.name), h('span', { class: 'pk-city' }, [p.area, p.city].filter(Boolean).join(', ')), h('p', {}, p.about), ratingEl('park:' + slug(p.name), R, load),

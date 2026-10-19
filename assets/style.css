@@ -2913,3 +2913,10 @@ a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
 .cev-ph img{display:block;width:100%;aspect-ratio:3 / 4;object-fit:cover;transition:transform .3s}
 .cev-ph:hover img{transform:scale(1.04)}
 @media (max-width:520px){ .cev-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+/* event z kalendára len s fotkami; skatepark s galériou */
+.cev-top{grid-template-columns:1fr!important}
+.pk-count{position:absolute;right:10px;bottom:10px;padding:3px 8px;border-radius:999px;background:rgba(14,13,12,.8);color:var(--cream);font-size:.68rem}
+.som-imgb{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.som-strip{display:flex;gap:6px;overflow-x:auto;margin:0 0 12px;scrollbar-width:none}
+.som-strip button{flex:0 0 74px;height:96px;padding:0;border:0;border-radius:8px;overflow:hidden;cursor:zoom-in;background:#111}
+.som-strip img{width:100%;height:100%;object-fit:cover;display:block}
