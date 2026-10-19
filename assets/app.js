@@ -12,6 +12,7 @@ import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
 import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg, cacheGhost, ghostOf, unlockedGhost } from './profile.js';
+import { ghostLevel } from './ghost.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -1827,7 +1828,8 @@ async function pageProfile(root) {
       catch (err) { console.error(err); msg.textContent = 'Heslo sa nepodarilo uložiť. Skús iné.'; }
     } }, h('label', { class: 'field' }, 'Nastav si heslo (rýchlejšie prihlásenie)', pw), h('button', { class: 'btn', type: 'submit' }, 'Uložiť heslo'), msg) : null,
     store.mode === 'live' ? h('button', { class: 'btn ghostbtn', type: 'button', onclick: async () => { await store.logout(); updateAccount(); route(); } }, 'Odhlásiť sa') : null)));
-  const avatar = mountAvatar(avatarSlot);
+  let avatar = mountAvatar(avatarSlot);
+  const remount = g => { avatar(); avatarSlot.replaceChildren(); avatar = mountAvatar(avatarSlot, { ghost: g }); };
   const edSlot = h('section', { class: 'pf-ghost-ed' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha'), h('p', {}, 'Načítavam…'));
   put(body, edSlot);
   const ghSlot = h('section', { class: 'pf-ghoskate' });
@@ -1835,7 +1837,8 @@ async function pageProfile(root) {
   (async () => {
     await syncProfile();
     const p = cachedProfile(), inv = cachedInventory();
-    // editor ducha: zmeny sa hneď ukážu na 3D modeli a uložia do profilu (alebo len do prehliadača, kým profil nie je)
+    const level = ghostLevel(await store.myActivity().catch(() => null) || {});
+    // editor ducha: zmeny sa hneď ukážu na duchovi a uložia do profilu (alebo len do prehliadača, kým profil nie je)
     const { mountGhostEditor } = await import('./ghost-editor.js');
     const edBox = h('div');
     let saveTimer = null;
@@ -1843,16 +1846,19 @@ async function pageProfile(root) {
       cacheGhost(g);
       if (!p || store.mode !== 'live') return;
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(async () => { try { const np = await store.saveProfile({ ghost: unlockedGhost(g, inv) }); cacheProfile(np, inv); } catch (err) { console.error(err); } }, 900);
+      saveTimer = setTimeout(async () => { try { const np = await store.saveProfile({ ghost: unlockedGhost(g, inv, level) }); cacheProfile(np, inv); } catch (err) { console.error(err); } }, 900);
     };
     let autoOn = true; try { autoOn = localStorage.getItem('gosko:ghost-auto') !== '0'; } catch { /* bez úložiska */ }
-    mountGhostEditor(edBox, { ghost: localGhost(), inventory: inv, autoOn,
+    const g0 = unlockedGhost(localGhost(), inv, level); cacheGhost(g0);
+    if (g0.style !== (localGhost().style || '3d')) remount(g0);
+    mountGhostEditor(edBox, { ghost: g0, inventory: inv, level, autoOn,
       onChange: g => { persist(g); avatar.api.then(a => a?.setGhost?.(g)); },
+      onStyle: () => remount(localGhost()),
       onEmote: k => avatar.api.then(a => a?.emote?.(k)),
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
     edSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Uprav si ducha'),
-      h('p', {}, p ? 'Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Ťuk na ducha ho zľakne, ťuk vedľa spraví kickflip.'
+      h('p', {}, p ? `Si na leveli ${level}. Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Ťuk na ducha ho zľakne, ťuk vedľa spraví kickflip.`
         : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu.'),
       edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
@@ -1896,11 +1902,21 @@ async function pageProfile(root) {
 const LOW_END = (() => { try { const c = navigator.connection; return !!(c && (c.saveData || /2g/.test(c.effectiveType || ''))) || (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2); } catch { return false; } })();
 /* 3D duch na doske (avatar). Načíta sa až keď treba. */
 function mountAvatar(slot, opts = {}) {
-  if (LOW_END || REDUCED()) { const still = h('span', { class: 'mascot-still', 'aria-hidden': 'true' }); const draw = g => ghostSvg(g).then(svg => { still.innerHTML = svg; }); draw(localGhost()); slot.append(still); const off = () => {}; off.api = Promise.resolve({ setGhost: draw, emote() {}, setAuto() {}, trick() {} }); return off; }
-  const canvas = h('canvas', { 'aria-label': 'GOSko duch na skateboarde' });
+  const ghost = opts.ghost || localGhost(), style = opts.style || ghost.style || '3d';
+  const look = { ...DEFAULT_LOOK, ...localLoadout() }, onScene = sc => { slot.dataset.scene = sc; };
+  if (style === 'pixel') {
+    // pixelový duch: čisté plátno, beží aj na slabších telefónoch
+    const canvas = h('canvas', { class: 'pixel', 'aria-label': 'Pixelový GOSko duch na skateboarde' });
+    slot.append(canvas);
+    let stop = null;
+    const api = import('./pixel-ghost.js').then(m => m.mountPixelGhost(canvas, { look, ghost, onScene, interactive: opts.interactive !== false })).then(f => { stop = f; return f; }).catch(err => { console.error(err); return null; });
+    const off = () => stop && stop(); off.api = api; return off;
+  }
+  if (LOW_END || REDUCED()) { const still = h('span', { class: 'mascot-still', 'aria-hidden': 'true' }); const draw = g => ghostSvg(g).then(svg => { still.innerHTML = svg; }); draw(ghost); slot.append(still); const off = () => {}; off.api = Promise.resolve({ setGhost: draw, emote() {}, setAuto() {}, trick() {} }); return off; }
+  const canvas = h('canvas', { class: style === 'ps1' ? 'ps1' : '', 'aria-label': 'GOSko duch na skateboarde' });
   slot.append(canvas);
   let stop = null;
-  const api = import('./mascot.js').then(m => m.mountMascot(canvas, { look: { ...DEFAULT_LOOK, ...localLoadout() }, ghost: localGhost(), stickers: lootStickers(cachedInventory()), onScene: sc => { slot.dataset.scene = sc; }, ...opts })).then(f => { stop = f; return f; }).catch(err => { console.error(err); return null; });
+  const api = import('./mascot.js').then(m => m.mountMascot(canvas, { look, ghost, stickers: lootStickers(cachedInventory()), onScene, ps1: style === 'ps1', interactive: opts.interactive !== false })).then(f => { stop = f; return f; }).catch(err => { console.error(err); return null; });
   const off = () => stop && stop();
   off.api = api;
   return off;

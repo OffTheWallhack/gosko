@@ -1,4 +1,5 @@
--- Duch verzia 2 (assets/ghost.js): viac nastavení v profiles.ghost + zamknuté veci podľa inventára.
+-- Duch verzia 3 (assets/ghost.js): nastavenia v profiles.ghost, zamknuté veci podľa inventára (eventy: event:winter, event:after, event:night, event:ba3; prvá vlna: skin:founder).
+-- Veci podľa levelu (XP) stráži web (unlockedGhost); admin dáva eventové veci do inventára pri check-ine.
 -- Spusti v Supabase SQL editore po supabase-ghoskate.sql. Dá sa spustiť opakovane.
 
 -- Founder loot (prvá vlna do 1. 4. 2027) dostane aj veci pre ducha z prvej vlny.
@@ -13,7 +14,6 @@ begin
   if tg_op = 'INSERT' and now() < '2027-04-01'::timestamptz then
     insert into public.inventory (user_id, item, source) values
       (new.id, 'skin:founder', 'founder'), (new.id, 'sticker:founder-2026', 'founder'), (new.id, 'badge:founder', 'founder'),
-      (new.id, 'head:horns', 'founder'), (new.id, 'extra:halo', 'founder'), (new.id, 'mark:number', 'founder'), (new.id, 'buddy:mini', 'founder')
     on conflict do nothing;
   end if;
   -- starý zápis { skin }: zamknutý skin len s vecou v inventári
@@ -23,11 +23,9 @@ begin
   end if;
   -- nový zápis (v2): každá zamknutá voľba potrebuje vec v inventári, inak padne na základ
   for lk in select * from (values
-      ('pattern', 'split', 'pattern:split'), ('finish', 'chrome', 'finish:chrome'), ('finish', 'holo', 'skin:founder'), ('finish', 'glow', 'finish:glow'),
-      ('eyes', 'neon', 'eyes:neon'), ('eyes', 'gold', 'eyes:gold'), ('eyeShape', 'slits', 'face:slits'), ('mouth', 'fangs', 'face:fangs'),
-      ('head', 'bandana', 'head:bandana'), ('head', 'horns', 'head:horns'), ('head', 'crown', 'head:crown'),
-      ('extra', 'chain', 'extra:chain'), ('extra', 'halo', 'extra:halo'), ('mark', 'star', 'mark:star'), ('mark', 'number', 'mark:number'),
-      ('buddy', 'rat', 'buddy:rat'), ('buddy', 'mini', 'buddy:mini'), ('scene', 'snow', 'scene:winter'), ('effect', 'flames', 'fx:flames')
+      ('pattern', 'split', 'event:ba3'), ('finish', 'holo', 'skin:founder'), ('eyes', 'neon', 'event:after'), ('mouth', 'fangs', 'event:after'),
+      ('head', 'bandana', 'event:ba3'), ('head', 'horns', 'skin:founder'), ('extra', 'chain', 'event:night'), ('extra', 'halo', 'skin:founder'),
+      ('mark', 'number', 'skin:founder'), ('buddy', 'rat', 'event:night'), ('buddy', 'mini', 'skin:founder'), ('scene', 'snow', 'event:winter')
     ) as t(field, val, item)
   loop
     if new.ghost->>lk.field = lk.val and not exists (select 1 from public.inventory i where i.user_id = new.id and i.item = lk.item) then
@@ -37,9 +35,3 @@ begin
   return new;
 end $$;
 
--- Existujúcim founderom (profil založený pred spustením) dopln veci z prvej vlny.
-insert into public.inventory (user_id, item, source)
-select p.id, v.item, 'founder' from public.profiles p
-  cross join (values ('head:horns'), ('extra:halo'), ('mark:number'), ('buddy:mini')) as v(item)
-  where exists (select 1 from public.inventory i where i.user_id = p.id and i.item = 'skin:founder')
-on conflict do nothing;
