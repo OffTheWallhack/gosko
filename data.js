@@ -37,6 +37,8 @@ export const POINTS = [
   { upTo: 16, points: 20 },
   { upTo: Infinity, points: 5 },   // účasť
 ];
+/* Body za ocenenia (rátajú sa jazdcovi do sezóny, v rebríčku sú ako vlastná kategória). */
+export const AWARD_POINTS = { 'Best Trick': 20 };
 
 export const CATEGORIES = [
   { id: 'open', name: 'Open', note: 'nad 16 rokov' },
