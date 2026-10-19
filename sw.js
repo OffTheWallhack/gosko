@@ -1,6 +1,6 @@
 /* GOSko service worker: web funguje aj offline a dá sa pridať na plochu.
    Pri zmene webu zvýš číslo verzie. */
-const VERSION = 'gosko-v39';
+const VERSION = 'gosko-v40';
 const SHELL = ['./', 'index.html', 'data.js', 'assets/style.css', 'assets/app.js', 'assets/board.js', 'assets/park.js',
   'assets/store.js', 'assets/deco.js', 'assets/badges.js', 'assets/card.js', 'assets/qr.js', 'assets/map.js', 'assets/pwa.js', 'assets/bracket.js', 'assets/crt.js', 'assets/mascot.js', 'assets/ghost.js', 'assets/ghost-editor.js', 'assets/pixel-ghost.js', 'assets/profile.js', 'assets/looks.js',
   'img/logo.webp', 'img/ghost.svg', 'img/ghost-cream.svg', 'img/gosko-wordmark.svg', 'img/gosko-wordmark-cream.svg', 'img/gosko-wordmark-plain.svg', 'img/sticker-cut.webp', 'icons/icon-192.png', 'manifest.webmanifest'];

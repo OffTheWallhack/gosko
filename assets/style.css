@@ -2760,3 +2760,46 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 .wc-body .mono{font-size:.66rem;color:var(--muted-dark);white-space:nowrap}
 .wc.live{border-color:var(--red)}
 .wc .evb.prize{margin-left:4px}
+
+/* =====================================================================
+   v12.7: top 3 karty vždy tri vedľa seba (aj na mobile, bez scrollu),
+   doska na úvodke len ako ukážka, nálepky eventov bližšie k sebe, svet pod sebou
+   ===================================================================== */
+.sk-cards,.rk .sk-cards,.page-body .sk-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row;overflow:visible;scroll-snap-type:none;padding:0}
+@media (max-width:720px){
+  .sk-cards{gap:8px;padding:12px 0 6px}
+  .sk-card,.sk-card.r1{min-height:230px;padding:9px 9px 10px;gap:6px;scroll-snap-align:none}
+  .sk-rank{font-size:1.5rem}
+  .sk-cat{display:none}
+  .sk-art{min-height:72px}
+  .sk-art .board-img,.sk-art .sk-bimg{height:96px;right:-10%;bottom:-18%}
+  .sk-name{max-width:100%;font-size:.86rem;line-height:1.05}
+  .sk-stats{grid-template-columns:1fr;gap:1px;padding-top:6px}
+  .sk-stats span{display:flex;align-items:baseline;gap:4px}
+  .sk-stats b{font-size:1rem}
+  .sk-stats small{font-size:.58rem}
+  .sk-stats span:nth-child(n+3){display:none}
+}
+/* doska ako ukážka na úvodke */
+.bt-sec{padding:34px 0 40px}
+.bt{position:relative;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:center;gap:20px;min-height:380px;padding:0 clamp(16px,3vw,36px) 0 0;border:1px solid var(--line-dark);border-radius:var(--r-l,14px);background:linear-gradient(135deg,#1c1b20,#121115);color:var(--cream);text-decoration:none;overflow:hidden;isolation:isolate}
+.bt-stage{position:relative;height:100%;min-height:380px}
+.bt-stage canvas{display:block;width:100%;height:100%;pointer-events:none}
+.bt-copy{display:grid;gap:12px;justify-items:start;padding:26px 0}
+.bt-h{font-family:var(--f-display);font-weight:400;text-transform:uppercase;font-size:clamp(1.9rem,4vw,3rem);line-height:.95}
+.bt-p{color:var(--muted-dark);font-size:.98rem;max-width:40ch}
+.bt:hover .btn{background:#c81b20}
+@media (max-width:760px){ .bt{grid-template-columns:1fr;padding:0 16px 18px;min-height:0} .bt-stage{min-height:260px;margin:0 -16px} .bt-copy{padding:4px 0 0} }
+/* nálepky eventov: prekryté ako kôpka, stredná navrchu */
+.sw3d-track{gap:0;padding:18px calc(50% - 130px) 22px}
+.sw3d-track .sw-item{margin-right:-86px;z-index:1}
+.sw3d-track .sw-item.center{z-index:5}
+.sw3d-track .sw-item:last-child{margin-right:0}
+@media (max-width:720px){ .sw3d-track{padding:12px calc(50% - 110px) 16px} .sw3d-track .sw-item{margin-right:-64px} }
+/* svet pod sebou na celú šírku */
+.wc-list{display:grid;gap:8px}
+.wc-list .wc{max-width:none;border-radius:var(--r-m,10px);padding:10px 14px}
+.wc-list .wc-body{flex:1}
+.wc-list .wc-body b{max-width:none;white-space:normal}
+.sw3d-track .sw-item:not(.center) .sw-cap{opacity:0;visibility:hidden}
+.sw3d-track .sw-item .sw-cap{transition:opacity .25s}
