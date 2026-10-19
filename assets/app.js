@@ -658,6 +658,25 @@ function saveLoadoutSoon(look) {
 }
 
 /* 3D doska na celú šírku: scény + úprava vzhľadu */
+/* úvodka: doska len ako ukážka – jazdí a otáča sa sama, bez ovládania; klik otvorí garáž na /doska */
+function boardTeaser() {
+  const canvas = h('canvas', { 'aria-hidden': 'true' });
+  const stage = h('div', { class: 'bt-stage' }, canvas);
+  const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
+  let api = null, started = false;
+  const start = () => { if (started) return; started = true; mountBoard(canvas, { stickers: stickers(), look: myLook(), scene: 'ride' }).then(a => { api = a; a.setAuto(true); }).catch(err => console.error(err)); };
+  if (!('IntersectionObserver' in window)) start();
+  else { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: '500px 0px' }); requestAnimationFrame(() => io.observe(stage)); }
+  const el = h('section', { class: 'hs bt-sec', id: 'doska' }, h('div', { class: 'wrap' },
+    h('a', { class: 'bt', href: '#/doska', 'aria-label': 'Navrhni si dosku' },
+      stage,
+      h('span', { class: 'bt-copy' },
+        h('span', { class: 'mono hs-k' }, 'Tvoja 3D doska'),
+        h('span', { class: 'bt-h' }, 'Navrhni si dosku'),
+        h('span', { class: 'bt-p' }, 'Farby, grip, kolieska, podvozky aj vlastná fotka na spodku. Nálepky z eventov, kde si jazdil, pribudnú samy.'),
+        h('span', { class: 'btn primary cta' }, 'Otvoriť garáž', icon('arrow'))))));
+  return { el, cleanup: () => { if (api) api(); } };
+}
 function boardStudio({ page = false } = {}) {
   let look = myLook();
   let sceneName = LSx.get(MY_SCENE, 'wall'); if (!SCENES[sceneName]) sceneName = 'wall';
@@ -898,7 +917,7 @@ function pageHome(root) {
     });
     hero.addEventListener('pointerleave', () => { bigGhost.style.setProperty('--gx', '0px'); bigGhost.style.setProperty('--gy', '0px'); });
   }
-  const studio = boardStudio();
+  const studio = boardTeaser();
   setTimeout(onboarding, 1800);
   const solid = h('div', { class: 'after-solid' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
   const after = h('div', { class: 'after-hero' }, solid);
@@ -1142,7 +1161,12 @@ function stickerCarousel() {
   };
   let raf = 0;
   track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); }, { passive: true });
-  const step = dir => { const w = items[0]?.getBoundingClientRect().width || 260; track.scrollBy({ left: dir * (w + 24), behavior: 'smooth' }); };
+  const centerOf = it => it.offsetLeft - (track.clientWidth - it.offsetWidth) / 2;
+  const step = dir => {
+    const cur = Math.max(0, items.findIndex(it => it.classList.contains('center')));
+    const next = items[Math.min(items.length - 1, Math.max(0, cur + dir))];
+    if (next) track.scrollTo({ left: centerOf(next), behavior: 'smooth' });
+  };
   const box = h('div', { class: 'sw3d' },
     h('button', { type: 'button', class: 'sw3d-btn prev', 'aria-label': 'Predošlá nálepka', onclick: () => step(-1) }, '←'),
     track,
@@ -1150,7 +1174,7 @@ function stickerCarousel() {
   const ro = new ResizeObserver(update); ro.observe(track);
   requestAnimationFrame(() => {
     // na začiatok do stredu ďalšie GOSko (prvá nálepka)
-    const first = items[0]; if (first) track.scrollLeft = first.offsetLeft - (track.clientWidth - first.offsetWidth) / 2;
+    const first = items[0]; if (first) track.scrollLeft = centerOf(first);
     update();
   });
   return box;
@@ -1235,7 +1259,8 @@ async function pageEvents(root) {
     localBox.replaceChildren(local.length ? lane(local.map(laneCard), 1)
       : h('div', { class: 'empty-cta' }, h('div', {}, h('b', {}, q ? 'Nič sme nenašli.' : 'Zatiaľ tu nič nie je.'), h('p', {}, 'Poznáš skate event na Slovensku alebo v Česku? Pridaj ho a po schválení sa ukáže.'),
           h('button', { class: 'btn primary small', type: 'button', onclick: addEventDialog }, 'Pridať event'))));
-    worldBox.replaceChildren(world.length ? lane(world.map(worldCard), -1) : h('p', { class: 'empty' }, q ? 'Nič sme nenašli.' : 'Zatiaľ nič.'));
+    /* svet: pod sebou na celú šírku (mobil aj desktop) */
+    worldBox.replaceChildren(world.length ? h('div', { class: 'wc-list' }, world.map(worldCard)) : h('p', { class: 'empty' }, q ? 'Nič sme nenašli.' : 'Zatiaľ nič.'));
   }
   function chipGroup(label, items, get, set) {
     const g = h('div', { class: 'chips', role: 'group', 'aria-label': label }, items.map(([v, t]) =>
