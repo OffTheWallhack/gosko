@@ -2639,3 +2639,17 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 @media (max-width:720px){ .vh-in > .vh-bigghost{left:auto;right:auto;top:auto;width:58px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))} }
 @media (prefers-reduced-motion:no-preference){ .vh-in > .vh-bigghost{animation:vhGhostBob 4.5s ease-in-out infinite} }
 @keyframes vhGhostBob{0%,100%{translate:0 0}50%{translate:0 -6px}}
+/* v12.2: telka na úvodke – bez nápisu GOSko TV, bez polaroidov a betónu; video vyplní obrazovku (orezané, bez pásov) */
+.tv-scene.plain .crt-wrap{width:100%}
+.tv-scene.plain .crt-ledge{display:none}
+.tv-scene.plain .crt-stage{padding-bottom:0}
+.crt-video{top:0;bottom:0;left:50%;right:auto;width:auto;height:100%;aspect-ratio:16 / 9;transform:translateX(-50%)}
+.tv-under{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.feed-bottom.hs{padding-top:28px;padding-bottom:36px}
+.fb-grid{gap:20px}
+@media (min-width:900px){ .fb-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .fb-tv .tv-scene{margin-top:0} }
+.fb-card{padding:16px;gap:6px}
+.fb-card h3{font-size:1.45rem}
+.fb-card p{font-size:.95rem}
+.fb-card.news-card h3{font-size:1.7rem}
+.fb-card .btn.cta{margin-top:4px}
