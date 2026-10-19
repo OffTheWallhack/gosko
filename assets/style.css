@@ -2895,3 +2895,21 @@ a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
 /* spot mesiaca s fotkou */
 .som.has-photo{position:relative;overflow:hidden}
 .som-img{display:block;width:calc(100% + 2px);margin:-1px -1px 12px;aspect-ratio:16 / 8;object-fit:cover;border-radius:var(--r-l,14px) var(--r-l,14px) 0 0}
+
+/* stránka eventu z kalendára (iní organizátori): video na výšku, info, fotky */
+.cev-top{display:grid;gap:24px;align-items:start}
+@media (min-width:860px){ .cev-top{grid-template-columns:minmax(0,360px) minmax(0,1fr)} }
+.cev-video{border-radius:var(--r-l,14px);overflow:hidden;background:#000;max-width:420px;width:100%;margin:0 auto}
+.cev-video video{display:block;width:100%;aspect-ratio:9 / 16;object-fit:cover;background:#000}
+.cev-info{display:grid;gap:14px;align-content:start}
+.cev-info .lead{margin:0;font-size:1.05rem;line-height:1.5}
+.cev-info .lead a{color:var(--cream);text-decoration:underline;text-underline-offset:3px}
+.cev-facts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.cev-facts li{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line-dark);border-radius:var(--r-m,10px);background:#17161a}
+.cev-facts .mono{font-size:.7rem;color:var(--muted-dark)}
+.cev-photos{margin-top:30px}
+.cev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.cev-ph{display:block;padding:0;border:0;border-radius:var(--r-m,10px);overflow:hidden;background:#111;cursor:zoom-in}
+.cev-ph img{display:block;width:100%;aspect-ratio:3 / 4;object-fit:cover;transition:transform .3s}
+.cev-ph:hover img{transform:scale(1.04)}
+@media (max-width:520px){ .cev-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }

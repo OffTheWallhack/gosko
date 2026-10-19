@@ -1,4 +1,4 @@
-import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS } from '../data.js';
+import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS, EVENT_MEDIA } from '../data.js';
 import { tvScene } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
 import { mountBoard, MAX_STICKERS, DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, SCENES, stickerCanvas, loadLogo, renderBoardImage,
@@ -1176,7 +1176,8 @@ async function pageEvents(root) {
     }
     const ig = e.instagram ? (/^https?:/.test(e.instagram) ? e.instagram : `https://www.instagram.com/${String(e.instagram).replace(/^@/, '')}/`) : (/instagram\.com/.test(e.link || '') ? e.link : null);
     const web = e.link && e.link !== ig ? e.link : null;
-    return [web ? h('a', { class: 'btn small', href: web, target: '_blank', rel: 'noopener' }, 'Web') : null,
+    return [EVENT_MEDIA[e.id] ? h('a', { class: 'btn small', href: '#/kalendar/' + e.id }, 'Fotky a video') : null,
+      web ? h('a', { class: 'btn small', href: web, target: '_blank', rel: 'noopener' }, 'Web') : null,
       ig ? h('a', { class: 'evl-ig', href: ig, target: '_blank', rel: 'noopener', 'aria-label': `${e.title} na Instagrame` }, igIcon()) : null];
   }
   function row(e) {
@@ -1187,7 +1188,7 @@ async function pageEvents(root) {
       h('div', { class: 'evl-main' },
         h('span', { class: 'evl-tag mono' }, e.tier === 'gosko' ? 'GOSko' : e.tier === 'local' ? (e.country === 'Česko' ? 'Česko' : 'Slovensko') : 'Svet',
           live(e) ? h('i', { class: 'evb live' }, 'práve teraz') : n !== null && n > 0 && n <= 30 ? h('i', { class: 'evb soon' }, n === 1 ? 'zajtra' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`) : null),
-        e.tier === 'gosko' ? h('a', { class: 'evl-name', href: '#/event/' + e.id }, e.title) : h('b', { class: 'evl-name' }, e.title),
+        e.tier === 'gosko' ? h('a', { class: 'evl-name', href: '#/event/' + e.id }, e.title) : EVENT_MEDIA[e.id] ? h('a', { class: 'evl-name', href: '#/kalendar/' + e.id }, e.title) : h('b', { class: 'evl-name' }, e.title),
         desc ? h('span', { class: 'evl-desc' }, desc) : null,
         e.prize ? h('span', { class: 'evl-prize' }, '🏆 ', e.prize) : null),
       h('div', { class: 'evl-side' },
@@ -1343,6 +1344,37 @@ function privacyDialog(prefill = {}) {
 }
 
 /* Svet eventu: sem sa vojde po odlepení nálepky. Fotky, výsledky, videá, sociálne siete, články a ďalšie eventy. */
+/* stránka eventu iného organizátora z kalendára: fotky, video, krátky text (EVENT_MEDIA v data.js) */
+async function pageCalEvent(root, id) {
+  const media = EVENT_MEDIA[id];
+  let e = null;
+  try { e = (await store.listEvents()).find(x => x.id === id) || null; } catch (err) { console.error(err); }
+  if (!e && !media) return pageNotFound(root);
+  const m = media || {}, title = m.title || e?.name || 'Event';
+  const p = e ? parseDate(e.date) : null;
+  const when = p ? `${p.d}. ${p.m}. ${p.y}` : '';
+  const where = e ? [e.place, e.city].filter(Boolean).join(', ') : '';
+  const linkify = t => String(t).split(/(@[\w.]*\w)/g).map(x => /^@[\w.]*\w$/.test(x) ? h('a', { href: `https://www.instagram.com/${x.slice(1)}/`, target: '_blank', rel: 'noopener' }, x) : x);
+  const photos = m.photos || [];
+  root.append(pageHead(title, [when, where].filter(Boolean).join(' · ')),
+    h('div', { class: 'wrap page-body cev' },
+      h('div', { class: 'cev-top' },
+        m.video ? h('div', { class: 'cev-video' }, h('video', { src: m.video.src, poster: m.video.poster, controls: true, muted: true, playsinline: true, loop: true, preload: 'metadata', autoplay: true })) : null,
+        h('div', { class: 'cev-info' },
+          h('span', { class: 'mono hs-k' }, e ? [e.country, e.kind].filter(Boolean).join(' · ') : 'Event'),
+          m.text ? h('p', { class: 'lead' }, linkify(m.text)) : null,
+          h('ul', { class: 'cev-facts' },
+            when ? h('li', {}, h('span', { class: 'mono' }, 'Kedy'), h('b', {}, when)) : null,
+            where ? h('li', {}, h('span', { class: 'mono' }, 'Kde'), h('b', {}, where)) : null,
+            e?.organizer ? h('li', {}, h('span', { class: 'mono' }, 'Organizuje'), h('b', {}, e.organizer)) : null),
+          h('div', { class: 'actions' },
+            e?.link ? h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Web eventu') : null,
+            (m.instagram || []).map(x => h('a', { class: 'btn small', href: `https://www.instagram.com/${x}/`, target: '_blank', rel: 'noopener' }, '@' + x)),
+            h('a', { class: 'btn small', href: '#/eventy' }, 'Všetky eventy')))),
+      photos.length ? h('section', { class: 'cev-photos' }, h('h2', { class: 'wide sub' }, 'Fotky'),
+        h('div', { class: 'cev-grid' }, photos.map((ph, i) => h('button', { type: 'button', class: 'cev-ph', onclick: () => lightbox(photos, i), 'aria-label': 'Zväčšiť: ' + ph.alt }, h('img', { src: ph.src, alt: ph.alt, loading: 'lazy' }))))) : null));
+}
+
 async function pageEvent(root, id) {
   const ev = EVENTS.find(e => e.id === id);
   if (!ev) return pageNotFound(root);
@@ -2917,6 +2949,7 @@ const ROUTES = [
   [/^#\/novinky$/, pageNews, 'novinky'],
   [/^#\/novinka\/([\w-]+)$/, pagePost, 'novinky'],
   [/^#\/event\/([\w-]+)$/, pageEvent, 'eventy'],
+  [/^#\/kalendar\/([\w-]+)$/, pageCalEvent, 'eventy'],
   [/^#\/jazdci$/, pageRiders, 'rebricek'],
   [/^#\/jazdec\/([\w-]+)$/, pageRider, 'jazdci'],
   [/^#\/parky$/, pageParks, 'parky'],
