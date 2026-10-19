@@ -2525,8 +2525,8 @@ body::before{content:none;display:none;animation:none}
 .acct span.acct-arrow-w,.acct .acct-arrow-w{display:inline-flex !important}
 
 /* bez samovoľného približovania: dvojklik nezväčší, políčka majú aspoň 16 px (iOS inak zväčší pri písaní) */
-html{touch-action:manipulation;overflow-x:hidden}
-body{overflow-x:hidden;max-width:100%}
+html{touch-action:manipulation;overflow-x:clip}
+body{overflow-x:clip;max-width:100%}
 input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input{font-size:16px !important}
 
 /* eventy: jedna stránka, tri časti */
@@ -2803,3 +2803,10 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 .wc-list .wc-body b{max-width:none;white-space:normal}
 .sw3d-track .sw-item:not(.center) .sw-cap{opacity:0;visibility:hidden}
 .sw3d-track .sw-item .sw-cap{transition:opacity .25s}
+
+/* v12.8: hlavička ostáva pripnutá hore pri rolovaní (overflow-x:clip namiesto hidden), tlačidlo Hore */
+.to-top{position:fixed;z-index:60;right:max(16px,env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom));display:grid;place-items:center;width:48px;height:48px;padding:0;border:1px solid rgba(243,235,221,.3);border-radius:50%;background:rgba(22,21,26,.92);color:var(--cream);cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.45);transition:transform .2s,border-color .2s}
+.to-top[hidden]{display:none}
+.to-top svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.to-top:hover{border-color:var(--cream);transform:translateY(-2px)}
+@media (max-width:760px){ .to-top{bottom:calc(var(--tabh) + 14px)} }

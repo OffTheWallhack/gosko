@@ -3140,3 +3140,13 @@ function initSwipeBack() {
   });
   route();
 })();
+
+/* tlačidlo Hore: ukáže sa po odrolovaní o jednu obrazovku */
+(() => {
+  const b = document.getElementById('to-top'); if (!b) return;
+  let raf = 0;
+  const upd = () => { raf = 0; b.hidden = scrollY < innerHeight * .9; };
+  addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(upd); }, { passive: true });
+  b.addEventListener('click', () => scrollTo({ top: 0, behavior: REDUCED() ? 'auto' : 'smooth' }));
+  upd();
+})();
