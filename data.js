@@ -209,6 +209,27 @@ export const FAQ = [];
 
 /* Známe skateparky na mape. Poloha je orientačná: ak pin nesedí, v Google Maps podrž prst na
    presnom mieste, skopíruj súradnice a prepíš lat a lng. Navigácia hľadá park podľa názvu a mesta. */
+/* Fotky, video a text k eventom iných organizátorov z kalendára (community_events v Supabase).
+   Kľúč = id eventu z databázy. Event s týmto záznamom dostane vlastnú stránku /kalendar/<id>. */
+export const EVENT_MEDIA = {
+  '3473b315-274b-4190-a3e8-9f37cab0f274': {
+    title: 'Otvorenie skateparku v Liptovskom Mikuláši',
+    text: 'Nový betónový park pod Tatrami sme otvárali s Red Bull autom, plným parkom ľudí a večer pokračovali afterkou na minirampe. S nami jazdil aj @smetak.',
+    instagram: ['smetak'],
+    video: { src: 'video/ev/lm-2026.mp4', poster: 'img/ev/lm-2026/klip.webp' },
+    photos: [
+      { src: 'img/ev/lm-2026/park.webp', alt: 'Skatepark Liptovský Mikuláš plný ľudí' },
+      { src: 'img/ev/lm-2026/dav.webp', alt: 'Ľudia pri otvorení skateparku' },
+      { src: 'img/ev/lm-2026/rampa.webp', alt: 'Pri rampe s Red Bull dáždnikom' },
+      { src: 'img/ev/lm-2026/auto.webp', alt: 'Red Bull event auto' },
+      { src: 'img/ev/lm-2026/afterka-1.webp', alt: 'Afterka na minirampe' },
+      { src: 'img/ev/lm-2026/afterka-2.webp', alt: 'Afterka na minirampe' },
+      { src: 'img/ev/lm-2026/afterka-3.webp', alt: 'Afterka na minirampe' },
+      { src: 'img/ev/lm-2026/afterka-4.webp', alt: 'Afterka na minirampe' },
+    ],
+  },
+};
+
 export const SKATEPARKS = [
   { name: 'Skatepark Janka Kráľa (pod Mostom SNP)', city: 'Bratislava', area: 'Petržalka', lat: 48.1371, lng: 17.1050, about: 'Jeden z najväčších skateparkov na Slovensku, 1 350 m² pod mostom, svieti aj večer.', tag: 'betón' },
   { name: 'Skatepark Rača (Urbanpark Tbiliská)', city: 'Bratislava', area: 'Rača', lat: 48.2049, lng: 17.1516, about: 'Domovský park prvého GOSka (31. 5. 2026).', tag: 'GOSko' },
