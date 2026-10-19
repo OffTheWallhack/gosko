@@ -2691,3 +2691,18 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 .crew-card.blur{position:relative;pointer-events:none;user-select:none;border-style:dashed}
 .crew-card.blur > *{filter:blur(10px);opacity:.5}
 .crew-card.blur::after{content:"Čoskoro";position:absolute;inset:auto 14px 14px auto;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-dark)}
+
+/* v12.5: mapa – skateparky ako karty s fotkou (alebo grafikou), „Na mape“ a „Navigovať“ */
+.park-list{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.park-card{padding:0;gap:0;overflow:hidden;border-radius:var(--r-l,14px);background:var(--surf,#17161a)}
+.pk-img{position:relative;display:block;width:100%;aspect-ratio:16 / 10;margin:0;padding:0;border:0;background:#111;cursor:pointer;overflow:hidden}
+.pk-img img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .4s}
+.park-card:hover .pk-img img{transform:scale(1.05)}
+.pk-ph{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(135deg,#2b2721,#141311),repeating-linear-gradient(135deg,transparent 0 18px,rgba(243,235,221,.04) 18px 19px)}
+.pk-ph span{font-family:var(--f-display);font-size:clamp(1.6rem,3vw,2.4rem);text-transform:uppercase;color:rgba(243,235,221,.35);letter-spacing:.02em}
+.pk-img .pk-tag{position:absolute;left:10px;top:10px;background:rgba(14,13,12,.75);border-color:rgba(243,235,221,.25);color:var(--cream)}
+.pk-img .pk-tag.hot{background:var(--red);border-color:var(--red)}
+.pk-body{display:grid;gap:4px;padding:14px 16px 16px}
+.pk-body b{font-size:1.25rem}
+.pk-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.map{border-radius:var(--r-l,14px);border:1px solid var(--line-dark);box-shadow:none;overflow:hidden}
