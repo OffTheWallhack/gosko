@@ -941,7 +941,8 @@ function siteFeed() {
   const scroll = dir => rail.scrollBy({ left: dir * Math.min(rail.clientWidth * .8, 640), behavior: 'smooth' });
   const last = EVENTS.filter(e => e.status === 'done' && e.photos?.length).at(-1);
   const photos = shuffled(allPhotos());
-  const tv = last && tvScene({ videoId: last.video?.youtubeId, title: `${last.name}: video`, photos, stamp: `${last.city} ${last.season}`, onPhoto: lightbox, controls: false });
+  // telka bez polaroidov a bez ledge: len samotný televízor, video vyplní celú obrazovku
+  const tv = last && tvScene({ videoId: last.video?.youtubeId, title: `${last.name}: video`, photos, stamp: `${last.city} ${last.season}`, onPhoto: lightbox, controls: false, polaroids: false });
   return h('div', { class: 'site-feed' },
     h('section', { class: 'hs feed-sec' }, h('div', { class: 'wrap' },
       h('div', { class: 'sec-head' }, h('div', {}, h('span', { class: 'mono hs-k' }, 'Novinky a hry'), h('h2', {}, 'Fresh zo scény'), h('p', { class: 'lead feed-lead' }, 'Čo je nové v GOSku a veci, pri ktorých sa zasekneš na hodinu.')),
@@ -949,9 +950,8 @@ function siteFeed() {
       rail)),
     h('section', { class: 'hs feed-bottom' }, h('div', { class: 'wrap fb-grid' },
       tv ? h('div', { class: 'fb-tv tv-sec' },
-        h('div', { class: 'sec-head' }, h('h2', { class: 'letterg tv-title' }, 'GOSko TV'), h('a', { class: 'btn cta', href: '#/event/' + last.id }, 'Fotky a výsledky', icon('arrow'))),
-        h('p', { class: 'lead tv-lead' }, 'Telka hrá sama. Ťukni na obrazovku a zapneš zvuk, na fotku a zväčší sa.'),
-        tv) : null,
+        tv,
+        h('div', { class: 'tv-under' }, h('span', { class: 'mono hs-k' }, `${last.name}: video`), h('a', { class: 'btn small', href: '#/event/' + last.id }, 'Fotky a výsledky', icon('arrow')))) : null,
       h('div', { class: 'fb-side' },
         h('div', { class: 'fb-card about-card' }, h('span', { class: 'mono hs-k' }, 'Kto sme'), h('h3', {}, 'Robíme to pre komunitu'),
           h('p', {}, 'Partia skejterov, ktorá ťahá Game of S.K.A.T.E. po mestách. Bez vstupného, s cenami od partnerov.'),
