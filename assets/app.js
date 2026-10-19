@@ -828,7 +828,10 @@ function pageHome(root) {
   else media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
   if (media.tagName === 'VIDEO') media.muted = true;
   const rot = newsRotator(next);
+  // veľký duch za nápisom GOSko: trochu rozmazaný (je vzadu), jemný paralax na myš aj scroll
+  const bigGhost = h('img', { class: 'vh-bigghost', src: 'img/ghost-cream.svg', alt: '', 'aria-hidden': 'true', width: 480, height: 540 });
   const heroIn = h('div', { class: 'wrap vh-in' },
+    bigGhost,
     h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
     h('p', { class: 'vh-tag2' }, 'Game of S.K.A.T.E. po Slovensku'),
     rot.el);
@@ -854,6 +857,16 @@ function pageHome(root) {
   const hero = h('header', { class: 'vh' },
     shade,
     heroIn);
+  if (!reduced) {
+    hero.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse') return;
+      const r = hero.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+      bigGhost.style.setProperty('--gx', `${(-x * 28).toFixed(1)}px`);
+      bigGhost.style.setProperty('--gy', `${(-y * 18).toFixed(1)}px`);
+    });
+    hero.addEventListener('pointerleave', () => { bigGhost.style.setProperty('--gx', '0px'); bigGhost.style.setProperty('--gy', '0px'); });
+  }
   const studio = boardStudio();
   setTimeout(onboarding, 1800);
   const solid = h('div', { class: 'after-solid' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
@@ -868,6 +881,7 @@ function pageHome(root) {
     let d = Math.min(.55, scrollY / vh * .55);
     if (top < vh * .7) d = Math.max(d, .55 + (1 - Math.max(0, top) / (vh * .7)) * .45);
     dim.style.opacity = String(d);
+    if (!reduced) bigGhost.style.setProperty('--sy', `${Math.min(scrollY, vh) * .14}px`);
     const hidden = top <= 0;
     vbg.classList.toggle('off', hidden);
     if (hidden !== !wantPlay) { wantPlay = !hidden; if (isVideo) { if (hidden) media.pause(); else tryPlay(); } }
