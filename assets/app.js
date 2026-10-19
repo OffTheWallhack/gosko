@@ -829,7 +829,7 @@ function pageHome(root) {
   if (media.tagName === 'VIDEO') media.muted = true;
   const rot = newsRotator(next);
   // veľký duch za nápisom GOSko: trochu rozmazaný (je vzadu), jemný paralax na myš aj scroll
-  const bigGhost = h('img', { class: 'vh-bigghost', src: 'img/ghost-cream.svg', alt: '', 'aria-hidden': 'true', width: 480, height: 540 });
+  const bigGhost = h('img', { class: 'vh-bigghost', src: 'img/ghost.svg', alt: '', 'aria-hidden': 'true', width: 480, height: 540 });
   const heroIn = h('div', { class: 'wrap vh-in' },
     bigGhost,
     h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
