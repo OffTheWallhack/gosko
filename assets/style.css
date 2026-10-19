@@ -2682,3 +2682,12 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
   .sk-card,.sk-card.r1{min-height:330px;transform:none}
   .sk-art .board-img,.sk-art .sk-bimg{height:170px;right:-4%;bottom:-18%}
 }
+
+/* v12.4: komunita – Discord fialová, Trik týždňa červená; skryté crew rozmazané */
+.cm-card.discord,.cm-card.discord.soon{background:linear-gradient(135deg,#5865f2,#2f3799 70%,#232867);border-color:#7b86ff;color:#fff}
+.cm-card.discord .mono,.cm-card.discord span:not(.mono){color:#e3e6ff}
+.cm-card.red{background:linear-gradient(135deg,#c41a1f,#7a1012 75%);border-color:#e0474b;color:var(--cream)}
+.cm-card.red .mono,.cm-card.red span:not(.mono){color:#fbe9e3}
+.crew-card.blur{position:relative;pointer-events:none;user-select:none;border-style:dashed}
+.crew-card.blur > *{filter:blur(10px);opacity:.5}
+.crew-card.blur::after{content:"Čoskoro";position:absolute;inset:auto 14px 14px auto;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-dark)}

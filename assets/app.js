@@ -2619,7 +2619,7 @@ function riderFields(prefill = {}) {
     { name: 'stance', label: 'Postoj', type: 'select', value: prefill.stance || '', options: [{ value: '', label: 'Neviem / nepovieme' }, { value: 'regular', label: 'Regular' }, { value: 'goofy', label: 'Goofy' }] },
     { name: 'fav_trick', label: 'Obľúbený trik', max: 60, value: prefill.fav_trick },
     { name: 'home_spot', label: 'Domovský spot', max: 80, value: prefill.home_spot },
-    { name: 'crew', label: 'Crew', type: 'select', value: prefill.crew || '', options: [{ value: '', label: 'Žiadna' }, ...CREWS.map(c => ({ value: c.id, label: c.name }))] },
+    { name: 'crew', label: 'Crew', type: 'select', value: prefill.crew || '', options: [{ value: '', label: 'Žiadna' }, ...CREWS.filter(c => !c.hidden).map(c => ({ value: c.id, label: c.name }))] },
     { name: 'bio', label: 'Pár slov o tebe', type: 'textarea', max: 400, value: prefill.bio },
   ];
 }
@@ -2734,6 +2734,9 @@ function pageCrews(root) {
   root.append(pageHead('Crew', 'Partie, ktoré ťahajú scénu. Každá crew má svojich jazdcov, eventy a spoty. Ste crew a chýbate tu? Napíšte nám.'),
     h('div', { class: 'wrap page-body' }, h('div', { class: 'crew-grid' }, CREWS.map(c => {
       const n = crewMembers(c).length;
+      /* skryté crew (hidden: true v data.js): kým nemáme dohodu, karta je rozmazaná a bez odkazu */
+      if (c.hidden) return h('div', { class: 'crew-card blur', 'aria-hidden': 'true' },
+        h('span', { class: 'crew-mark' }, '??'), h('b', {}, c.name), h('span', { class: 'mono' }, 'čoskoro'), h('span', { class: 'crew-about' }, c.about));
       return h('a', { class: 'crew-card', href: '#/crew/' + c.id },
         h('span', { class: 'crew-mark' }, c.name.slice(0, 2).toUpperCase()), h('b', {}, c.name),
         h('span', { class: 'mono' }, [c.city, n ? `${n} ${plural(n, 'jazdec', 'jazdci', 'jazdcov')}` : null].filter(Boolean).join(' · ') || 'Slovensko'),
@@ -2742,7 +2745,7 @@ function pageCrews(root) {
 }
 async function pageCrew(root, id) {
   const c = CREWS.find(x => x.id === id);
-  if (!c) return pageNotFound(root);
+  if (!c || c.hidden) return pageNotFound(root);
   const members = crewMembers(c), evBox = h('ul', { class: 'cal-mini' }, h('li', { class: 'empty' }, 'Načítavam…'));
   root.append(pageHead(c.name, c.about,
     c.instagram ? h('a', { class: 'btn', href: `https://www.instagram.com/${c.instagram}/`, target: '_blank', rel: 'noopener' }, '@' + c.instagram) : null),
@@ -2825,7 +2828,7 @@ function pageCommunity(root) {
         SITE.discord ? card(SITE.discord, 'Discord', 'Pridaj sa na Discord', 'Chat s jazdcami, dohadovanie sessionov, novinky skôr ako inde.', 'discord')
           : h('div', { class: 'cm-card discord soon' }, h('span', { class: 'mono' }, 'Discord'), h('b', {}, 'Discord komunita čoskoro'), h('span', {}, 'Chystáme miesto na chat, sessiony a novinky. Odkaz pridáme sem aj na Instagram.')),
         card('#/trik-tyzdna', 'Každý týždeň', 'Trik týždňa', 'Pošli klip, vyberieme troch finalistov a ty hlasuješ.', 'red'),
-        card('#/crew', 'Partie', 'Crew', 'GOSko, 3Style, Tlakerz, Cube, Hangair a ďalšie. Jazdci, eventy, spoty.'),
+        card('#/crew', 'Partie', 'Crew', CREWS.filter(c => !c.hidden).map(c => c.name).join(', ') + ' a ďalšie. Jazdci, eventy, spoty.'),
         park ? card('#/mapa', 'Spot mesiaca', park.name, SITE.spotOfMonthNote || park.about, 'cream') : null,
         card('#/mapa', 'Mapa', 'Spoty s hodnotením', 'Pridaj spot, ohodnoť povrch, svetlo aj to, či je kryté.'),
         card('#/profil', 'Profil', 'XP a odznaky', 'Za check-in, triky, spoty aj parky zbieraš XP a odomykáš odznaky.'),

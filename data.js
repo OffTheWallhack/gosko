@@ -242,7 +242,7 @@ export const RIDER_PRIVACY = {};
 export const CREWS = [
   { id: 'gosko', name: 'GOSko crew', city: 'Bratislava', instagram: 'g.o.s.ko', organizer: 'GOSko', about: 'Partia, ktorá robí Game of S.K.A.T.E. po Slovensku. Eventy, rebríček a tento web.', members: [] },
   { id: '3style', name: '3Style Academy', city: 'Bratislava', instagram: '3styleacademy.eu', organizer: '3Style', about: 'Akadémia akčných športov, tréningy a tábory pre mladých jazdcov.', members: [] },
-  { id: 'tlakerz', name: 'Tlakerz', city: '', instagram: '', organizer: 'Tlakerz', about: 'Skate crew. Popis doplníme.', members: [] },
-  { id: 'cube', name: 'Cube Skateshop', city: 'Sládkovičovo', instagram: '', organizer: 'CubeSkateshop.sk', about: 'Skateshop a organizátor Cube Skate Day.', members: [] },
-  { id: 'hangair', name: 'Hangair', city: 'Bratislava', instagram: '', organizer: 'Hangair', about: 'Akadémia akčných športov vo Vajnoroch, vnútorný aj vonkajší park.', members: [] },
+  { id: 'tlakerz', hidden: true, name: 'Tlakerz', city: '', instagram: '', organizer: 'Tlakerz', about: 'Skate crew. Popis doplníme.', members: [] },
+  { id: 'cube', hidden: true, name: 'Cube Skateshop', city: 'Sládkovičovo', instagram: '', organizer: 'CubeSkateshop.sk', about: 'Skateshop a organizátor Cube Skate Day.', members: [] },
+  { id: 'hangair', hidden: true, name: 'Hangair', city: 'Bratislava', instagram: '', organizer: 'Hangair', about: 'Akadémia akčných športov vo Vajnoroch, vnútorný aj vonkajší park.', members: [] },
 ];
