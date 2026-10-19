@@ -2541,3 +2541,16 @@ input,select,textarea,.rk-search,.ev-search,.login-help textarea,.news-row input
 .ev-world .ab-row{padding:12px 4px}
 .ev-world .ab-city{font-size:1.3rem}
 .more-btn{margin-top:14px}
+
+/* =====================================================================
+   v12: desktop – všetok obsah v jednom stĺpci 1200 px (logo vľavo = ľavý okraj,
+   Menu vpravo = pravý okraj). Na celú šírku ostáva len lišta Skate kalendár
+   a hero video. 3D doska na úvodke je v stĺpci; na vlastnej stránke /doska ostáva na celú šírku.
+   ===================================================================== */
+.wrap,.tb-row{padding-left:16px;padding-right:16px}
+.vh-in,.wrap.vh-in{max-width:1200px;margin-left:auto;margin-right:auto;padding-left:16px;padding-right:16px;box-sizing:border-box}
+.nr{width:100%;max-width:none}
+.b3:not(.page){max-width:1200px;margin-left:auto;margin-right:auto;border-left:1px solid var(--line-dark);border-right:1px solid var(--line-dark)}
+.b3:not(.page) .b3-stage{height:min(72vh,680px);min-height:480px}
+.b3:not(.page) .b3-ui{padding:clamp(16px,2.4vw,28px)}
+@media (max-width:1232px){ .b3:not(.page){border-left:0;border-right:0} }
