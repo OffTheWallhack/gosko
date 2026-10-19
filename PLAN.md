@@ -14,7 +14,7 @@ Cieľ: dokončiť a vyčistiť web gosko.sk tak, aby sa dal spustiť naostro. Gh
 ## Rozhodnutia, ktoré už platia
 
 - Vzhľad: tmavý, štýl PSP/XMB, sklenené zaoblené plochy, krémový text, červená len na hlavnú akciu. Bez zrna, náklonov, pások, bez vlny v pozadí. Nadpisy Anton, text Archivo, žiadne drobné verzálky.
-- Jeden duch: vpravo hore „Môj profil“ + kreslená šípka + malý duch (`img/ghost-cream.svg`, krémový obrys). Inde duch nie je. Nový model ducha robí Robo inde.
+- Jeden duch: vpravo hore „Môj profil“ + kreslená šípka + malý duch (`img/ghost-cream.svg`, krémový obrys). Inde duch nie je. Nový 3D model ducha je hotový: `assets/mascot.js` (telo, tvár z loga, grimasy, veci, scéna, kamoš, efekty), katalóg a nastavenie `assets/ghost.js` (profiles.ghost v2), editor v Mojom profile `assets/ghost-editor.js`. Zámky v databáze: `supabase-ghost-v2.sql`.
 - Hlavička pripnutá od vrchu (aj pod status barom), pod ňou lišta Skate kalendár. Spodný dok: Domov, Eventy, Rebríček, Komunita, Menu (panel).
 - Eventy: jedna stránka `/eventy` – GOSko (nálepky), Slovensko a Česko (iní organizátori + Pridať event), Veľké eventy vo svete (prehľad). Event hub zrušený, `hub/` presmeruje.
 - Názvy: GOSko Bratislava, GOSko 2 Žilina, GOSko 3 Bratislava.
