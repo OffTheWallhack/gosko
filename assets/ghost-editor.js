@@ -8,7 +8,7 @@ function h(tag, props, ...kids) {
   for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k instanceof Node ? k : String(k));
   return el;
 }
-const TABS = [['level', 'Level'], ['nalada', 'Nálada'], ['farba', 'Farba'], ['tvar', 'Tvár'], ['povrch', 'Povrch'], ['stav', 'Stav'], ['veci', 'Veci'], ['doska', 'Doska'], ['kamos', 'Kamoš'], ['scena', 'Scéna']];
+const TABS = [['level', 'Level'], ['nalada', 'Nálada'], ['farba', 'Farba'], ['tvar', 'Tvár'], ['povrch', 'Povrch'], ['stav', 'Stav'], ['veci', 'Veci'], ['doska', 'Tenisky'], ['kamos', 'Kamoš'], ['scena', 'Scéna']];
 
 /* root: kam sa editor vykreslí. ghost: nastavenie. inventory: zoznam vecí. onChange(ghost, { full }) sa volá pri každej zmene; onEmote(k); onAuto(bool). */
 export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onChange, onEmote, onAuto, onStyle, autoOn = true } = {}) {
@@ -111,7 +111,7 @@ export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onCha
       p.push(sec('Tenisky na doske', options(SHOES, G.shoes, k => set({ shoes: k }))));
       if (SHOES[G.shoes].color) p.push(sec('Farba tenisiek', swatches(named(SHOE_COLORS), G.shoeColor, (hex, l) => live('shoeColor', hex, l))));
       p.push(sec('Doplnok dosky', options(BOARD_EXTRAS, G.boardExtra, k => set({ boardExtra: k }))));
-      p.push(h('p', { class: 'ge-note' }, 'Farby dosky, grip, kolieska a nálepky si nastavíš v garáži (Doska).'));
+      p.push(h('p', { class: 'ge-note' }, 'Farby dosky, grip, kolieska a podvozky nastavíš nižšie v časti Uprav si dosku. Je to tá istá doska ako v 3D garáži.'));
     }
     if (tab === 'kamos') {
       p.push(sec('Kamoš', options(BUDDIES, G.buddy, k => set({ buddy: k }))));
