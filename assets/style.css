@@ -2962,3 +2962,32 @@ a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
   .card.product .price{font-size:.75rem}
   .card.product .btn{width:100%;min-height:42px;padding:0 10px;font-size:.85rem}
 }
+
+/* =====================================================================
+   v14.2: Pre partnerov – rovnaký obsah, zhustené (menej medzier, viac vedľa seba)
+   ===================================================================== */
+body[data-page="partneri"] .sec{padding-top:30px;padding-bottom:30px}
+body[data-page="partneri"] .sec h2{font-size:clamp(1.7rem,6vw,3rem);margin-bottom:8px}
+body[data-page="partneri"] .pt-k{margin-bottom:6px}
+body[data-page="partneri"] .lead{margin-top:6px;margin-bottom:10px}
+body[data-page="partneri"] .pt-hero{min-height:0;padding-top:34px;padding-bottom:30px}
+body[data-page="partneri"] .pt-h{font-size:clamp(2rem,8vw,4.2rem)}
+body[data-page="partneri"] .pt-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+body[data-page="partneri"] .pt-facts li{margin:0;padding:0}
+body[data-page="partneri"] .pt-photo{max-height:260px;width:100%;object-fit:cover}
+body[data-page="partneri"] .pt-video{max-width:620px;margin-left:auto;margin-right:auto}
+body[data-page="partneri"] .pt-why{gap:10px}
+body[data-page="partneri"] .pt-why > *{padding-top:8px;padding-bottom:8px}
+@media (max-width:760px){
+  /* karty vedľa seba s posúvaním do strany namiesto pod sebou */
+  body[data-page="partneri"] .pt-content,body[data-page="partneri"] .pt-three,body[data-page="partneri"] .pt-cols{display:grid;grid-auto-flow:column;grid-auto-columns:82%;grid-template-columns:none;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
+  body[data-page="partneri"] .pt-content > *,body[data-page="partneri"] .pt-three > *,body[data-page="partneri"] .pt-cols > *{scroll-snap-align:start}
+  body[data-page="partneri"] .pt-plan{gap:8px}
+  body[data-page="partneri"] .pt-split{gap:16px}
+  body[data-page="partneri"] .pt-photo{max-height:200px}
+  body[data-page="partneri"] .pt-steps li{padding-top:6px;padding-bottom:6px}
+}
+@media (max-width:760px){
+  body[data-page="partneri"] .cards:has(.pack){display:grid;grid-auto-flow:column;grid-auto-columns:84%;grid-template-columns:none;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
+  body[data-page="partneri"] .cards:has(.pack) > li{scroll-snap-align:start}
+}
