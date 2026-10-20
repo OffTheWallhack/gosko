@@ -2908,3 +2908,26 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .sw-item:hover .sw-reg{transform:rotate(1deg) scale(1.06)}
 .after-hero .after-solid > .sw-sec{padding-top:clamp(30px,5vw,56px);padding-bottom:clamp(34px,5vw,60px)}
 .sw-sec .sec-head{margin-bottom:12px}
+
+/* v21: nálepky eventov: rovnaké, vycentrované, dátum a tlačidlo pod nimi, odlepený roh presne v rohu nálepky */
+@property --pl{syntax:'<percentage>';inherits:true;initial-value:0%}
+.sw-item{align-content:start;gap:16px;perspective:none}
+.sw-link{display:block;color:inherit;text-decoration:none}
+.sw-st{--pl:0%;transition:transform .35s cubic-bezier(.2,.8,.2,1),--pl .3s cubic-bezier(.2,.8,.2,1)}
+.sw-item:hover .sw-st,.sw-item:focus-within .sw-st{--pl:19%}
+.sw-st img{transform-origin:50% 50%;clip-path:polygon(0 0,100% 0,100% calc(89.9% - var(--pl)),calc(89.9% - var(--pl)) 100%,0 100%)}
+.sw-item:hover .sw-st img{transform:none;filter:drop-shadow(0 3px 2px rgba(0,0,0,.45)) drop-shadow(0 12px 18px rgba(0,0,0,.35))}
+.sw-corner{inset:0;right:auto;bottom:auto;width:100%;height:100%;background:linear-gradient(135deg,#fbf6ec 0%,#e8dfcf 55%,#b9ae9b 100%);border-radius:0;box-shadow:none;transition:none;
+  clip-path:polygon(96.9% calc(93% - var(--pl)),calc(96.9% - var(--pl)) 93%,calc(96.9% - var(--pl)) calc(93% - var(--pl)));pointer-events:none}
+.sw-item:hover .sw-corner{width:100%;height:100%}
+.sw-link.peeled .sw-st{visibility:hidden}
+.sw-cap{gap:12px}
+.sw-cap b.sw-date,.sw-item.next .sw-date{font-family:inherit;text-transform:none;font-size:clamp(1.05rem,1.8vw,1.3rem);font-weight:700;letter-spacing:.01em;line-height:1.2;color:var(--cream)}
+.sw-reg{font:inherit;font-family:var(--f-display);cursor:pointer;margin-top:0;font-size:1.15rem;padding:.55em 1.2em .5em}
+.sw-more{display:inline-flex;align-items:center;gap:2px;color:var(--cream);text-decoration:none;font-size:.88rem;font-weight:600;border:1.5px solid rgba(243,235,221,.4);border-radius:999px;padding:.55em 1.1em;transition:background .2s,border-color .2s}
+.sw-more:hover,.sw-more:focus-visible{background:rgba(243,235,221,.12);border-color:var(--cream)}
+@media (max-width:720px){ .sw-reg{font-size:1rem} .sw-more{font-size:.8rem} }
+
+.sw-link{width:min(240px,100%)}
+.sw-st{width:100%}
+@media (max-width:720px){ .sw-link{width:min(170px,100%)} .sw-item:first-child .sw-link{width:min(210px,70%)} .sw-st,.sw-item:first-child .sw-st{width:100%} }

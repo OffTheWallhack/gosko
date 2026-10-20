@@ -124,6 +124,16 @@ export function stickerCanvas(spec, logo, size = 512) {
       stretch(x, 'condensed'); x.fillStyle = '#F3EBDD'; const s2 = sub || 'COMING SOON'; fit(x, s2, 700, 300, 30); x.fillText(s2, 256, 420);
       break;
     }
+    case 'event': { // všetky eventy rovnako: logo GOSko, číslo eventu a mesto (dátum je pod nálepkou na stránke)
+      x.fillStyle = '#fff'; rr(x, 16, 36, 480, 440, 40); x.fill();
+      x.fillStyle = '#111'; rr(x, 30, 50, 452, 412, 28); x.fill();
+      const lw = 196, lh = lw * logo.height / logo.width; x.drawImage(logo, 256 - lw / 2, 58, lw, lh);
+      const by = 366, bh = 78;
+      if (spec.num) { stretch(x, 'expanded'); x.fillStyle = '#F3EBDD'; fit(x, '#' + spec.num, 900, 260, 84); x.fillText('#' + spec.num, 256, (58 + lh + by) / 2 + 4); }
+      x.fillStyle = '#A01414'; x.fillRect(30, by, 452, bh);
+      stretch(x, 'expanded'); x.fillStyle = '#fff'; fit(x, title, 900, 410, 52); x.fillText(title, 256, by + bh / 2 + 2);
+      break;
+    }
     case 'medal': {
       x.fillStyle = '#fff'; x.beginPath(); x.arc(256, 256, 236, 0, 7); x.fill();
       x.fillStyle = '#A01D21'; x.beginPath(); x.arc(256, 256, 222, 0, 7); x.fill();
