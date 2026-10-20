@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <base href="/gosko/">
-<script>(function(d){d.classList.add("js");try{var b=new URL(document.baseURI).pathname,p=location.pathname;if(p===b||p===b+"index.html")d.setAttribute("data-boot","home")}catch(e){}})(document.documentElement)</script>
+<script>(function(d){d.classList.add("js");try{var b=new URL(document.baseURI).pathname,p=location.pathname;if(p===b||p===b+"index.html"){d.setAttribute("data-boot","home");var hh=location.hash;if((!hh||hh==="#"||hh==="#/")&&!sessionStorage.getItem("gosko:intro")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){d.setAttribute("data-intro","1");setTimeout(function(){if(!d.dataset.introRun)d.classList.add("intro-done")},7000);setTimeout(function(){d.classList.add("intro-done")},12000)}}}catch(e){}})(document.documentElement)</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Postav si skatepark | GOSko</title>
 <meta name="description" content="3D stavebnica skateparku. Najlepšie parky podľa hlasov idú do top 10.">
@@ -114,7 +114,7 @@
   <button type="button" id="tab-menu" data-tab="menu" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg><span>Menu</span></button>
 </nav>
 <button class="to-top" id="to-top" type="button" aria-label="Hore na začiatok stránky" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14l7-7 7 7"/></svg></button>
-<div class="boot" aria-hidden="true"><img src="img/ghost-cream.svg" alt="" width="84" height="94"></div>
+<div class="boot" aria-hidden="true"><div class="boot-bg"></div><img class="boot-plain" src="img/ghost-cream.svg" alt="" width="84" height="94"><div class="boot-intro"><img class="bi-ghost" src="img/ghost.svg" alt="" width="96" height="108"><img class="bi-word" src="img/gosko-wordmark-plain.svg" alt="" width="426" height="178"><i class="bi-bar"></i></div></div>
 <main id="main" tabindex="-1"><div class="wrap seo-pre"><h1>Postav si skatepark</h1><p>3D stavebnica skateparku. Najlepšie parky podľa hlasov idú do top 10.</p></div></main>
 
 <footer>
