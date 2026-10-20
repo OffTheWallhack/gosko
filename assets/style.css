@@ -3043,3 +3043,7 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .tm-links{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px}
 .tm-links a{color:var(--cream);font-size:.86rem;padding:4px 0}
 .evl-row.t-gosko .evl-date.soon b{color:#1a1408}
+/* Môj profil: editor dosky (ten istý ako v garáži) */
+.pf-board{margin-top:30px;max-width:980px}
+.pf-board > p{color:var(--muted-dark);max-width:62ch;margin-top:0}
+.b3-garage.pf-garage{position:static;width:100%;max-width:760px;margin:12px 0 14px;justify-self:auto;background:var(--surf,#17161a);border:1px solid var(--line-dark);border-radius:var(--r-m,12px);backdrop-filter:none;max-height:none;overflow:visible}

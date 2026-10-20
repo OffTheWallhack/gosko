@@ -684,24 +684,9 @@ function boardTeaser() {
         h('span', { class: 'btn primary cta' }, 'Otvoriť garáž', icon('arrow'))))));
   return { el, cleanup: () => { if (api) api(); } };
 }
-function boardStudio({ page = false } = {}) {
-  let look = myLook();
-  let sceneName = LSx.get(MY_SCENE, 'wall'); if (!SCENES[sceneName]) sceneName = 'wall';
-  const canvas = h('canvas', { 'aria-label': 'Tvoja 3D skateboard doska. Ťahaj na otočenie, dvojklik ju prevráti.' });
-  const stage = h('div', { class: 'b3-stage' }, canvas);
-  let api = null;
-  const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
-  let startBoard;
-  const boardP = new Promise(res => { startBoard = res; }).then(() => mountBoard(canvas, { stickers: stickers(), onSticker: go, look, scene: sceneName })).then(a => (api = a));
-  if (page || !('IntersectionObserver' in window)) startBoard();
-  else { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); startBoard(); } }, { rootMargin: '600px 0px' }); requestAnimationFrame(() => io.observe(stage)); }
-  const HINT = { wall: 'Ťahaj a obzri si dosku zo všetkých strán. Dvojklik ju otočí.', ride: 'Doska jazdí sama. Občas skočí ollie alebo kickflip.', free: 'Voľný pohľad: ťahaj kamkoľvek, približuj kolieskom (najprv klikni na dosku) alebo dvoma prstami.' };
-  const hint = h('p', { class: 'b3-hint mono' }, HINT[sceneName]);
-  const sceneBar = h('div', { class: 'b3-scenes', role: 'group', 'aria-label': 'Scéna' }, Object.entries(SCENES).map(([k, n]) =>
-    h('button', { type: 'button', 'aria-pressed': String(k === sceneName), onclick: e => {
-      sceneName = k; LSx.set(MY_SCENE, k); api?.setScene(k); hint.textContent = HINT[k];
-      sceneBar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
-    } }, n)));
+/* Garáž dosky: vzory, farby, vlastná farba a fotka. Rovnaký editor v 3D garáži aj v Mojom profile. */
+function garageEditor(initLook, onApply) {
+  let look = { ...initLook };
   /* garáž: vzory + palety farieb + vlastná farba; doska aj s vlastnou fotkou ako pixel art */
   const hexOf = n => '#' + n.toString(16).padStart(6, '0');
   const OPTS = {
@@ -718,11 +703,11 @@ function boardStudio({ page = false } = {}) {
     : key === 'wheels' ? `radial-gradient(circle,#111 0 22%,transparent 23%),${hex}` : hex;
   const tabsBar = h('div', { class: 'gar-tabs', role: 'tablist', 'aria-label': 'Úpravy dosky' });
   const panel = h('div', { class: 'gar-panel' });
-  let tab = 'deck', photoSrc = null, photoLevel = LSx.get('gosko:deck-px', 'mid'), photoFocus = .5, pendingLook = null, lookTimer = 0;
+  let tab = 'deck', photoSrc = null, photoLevel = LSx.get('gosko:deck-px', 'mid'), photoFocus = .5;
+  // jedna doska pre celý web: garáž, profil, duch (3D aj pixel) aj Ghoskate čítajú ten istý loadout
   const applyLook = (next, { quick = false } = {}) => {
     look = next; LSx.set(MY_LOOK, look);
-    clearTimeout(lookTimer); pendingLook = look;
-    lookTimer = setTimeout(() => { api?.setLook(pendingLook); }, quick ? 140 : 0);
+    onApply(look, { quick });
     saveLoadoutSoon(look);
   };
   const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
@@ -771,6 +756,33 @@ function boardStudio({ page = false } = {}) {
   }
   Object.entries(OPTS).forEach(([k, o]) => tabsBar.append(h('button', { type: 'button', role: 'tab', 'data-t': k, onclick: () => { tab = k; renderPanel(); } }, o.label)));
   renderPanel();
+  return { tabsBar, panel, getLook: () => look, refresh: () => { look = myLook(); renderPanel(); } };
+}
+
+function boardStudio({ page = false } = {}) {
+  let look = myLook();
+  let sceneName = LSx.get(MY_SCENE, 'wall'); if (!SCENES[sceneName]) sceneName = 'wall';
+  const canvas = h('canvas', { 'aria-label': 'Tvoja 3D skateboard doska. Ťahaj na otočenie, dvojklik ju prevráti.' });
+  const stage = h('div', { class: 'b3-stage' }, canvas);
+  let api = null;
+  const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
+  let startBoard;
+  const boardP = new Promise(res => { startBoard = res; }).then(() => mountBoard(canvas, { stickers: stickers(), onSticker: go, look, scene: sceneName })).then(a => (api = a));
+  if (page || !('IntersectionObserver' in window)) startBoard();
+  else { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); startBoard(); } }, { rootMargin: '600px 0px' }); requestAnimationFrame(() => io.observe(stage)); }
+  const HINT = { wall: 'Ťahaj a obzri si dosku zo všetkých strán. Dvojklik ju otočí.', ride: 'Doska jazdí sama. Občas skočí ollie alebo kickflip.', free: 'Voľný pohľad: ťahaj kamkoľvek, približuj kolieskom (najprv klikni na dosku) alebo dvoma prstami.' };
+  const hint = h('p', { class: 'b3-hint mono' }, HINT[sceneName]);
+  const sceneBar = h('div', { class: 'b3-scenes', role: 'group', 'aria-label': 'Scéna' }, Object.entries(SCENES).map(([k, n]) =>
+    h('button', { type: 'button', 'aria-pressed': String(k === sceneName), onclick: e => {
+      sceneName = k; LSx.set(MY_SCENE, k); api?.setScene(k); hint.textContent = HINT[k];
+      sceneBar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
+    } }, n)));
+  let pendingLook = null, lookTimer = 0;
+  const gar = garageEditor(look, (l, { quick }) => {
+    look = l; clearTimeout(lookTimer); pendingLook = l;
+    lookTimer = setTimeout(() => { api?.setLook(pendingLook); }, quick ? 140 : 0);
+  });
+  const { tabsBar, panel } = gar;
   const autoBtn = h('button', { type: 'button', class: 'gar-mini', 'aria-pressed': String(LSx.get('gosko:board-auto', true)), onclick: e => {
     const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); LSx.set('gosko:board-auto', on); api?.setAuto(on); } }, 'Pohyb');
   boardP.then(a => a.setAuto(LSx.get('gosko:board-auto', true)));
@@ -1910,6 +1922,13 @@ async function pageProfile(root) {
   const remount = g => { avatar(); avatarSlot.replaceChildren(); avatar = mountAvatar(avatarSlot, { ghost: g }); };
   const edSlot = h('section', { class: 'pf-ghost-ed' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha'), h('p', {}, 'Načítavam…'));
   put(body, edSlot);
+  // doska ducha = doska z garáže: tu sa upravuje tá istá, zmena sa hneď ukáže na duchovi (3D aj pixel) a uloží do účtu
+  const gar = garageEditor(myLook(), l => avatar.api.then(a => a?.setLook?.({ ...DEFAULT_LOOK, ...l })));
+  put(body, h('section', { class: 'pf-board' },
+    h('h2', { class: 'evw-h' }, 'Uprav si dosku'),
+    h('p', {}, 'Je to tá istá doska ako v 3D garáži a pod tvojím duchom. Čo zmeníš tu, zmení sa všade, aj v appke Ghoskate.'),
+    h('div', { class: 'b3-garage pf-garage' }, gar.tabsBar, gar.panel),
+    h('a', { class: 'btn small', href: '#/doska' }, 'Otvoriť 3D garáž')));
   const ghSlot = h('section', { class: 'pf-ghoskate' });
   put(body, ghSlot);
   (async () => {
