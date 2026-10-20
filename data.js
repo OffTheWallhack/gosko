@@ -266,6 +266,7 @@ export const SKATEPARKS = [
 export const RIDERS = {
   'sebastian-kozmann': { photo: 'img/riders/sebastian-kozmann.webp' },
   'tomas-cekovsky': { photo: 'img/riders/tomas-cekovsky.webp' },
+  'marian-holik': { photo: 'img/riders/marian-holik.webp' },
 };
 
 /* Súkromie jazdcov. Predvolene sa mená ukazujú celé (rovnako ako na Instagrame).
