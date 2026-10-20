@@ -1991,7 +1991,10 @@ async function pageProfile(root) {
     [['ghost', 'Duch'], ['board', 'Doska']].map(([k, n], i) => h('button', { type: 'button', role: 'tab', class: 'pf-edtab', 'data-t': k, 'aria-selected': String(i === 0), 'aria-controls': 'pf-pane-' + k,
       onclick: () => { for (const [kk, el] of Object.entries(paneOf)) el.hidden = kk !== k; edTabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.t === k))); } }, n)));
   const editorSec = h('section', { class: 'pf-editor' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha a dosku'), edTabs, edSlot, boardSec);
-  put(body, h('section', { class: 'pf-studio' }, stage, h('div', { class: 'pf-panels' }, editorSec)));
+  const studio = h('section', { class: 'pf-studio' }, stage, h('div', { class: 'pf-panels' }, editorSec));
+  put(body, studio);
+  // výška prilepenej scény sa meria, aby chipy kategórií sedeli presne pod ňou (telefón)
+  if ('ResizeObserver' in window) new ResizeObserver(() => studio.style.setProperty('--stage-h', stage.offsetHeight + 'px')).observe(stage);
   paintStyle();
   const ghSlot = h('section', { class: 'pf-ghoskate' });
   put(body, ghSlot);
@@ -2020,7 +2023,7 @@ async function pageProfile(root) {
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
     curLevel = level; lvlBadge.textContent = `LVL ${level} · ${LEVELS[level - 1][1]}`; paintStyle();
-    edSlot.replaceChildren(p ? null : h('p', {}, 'Prihlás sa, aby sa duch uložil do účtu. Zatiaľ sa pamätá len v tomto prehliadači.'), edBox);
+    edSlot.replaceChildren(...[p ? null : h('p', {}, 'Prihlás sa, aby sa duch uložil do účtu. Zatiaľ sa pamätá len v tomto prehliadači.'), edBox].filter(Boolean));
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
     ghSlot.replaceChildren(...[items.length ? h('h2', { class: 'evw-h' }, 'Tvoj loot') : null, items.length ? h('ul', { class: 'pf-loot' }, items) : null].filter(Boolean));
   })();

@@ -2976,3 +2976,12 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .gar-sw:hover{transform:translateY(-2px)}
 .gar-sw[aria-pressed="true"]{border-color:var(--red);background:rgba(160,20,20,.14);box-shadow:inset 0 0 0 1px var(--red)}
 .gar-dot[aria-pressed="true"]{box-shadow:0 0 0 3px var(--black),0 0 0 5px var(--red)}
+
+/* v23b: prilepená scéna + chipy bez medzery, s tieňom */
+@media (max-width:999px){
+  .pf-stage{box-shadow:0 10px 14px -8px rgba(0,0,0,.7)}
+  .ge-tabs{top:calc(var(--hdr) + var(--stage-h));padding:10px 0;margin:0 -12px;padding-left:12px;padding-right:12px;box-shadow:0 10px 12px -8px rgba(0,0,0,.7)}
+  .ge-tabs::after{display:none}
+}
+.ge{padding:0 12px 14px}
+.ge-tabs{margin:0 -12px;padding-left:12px;padding-right:12px}

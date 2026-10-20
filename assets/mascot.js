@@ -558,7 +558,7 @@ function tickWeather(dt) {
 /* kamoš */
 const buddyG = new THREE.Group(); world.add(buddyG);
 function buildBuddy() {
-  disposeTree(buddyG); buddyG.clear(); buddyG.position.set(0, 0, 0);
+  disposeTree(buddyG); buddyG.clear(); buddyG.position.set(0, 0, 0); buddyG.rotation.set(0, 0, 0); buddyG.scale.setScalar(1);
   const b = S.buddy; if (b === 'none') return;
   if (b === 'cat') {
     const m = std(0x1c1a1f, { roughness: .9, sheen: .6, sheenColor: new THREE.Color(0x44404a) });
