@@ -12,7 +12,7 @@ import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
 import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg, cacheGhost, ghostOf, unlockedGhost } from './profile.js';
-import { ghostLevel, LEVELS, LEVEL_XP, XP_RULES, xpOf, levelOfXp } from './ghost.js';
+import { ghostLevel, LEVELS, LEVEL_XP, XP_RULES, xpOf, levelOfXp, STYLES } from './ghost.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -1973,17 +1973,16 @@ async function pageProfile(root) {
   const remount = g => { avatar(); avatarSlot.replaceChildren(); avatar = mountAvatar(avatarSlot, { ghost: g }); paintStyle(); };
   /* Štúdio: duch je stále na očiach (na telefóne prilepený hore, na počítači vľavo), vedľa sa upravuje duch aj doska */
   const styleBar = h('div', { class: 'pf-style', role: 'group', 'aria-label': 'Zobrazenie ducha' });
-  const paintStyle = () => { const cur = localGhost().style || '3d'; styleBar.replaceChildren(...[['3d', '3D'], ['pixel', 'Pixel']].map(([k, n]) => h('button', { type: 'button', class: 'pf-style-b', 'aria-pressed': String(cur === k), onclick: () => { if (cur === k) return; const g = ghostOf({ ...localGhost(), style: k }); cacheGhost(g); editor?.set(g); persistRef.fn?.(g); remount(g); } }, n))); };
+  const lvlBadge = h('span', { class: 'pf-lvl mono' }, 'LVL 1');
+  let curLevel = 1;
+  const paintStyle = () => { const cur = localGhost().style || '3d'; styleBar.replaceChildren(...Object.entries(STYLES).map(([k, o]) => { const locked = o.lvl && curLevel < o.lvl; return h('button', { type: 'button', class: 'pf-style-b' + (locked ? ' locked' : ''), 'aria-pressed': String(cur === k), title: locked ? `Odomkne sa na leveli ${o.lvl}` : o.about, onclick: () => { if (locked) { toast(`${o.name} sa odomkne na leveli ${o.lvl}.`); return; } if (cur === k) return; const g = ghostOf({ ...localGhost(), style: k }); cacheGhost(g); editor?.set(g); persistRef.fn?.(g); remount(g); } }, o.name); })); };
   const persistRef = { fn: null }; let editor = null;
-  const quick = h('div', { class: 'pf-quick' },
-    h('button', { type: 'button', class: 'btn small', onclick: () => avatar.api.then(a => a?.emote?.('scared')) }, 'Zľakni ho'),
-    h('button', { type: 'button', class: 'btn small', onclick: () => avatar.api.then(a => a?.trick?.('flip')) }, 'Kickflip'));
-  const stage = h('div', { class: 'pf-stage' }, avatarSlot, h('div', { class: 'pf-stage-bar' }, styleBar, quick));
+  const stage = h('div', { class: 'pf-stage' }, avatarSlot, h('div', { class: 'pf-stage-bar' }, styleBar, lvlBadge));
   const edSlot = h('div', { class: 'pf-pane', id: 'pf-pane-ghost', role: 'tabpanel' }, h('p', {}, 'Načítavam…'));
   // doska ducha = doska z garáže: tu sa upravuje tá istá, zmena sa hneď ukáže na duchovi (3D aj pixel) a uloží do účtu
   const gar = garageEditor(myLook(), l => avatar.api.then(a => a?.setLook?.({ ...DEFAULT_LOOK, ...l })));
   const boardSec = h('div', { class: 'pf-pane', id: 'pf-pane-board', role: 'tabpanel', hidden: true },
-    h('p', {}, 'Toto je tvoja skutočná doska. Duch na nej stojí, rovnaká je v 3D garáži a ak si prepojený s jazdcom, aj na tvojej kartičke v rebríčku.'),
+    h('p', {}, 'Tvoja skutočná doska: stojí na nej duch, je v 3D garáži aj na tvojej kartičke jazdca.'),
     h('div', { class: 'b3-garage pf-garage' }, gar.tabsBar, gar.panel),
     h('a', { class: 'btn small', href: '#/doska' }, 'Otvoriť 3D garáž'));
   /* jeden editor: záložky Duch | Doska */
@@ -2020,10 +2019,8 @@ async function pageProfile(root) {
       onEmote: k => avatar.api.then(a => a?.emote?.(k)),
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
-    edSlot.replaceChildren(
-      h('p', {}, p ? `Si na leveli ${level} (${LEVELS[level - 1][1]}). Všetko, čo tu zmeníš, sa uloží do účtu. Duch je ten istý v 3D aj v pixeloch.`
-        : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Po prihlásení sa uložia do účtu. Duch je ten istý v 3D aj v pixeloch.'),
-      edBox);
+    curLevel = level; lvlBadge.textContent = `LVL ${level} · ${LEVELS[level - 1][1]}`; paintStyle();
+    edSlot.replaceChildren(p ? null : h('p', {}, 'Prihlás sa, aby sa duch uložil do účtu. Zatiaľ sa pamätá len v tomto prehliadači.'), edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
     ghSlot.replaceChildren(...[items.length ? h('h2', { class: 'evw-h' }, 'Tvoj loot') : null, items.length ? h('ul', { class: 'pf-loot' }, items) : null].filter(Boolean));
   })();
