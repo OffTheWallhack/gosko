@@ -744,8 +744,6 @@ function garageEditor(initLook, onApply) {
     trucks: { label: 'Podvozky', presets: TRUCKS, colors: TRUCK_COLORS, colorsLabel: 'Kovové',
       chip: t => `linear-gradient(135deg,rgba(255,255,255,.55),transparent 45%,rgba(0,0,0,.35)),${hexOf(t.color)}` },
   };
-  const swatchBg = (key, hex) => key === 'trucks' ? `linear-gradient(135deg,rgba(255,255,255,.7) 0%,rgba(255,255,255,0) 42%,rgba(0,0,0,.4) 100%),${hex}`
-    : key === 'wheels' ? `radial-gradient(circle,#111 0 22%,transparent 23%),${hex}` : hex;
   const tabsBar = h('div', { class: 'gar-tabs', role: 'tablist', 'aria-label': 'Úpravy dosky' });
   const panel = h('div', { class: 'gar-panel' });
   let tab = 'deck', photoSrc = null, photoLevel = LSx.get('gosko:deck-px', 'mid'), photoFocus = .5;
@@ -775,17 +773,11 @@ function garageEditor(initLook, onApply) {
     if (tab === 'deck') presets.push(h('button', { type: 'button', class: 'gar-sw photo', 'aria-pressed': String(cur === 'photo'),
       onclick: () => { if (hasDeckPhoto() && cur !== 'photo') { applyLook({ ...look, deck: 'photo' }); renderPanel(); } else fileIn.click(); } },
       h('span', { class: 'gar-chip px', 'aria-hidden': 'true', style: hasDeckPhoto() ? `background:url(${deckPhoto().toDataURL ? deckPhoto().toDataURL() : deckPhoto().src}) center / cover` : null }), h('span', {}, hasDeckPhoto() ? 'Tvoja fotka' : '+ Tvoja fotka')));
-    const isCustom = isHex(cur) && !O.colors.some(c => same(c.hex, cur));
-    const colorIn = h('input', { type: 'color', value: isHex(cur) ? cur.toLowerCase() : '#ff2bd6', 'aria-label': 'Vlastná farba' });
-    colorIn.addEventListener('input', () => { applyLook({ ...look, [tab]: colorIn.value }, { quick: true }); paintSel(colorIn.value); });
-    colorIn.addEventListener('change', () => renderPanel());
-    const dots = h('div', { class: 'gar-dots', role: 'group', 'aria-label': O.colorsLabel },
-      O.colors.map(c => h('button', { type: 'button', class: 'gar-dot', title: c.name, 'aria-label': c.name, 'aria-pressed': String(same(cur, c.hex)), style: `--c:${swatchBg(tab, c.hex)}`, onclick: pick(c.hex) })),
-      h('label', { class: 'gar-dot custom', title: 'Vlastná farba', 'aria-pressed': String(isCustom), style: isCustom ? `--c:${swatchBg(tab, cur)}` : null }, colorIn, h('span', { 'aria-hidden': 'true' }, '+')));
     const sel = h('p', { class: 'gar-sel mono' });
     const paintSel = v => { sel.replaceChildren('Vybraté: ', h('b', {}, lookName(tab, v))); };
     paintSel(cur);
-    const kids = [sel, h('div', { class: 'gar-row' }, presets), h('p', { class: 'gar-lbl mono' }, O.colorsLabel), dots];
+    // žiadne obyčajné farby: len základné vzory, ostatné dosky sa budú získavať (špeciálne dosky z eventov a lootu)
+    const kids = [sel, h('div', { class: 'gar-row' }, presets)];
     if (tab === 'deck' && cur === 'photo') {
       kids.splice(2, 0, h('div', { class: 'gar-photo' },
         h('p', { class: 'gar-lbl mono' }, 'Pixely'),
