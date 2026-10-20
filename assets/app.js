@@ -423,6 +423,13 @@ function photoBand({ kicker, title, lead, items, cta, cls = '' }) {
 /* nadpis stránky s fotkou v pozadí */
 const photoHead = (head, name, pos = '50% 40%') => { const u = f => `url(${new URL(`img/gosko1/${name}-${f}.webp`, document.baseURI).href})`; return h('div', { class: 'ph-photo', style: `--ph-s:${u('s')};--ph-l:${u('l')};--ph-pos:${pos}` }, head); };
 
+/* jemná fotka v pozadí celej sekcie (veľmi stmavená, aby neprekážala obsahu) */
+function photoBg(el, name, pos = '50% 50%') {
+  const u = f => `url(${new URL(`img/gosko1/${name}-${f}.webp`, document.baseURI).href})`;
+  el.classList.add('sec-photo'); el.style.setProperty('--ph-s', u('s')); el.style.setProperty('--ph-l', u('l')); el.style.setProperty('--ph-pos', pos);
+  return el;
+}
+
 function partnersStrip() {
   const withLogo = Object.entries(PARTNERS).filter(([, p]) => p.logo);
   if (!withLogo.length) return null;
@@ -957,7 +964,7 @@ function pageHome(root) {
   }
   const studio = boardTeaser();
   setTimeout(onboarding, 1800);
-  const solid = h('div', { class: 'after-solid' }, stickerWall(), skaterSection(), studio.el, eventWidget(),
+  const solid = h('div', { class: 'after-solid' }, photoBg(stickerWall(), 'pointing', '82% 40%'), skaterSection(), studio.el, eventWidget(),
     photoBand({ kicker: 'Z GOSka', title: 'Takto to vyzerá na ploche', lead: 'Triky, partia a dobrá nálada. Takto vyzerali naše eventy.',
       items: [['flip-bollard', 'Skejter preskakuje betónový kolík a pod ním sa otáča doska', 'wide'], ['flip-black', 'Kickflip pred grafitovou rampou', 'tall'], ['flip-car', 'Trik pred divákmi a eventovým autom Red Bull', 'tall'], ['flip-santacruz', 'Kickflip v skateparku, vzadu eventový stan', 'wide', '50% 78%']],
       cta: [h('a', { class: 'btn primary cta', href: '#/eventy' }, 'Eventy', icon('arrow')), h('a', { class: 'btn cta', href: '#/komunita' }, 'Komunita')] }),

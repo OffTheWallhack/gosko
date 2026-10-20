@@ -2884,3 +2884,8 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 
 /* v18: pás troch výškových fotiek na celú šírku */
 @media (min-width:900px){ .pb-grid.n3.t3{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto} .pb-grid.n3.t3 .pb-it{aspect-ratio:3 / 4} }
+
+/* v19: fotka v pozadí sekcie na domovskej (stmavená, ustupuje obsahu) */
+.sec-photo{position:relative;isolation:isolate;overflow:hidden}
+.sec-photo::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,var(--black) 0,rgba(14,13,12,.8) 22%,rgba(14,13,12,.84) 72%,var(--black) 100%),var(--ph-s) var(--ph-pos,50% 50%) / cover no-repeat;opacity:.9}
+@media (min-width:900px){ .sec-photo::before{background:linear-gradient(90deg,rgba(14,13,12,.94) 10%,rgba(14,13,12,.74) 60%,rgba(14,13,12,.8)),linear-gradient(180deg,var(--black) 0,transparent 20%,transparent 78%,var(--black) 100%),var(--ph-l) var(--ph-pos,50% 50%) / cover no-repeat} }
