@@ -1907,7 +1907,7 @@ async function pageProfile(root) {
   const [email, admin] = await Promise.all([store.email(), store.isAdmin().catch(() => false)]);
   const pw = h('input', { type: 'password', autocomplete: 'new-password', minlength: 8, placeholder: 'aspoň 8 znakov' });
   const msg = h('p', { class: 'form-msg', role: 'status' });
-  put(body, h('div', { class: 'pf-grid' }, avatarSlot, h('div', { class: 'pf-card' },
+  put(body, h('div', { class: 'pf-grid pf-grid-acct' }, h('div', { class: 'pf-card' },
     h('p', { class: 'mono pf-k' }, 'Prihlásený ako'),
     h('p', { class: 'pf-email' }, email || 'ukážkový režim'),
     admin ? h('p', { class: 'pf-admin' }, h('span', { class: 'chip on' }, 'Admin / crew'), ' ', h('a', { class: 'btn primary', href: '#/admin' }, 'Otvoriť admin'), ' ', h('a', { class: 'btn small', href: '#/admin/vysledky' }, 'Výsledky'), ' ', h('a', { class: 'btn small', href: '#/admin/scan' }, 'Check-in')) : null,
@@ -1919,16 +1919,25 @@ async function pageProfile(root) {
     } }, h('label', { class: 'field' }, 'Nastav si heslo (rýchlejšie prihlásenie)', pw), h('button', { class: 'btn', type: 'submit' }, 'Uložiť heslo'), msg) : null,
     store.mode === 'live' ? h('button', { class: 'btn ghostbtn', type: 'button', onclick: async () => { await store.logout(); updateAccount(); route(); } }, 'Odhlásiť sa') : null)));
   let avatar = mountAvatar(avatarSlot);
-  const remount = g => { avatar(); avatarSlot.replaceChildren(); avatar = mountAvatar(avatarSlot, { ghost: g }); };
+  const remount = g => { avatar(); avatarSlot.replaceChildren(); avatar = mountAvatar(avatarSlot, { ghost: g }); paintStyle(); };
+  /* Štúdio: duch je stále na očiach (na telefóne prilepený hore, na počítači vľavo), vedľa sa upravuje duch aj doska */
+  const styleBar = h('div', { class: 'pf-style', role: 'group', 'aria-label': 'Zobrazenie ducha' });
+  const paintStyle = () => { const cur = localGhost().style || '3d'; styleBar.replaceChildren(...[['3d', '3D'], ['pixel', 'Pixel']].map(([k, n]) => h('button', { type: 'button', class: 'pf-style-b', 'aria-pressed': String(cur === k), onclick: () => { if (cur === k) return; const g = ghostOf({ ...localGhost(), style: k }); cacheGhost(g); editor?.set(g); persistRef.fn?.(g); remount(g); } }, n))); };
+  const persistRef = { fn: null }; let editor = null;
+  const quick = h('div', { class: 'pf-quick' },
+    h('button', { type: 'button', class: 'btn small', onclick: () => avatar.api.then(a => a?.emote?.('scared')) }, 'Zľakni ho'),
+    h('button', { type: 'button', class: 'btn small', onclick: () => avatar.api.then(a => a?.trick?.('flip')) }, 'Kickflip'));
+  const stage = h('div', { class: 'pf-stage' }, avatarSlot, h('div', { class: 'pf-stage-bar' }, styleBar, quick));
   const edSlot = h('section', { class: 'pf-ghost-ed' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha'), h('p', {}, 'Načítavam…'));
-  put(body, edSlot);
   // doska ducha = doska z garáže: tu sa upravuje tá istá, zmena sa hneď ukáže na duchovi (3D aj pixel) a uloží do účtu
   const gar = garageEditor(myLook(), l => avatar.api.then(a => a?.setLook?.({ ...DEFAULT_LOOK, ...l })));
-  put(body, h('section', { class: 'pf-board' },
+  const boardSec = h('section', { class: 'pf-board' },
     h('h2', { class: 'evw-h' }, 'Uprav si dosku'),
-    h('p', {}, 'Je to tá istá doska ako v 3D garáži a pod tvojím duchom. Čo zmeníš tu, zmení sa všade, aj v appke Ghoskate.'),
+    h('p', {}, 'Tá istá doska ako v 3D garáži a pod duchom. Čo zmeníš tu, zmení sa všade, aj v appke Ghoskate.'),
     h('div', { class: 'b3-garage pf-garage' }, gar.tabsBar, gar.panel),
-    h('a', { class: 'btn small', href: '#/doska' }, 'Otvoriť 3D garáž')));
+    h('a', { class: 'btn small', href: '#/doska' }, 'Otvoriť 3D garáž'));
+  put(body, h('section', { class: 'pf-studio' }, stage, h('div', { class: 'pf-panels' }, edSlot, boardSec)));
+  paintStyle();
   const ghSlot = h('section', { class: 'pf-ghoskate' });
   put(body, ghSlot);
   (async () => {
@@ -1945,18 +1954,19 @@ async function pageProfile(root) {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(async () => { try { const np = await store.saveProfile({ ghost: unlockedGhost(g, inv, level) }); cacheProfile(np, inv); } catch (err) { console.error(err); } }, 900);
     };
+    persistRef.fn = persist;
     let autoOn = true; try { autoOn = localStorage.getItem('gosko:ghost-auto') !== '0'; } catch { /* bez úložiska */ }
     const g0 = unlockedGhost(localGhost(), inv, level); cacheGhost(g0);
     if (g0.style !== (localGhost().style || '3d')) remount(g0);
-    mountGhostEditor(edBox, { ghost: g0, inventory: inv, level, autoOn,
+    editor = mountGhostEditor(edBox, { ghost: g0, inventory: inv, level, autoOn,
       onChange: g => { persist(g); avatar.api.then(a => a?.setGhost?.(g)); },
       onStyle: () => remount(localGhost()),
       onEmote: k => avatar.api.then(a => a?.emote?.(k)),
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
     edSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Uprav si ducha'),
-      h('p', {}, p ? `Si na leveli ${level}. Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Ťuk na ducha ho zľakne, ťuk vedľa spraví kickflip.`
-        : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu.'),
+      h('p', {}, p ? `Si na leveli ${level}. Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Duch je ten istý v 3D aj v pixeloch.`
+        : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu. Duch je ten istý v 3D aj v pixeloch.'),
       edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
     ghSlot.replaceChildren(...[h('h2', { class: 'evw-h' }, 'Tvoj duch a Ghoskate'),
