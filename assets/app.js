@@ -12,7 +12,7 @@ import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
 import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg, cacheGhost, ghostOf, unlockedGhost } from './profile.js';
-import { ghostLevel } from './ghost.js';
+import { ghostLevel, LEVELS, LEVEL_XP, XP_RULES, xpOf, levelOfXp } from './ghost.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -1965,7 +1965,7 @@ async function pageProfile(root) {
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
     edSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Uprav si ducha'),
-      h('p', {}, p ? `Si na leveli ${level}. Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Duch je ten istý v 3D aj v pixeloch.`
+      h('p', {}, p ? `Si na leveli ${level} (${LEVELS[level - 1][1]}). Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Duch je ten istý v 3D aj v pixeloch.`
         : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu. Duch je ten istý v 3D aj v pixeloch.'),
       edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
@@ -2776,22 +2776,18 @@ function claimDialog(r) {
 }
 
 /* XP a odznaky za aktivitu na webe */
-const XP_RULES = [['checkins', 100, 'check-in na evente'], ['finalist', 100, 'finále triku týždňa'], ['rider', 50, 'overený profil jazdca'], ['tricks', 40, 'poslaný trik'], ['spots', 30, 'pridaný spot'],
-  ['parks', 25, 'postavený park'], ['photos', 20, 'fotka z eventu'], ['ratings', 5, 'hodnotenie spotu'], ['trick_votes', 5, 'hlas za trik'], ['park_votes', 2, 'hlas za park']];
-const LEVELS = [[0, 'Nováčik'], [50, 'Pusher'], [150, 'Ollie'], [350, 'Kickflip'], [700, 'Tre flip'], [1200, 'Legenda']];
 const BADGES = [
   ['checkins', 1, 'Bol som tam', 'Check-in na GOSko evente'], ['tricks', 1, 'Natočené', 'Poslal si trik týždňa'], ['finalist', 1, 'Finalista', 'Tvoj trik išiel do finále'],
   ['spots', 1, 'Lovec spotov', 'Pridal si spot na mapu'], ['ratings', 5, 'Kritik', 'Ohodnotil si 5 spotov'], ['parks', 1, 'Staviteľ', 'Postavil si skatepark'],
   ['photos', 1, 'Fotograf', 'Poslal si fotku z eventu'], ['trick_votes', 3, 'Porotca', 'Hlasoval si 3× za trik týždňa'], ['rider', 1, 'Overený jazdec', 'Máš overený profil jazdca'],
 ];
-const xpOf = a => XP_RULES.reduce((s, [k, w]) => s + (a?.[k] || 0) * w, 0);
 function xpBox(a) {
-  const xp = xpOf(a), li = LEVELS.filter(([m]) => xp >= m).length - 1, [cur, name] = LEVELS[li], nextL = LEVELS[li + 1];
-  const pct = nextL ? Math.round((xp - cur) / (nextL[0] - cur) * 100) : 100;
+  const xp = xpOf(a), lv = levelOfXp(xp), name = LEVELS[lv - 1][1], cur = LEVEL_XP[lv - 1], nextXp = LEVEL_XP[lv], nextName = LEVELS[lv]?.[1];
+  const pct = nextXp ? Math.round((xp - cur) / (nextXp - cur) * 100) : 100;
   return h('div', { class: 'xp' },
-    h('div', { class: 'xp-top' }, h('span', { class: 'xp-lvl' }, name), h('span', { class: 'mono' }, `${xp} XP`)),
+    h('div', { class: 'xp-top' }, h('span', { class: 'xp-lvl' }, name), h('span', { class: 'mono' }, `Level ${lv} · ${xp} XP`)),
     h('div', { class: 'xp-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct) }, h('i', { style: `width:${pct}%` })),
-    h('p', { class: 'mono xp-next' }, nextL ? `Do levelu ${nextL[1]}: ${nextL[0] - xp} XP` : 'Najvyšší level. Rešpekt.'),
+    h('p', { class: 'mono xp-next' }, nextXp ? `Do levelu ${lv + 1} (${nextName}): ${nextXp - xp} XP` : 'Najvyšší level. Rešpekt.'),
     h('ul', { class: 'badges-grid' }, BADGES.map(([k, min, t, d]) => { const on = (a?.[k] || 0) >= min; return h('li', { class: on ? 'on' : '' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('b', {}, t), h('small', {}, d)); })),
     h('details', { class: 'xp-how' }, h('summary', {}, 'Ako získať XP'), h('ul', {}, XP_RULES.map(([, w, t]) => h('li', {}, h('b', {}, `+${w}`), ' ', t)))));
 }
