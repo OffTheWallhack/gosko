@@ -2329,6 +2329,14 @@ function updateMenu() {
   document.querySelectorAll('[data-pass-link]').forEach(a => { a.hidden = !has; });
   const rules = RULES.length > 0 || FAQ.length > 0;
   document.querySelectorAll('[data-rules-link]').forEach(a => { a.hidden = !rules; });
+  // menu: karta Ďalšie GOSko a WhatsApp skupina
+  const nx = nextEvent(), a = document.getElementById('sh-next');
+  if (a) {
+    if (nx) { a.setAttribute('href', 'event/' + nx.id); document.getElementById('sh-next-t').textContent = nx.name;
+      document.getElementById('sh-next-d').textContent = nx.date ? [fmtDate(nx.date), nx.place || nx.city].filter(Boolean).join(' · ') : 'Dátum čoskoro · registrácia otvorená'; }
+    else { document.getElementById('sh-next-t').textContent = 'Eventy'; document.getElementById('sh-next-d').textContent = 'Kalendár GOSko aj ďalších'; }
+  }
+  const wa = document.getElementById('sh-wa'); if (wa && SITE.whatsapp) { wa.href = SITE.whatsapp; wa.hidden = false; }
 }
 async function checkinView(token, box) {
   box.replaceChildren(h('p', {}, 'Hľadám registráciu…'));

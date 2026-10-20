@@ -2920,3 +2920,35 @@ a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
 .som-strip{display:flex;gap:6px;overflow-x:auto;margin:0 0 12px;scrollbar-width:none}
 .som-strip button{flex:0 0 74px;height:96px;padding:0;border:0;border-radius:8px;overflow:hidden;cursor:zoom-in;background:#111}
 .som-strip img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* =====================================================================
+   v14: MENU – profil, 3 veľké karty, zoznam v riadkoch, drobné odkazy
+   ===================================================================== */
+.sh-big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 0}
+.shb{position:relative;display:grid;align-content:end;gap:4px;min-height:104px;padding:14px;border:1px solid var(--line-dark);border-radius:var(--r-m,12px);background:var(--glass,none),var(--surf,#17161a);color:var(--cream);text-decoration:none;overflow:hidden;transition:border-color .15s,transform .15s}
+.shb:active{transform:scale(.98)}
+.shb:hover{border-color:rgba(243,235,221,.4)}
+.shb svg{position:absolute;right:12px;top:12px;width:26px;height:26px;fill:none;stroke:var(--muted-dark);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.shb b{font-family:var(--f-display);font-weight:400;text-transform:uppercase;font-size:1.35rem;line-height:1}
+.shb small{font-size:.8rem;color:var(--muted-dark)}
+.shb.next{grid-column:1 / -1;min-height:118px;padding:16px;border-color:rgba(226,181,60,.55);background:linear-gradient(110deg,rgba(226,181,60,.22),rgba(160,20,20,.18) 70%),var(--surf,#17161a)}
+.shb.next .mono{font-size:.72rem;color:#e2b53c;margin:0}
+.shb.next b{font-size:1.8rem;color:#f6dc8f}
+.shb.next small{color:#e8dcc4}
+.sh-list{display:grid;margin:14px 0 0;border:1px solid var(--line-dark);border-radius:var(--r-m,12px);overflow:hidden;background:var(--surf,#17161a)}
+.sh-list a{display:grid;grid-template-columns:28px minmax(0,1fr) 18px;align-items:center;gap:14px;min-height:58px;padding:8px 14px;color:var(--cream);text-decoration:none;border-top:1px solid var(--line-dark)}
+.sh-list a:first-child,.sh-list a[hidden] + a:not([hidden]){border-top:0}
+.sh-list a[hidden]{display:none}
+.sh-list a:hover,.sh-list a:active{background:rgba(243,235,221,.06)}
+.sh-list svg{width:24px;height:24px;fill:none;stroke:var(--cream);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.sh-list span{display:grid;gap:1px;min-width:0}
+.sh-list b{font-size:1rem;font-weight:700}
+.sh-list small{font-size:.8rem;color:var(--muted-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-list .sh-chev{width:16px;height:16px;stroke:var(--muted-dark);opacity:1}
+.sh-list a[aria-current]{background:rgba(160,20,20,.18)}
+.sh-small{display:flex;flex-wrap:wrap;gap:6px 16px;margin:18px 2px 4px;font-size:.88rem}
+.sh-small a{color:var(--muted-dark);text-decoration:none;padding:6px 0}
+.sh-small a:hover{color:var(--cream)}
+.sh-small a[hidden]{display:none}
+.sh-small .sh-social{color:var(--cream)}
+@media (min-width:761px){ .sh-big{grid-template-columns:repeat(2,minmax(0,1fr))} }
