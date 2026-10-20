@@ -403,6 +403,24 @@ const ytId = u => { const m = String(u || '').match(/(?:youtu\.be\/|youtube\.com
 /* ---------- partneri ---------- */
 const partnerNode = p => (p.logo ? h('img', { class: 'p-logo', src: p.logo, alt: p.name, loading: 'lazy' }) : h('span', { class: 'p-name' }, p.name));
 const partnerItem = (id, p) => h('li', {}, partnerNode(p), p.about ? h('a', { href: '#/partner/' + id }, 'O partnerovi') : null, igLink(p.instagram));
+/* fotky z eventov (img/gosko1): [šírka, výška] originálu, menšia a väčšia verzia sú pripravené */
+const PHOTOS = { 'board-red': [2250, 1500], 'flip-bollard': [2576, 1717], 'crowd-board': [2576, 1717], 'crowd-low': [2576, 1717], 'carry-table': [2576, 1717], 'flip-santacruz': [2576, 1717],
+  'flip-black': [1717, 2576], 'flip-car': [1717, 2576], 'car-sitting': [1717, 2576], hug: [1717, 2576] };
+function photoImg(name, alt, pos) {
+  const [w, hgt] = PHOTOS[name], land = w >= hgt, sw = land ? 720 : 640, lw = land ? 1600 : 1100;
+  return h('img', { src: `img/gosko1/${name}-s.webp`, srcset: `img/gosko1/${name}-s.webp ${sw}w, img/gosko1/${name}-l.webp ${lw}w`, sizes: land ? '(max-width: 900px) 100vw, 50vw' : '(max-width: 900px) 50vw, 25vw',
+    width: lw, height: Math.round(lw * hgt / w), alt, loading: 'lazy', decoding: 'async', style: pos ? `object-position:${pos}` : null });
+}
+/* pás fotiek: items = [[názov, popis, tvar]], tvar 'wide' alebo 'tall' */
+function photoBand({ kicker, title, lead, items, cta, cls = '' }) {
+  return h('section', { class: 'sec pband ' + cls }, h('div', { class: 'wrap' },
+    kicker ? h('span', { class: 'mono hs-k' }, kicker) : null, title ? h('h2', { class: 'wide' }, title) : null, lead ? h('p', { class: 'lead' }, lead) : null,
+    h('div', { class: `pb-grid n${items.length}` }, items.map(([n, alt, shape, pos]) => h('figure', { class: 'pb-it ' + (shape || '') }, photoImg(n, alt, pos)))),
+    cta ? h('div', { class: 'actions cta-row' }, cta) : null));
+}
+/* nadpis stránky s fotkou v pozadí */
+const photoHead = (head, name, pos = '50% 40%') => { const u = f => `url(${new URL(`img/gosko1/${name}-${f}.webp`, document.baseURI).href})`; return h('div', { class: 'ph-photo', style: `--ph-s:${u('s')};--ph-l:${u('l')};--ph-pos:${pos}` }, head); };
+
 function partnersStrip() {
   const withLogo = Object.entries(PARTNERS).filter(([, p]) => p.logo);
   if (!withLogo.length) return null;
@@ -937,7 +955,11 @@ function pageHome(root) {
   }
   const studio = boardTeaser();
   setTimeout(onboarding, 1800);
-  const solid = h('div', { class: 'after-solid' }, stickerWall(), skaterSection(), studio.el, eventWidget(), partnersStrip());
+  const solid = h('div', { class: 'after-solid' }, stickerWall(), skaterSection(), studio.el, eventWidget(),
+    photoBand({ kicker: 'Z GOSka', title: 'Takto to vyzerá na ploche', lead: 'Triky, partia a dobrá nálada. Takto vyzerali naše eventy.',
+      items: [['flip-bollard', 'Skejter preskakuje betónový kolík a pod ním sa otáča doska', 'wide'], ['flip-black', 'Kickflip pred grafitovou rampou', 'tall'], ['flip-car', 'Trik pred divákmi a eventovým autom Red Bull', 'tall'], ['flip-santacruz', 'Kickflip v skateparku, vzadu eventový stan', 'wide', '50% 78%']],
+      cta: [h('a', { class: 'btn primary cta', href: '#/eventy' }, 'Eventy', icon('arrow')), h('a', { class: 'btn cta', href: '#/komunita' }, 'Komunita')] }),
+    partnersStrip());
   const after = h('div', { class: 'after-hero' }, solid);
   let raf = 0;
   const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
@@ -969,6 +991,7 @@ function pageBoard(root) {
 
 /* prvá návšteva: duch ťa prevedie webom (len raz) */
 function onboarding() {
+  if (document.documentElement.matches('[data-intro]:not(.intro-done)')) { setTimeout(onboarding, 600); return; }
   if (LSx.get('gosko:onboarded', false) || document.querySelector('.onb') || !document.querySelector('.vh')) return;
   const steps = [
     ['Čau, som GOSko duch.', 'Toto je domov slovenského Game of S.K.A.T.E. Ukážem ti, čo tu je, zaberie to 10 sekúnd.'],
@@ -1101,7 +1124,7 @@ function pageStandings(root, focus) {
     h('div', { class: 'sec-head' }, h('h2', {}, 'Jazdci'), h('span', { class: 'mono lead' }, 'Klikni na jazdca a uvidíš jeho mini profil')),
     h('div', { class: 'controls' }, q, rChips), rList,
     h('p', { class: 'note' }, 'Si to ty a chceš fotku, Instagram alebo vlastnú dosku v profile? Napíš nám na Instagram ', igLink(SITE.instagram), '.'));
-  root.append(pageHead('Rebríček a jazdci', 'Body, výsledky a profily všetkých jazdcov GOSka.'),
+  root.append(photoHead(pageHead('Rebríček a jazdci', 'Body, výsledky a profily všetkých jazdcov GOSka.'), 'board-red', '72% 62%'),
     h('div', { class: 'wrap page-body' },
       stats,
       h('section', { class: 'rk-sec' }, h('div', { class: 'sec-head' }, h('h2', {}, `Rebríček ${SITE.season}`)), h('div', { class: 'rk-grid' }, body, pts)),
@@ -1243,7 +1266,7 @@ async function pageEvents(root) {
   }
   const search = h('input', { type: 'search', class: 'ev-search', placeholder: 'Hľadaj event, mesto alebo organizátora', 'aria-label': 'Hľadať event' });
   search.addEventListener('input', () => { q = search.value.trim(); render(); });
-  root.append(pageHead('Eventy', 'GOSko, skate eventy na Slovensku a v Česku a veľké eventy vo svete v jednom zozname.'),
+  root.append(photoHead(pageHead('Eventy', 'GOSko, skate eventy na Slovensku a v Česku a veľké eventy vo svete v jednom zozname.'), 'crowd-low', '50% 60%'),
     h('div', { class: 'wrap page-body ev-page2', id: 'kalendar' },
       h('div', { class: 'evl-tools' },
         search,
@@ -2965,7 +2988,7 @@ function pageParents(root) {
 function pageCommunity(root) {
   const park = SKATEPARKS.find(p => p.name === SITE.spotOfMonth);
   const card = (href, k, t, d, cls = '') => h('a', { class: 'cm-card ' + cls, href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, h('span', { class: 'mono' }, k), h('b', {}, t), h('span', {}, d), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'));
-  root.append(pageHead('Komunita', 'GOSko nie je len súťaž. Je to partia ľudí, ktorí jazdia, točia, stavajú a chodia na spoty.'),
+  root.append(photoHead(pageHead('Komunita', 'GOSko nie je len súťaž. Je to partia ľudí, ktorí jazdia, točia, stavajú a chodia na spoty.'), 'carry-table', '50% 55%'),
     h('div', { class: 'wrap page-body' },
       h('div', { class: 'cm-grid' },
         SITE.whatsapp ? card(SITE.whatsapp, 'WhatsApp', 'Pridaj sa do WhatsApp skupiny', 'Dohadovanie sessionov, novinky a info o GOSku skôr ako inde.', 'whatsapp')
@@ -2978,6 +3001,7 @@ function pageCommunity(root) {
         card('#/rodicia', 'U16', 'Pre rodičov', 'Bezpečnosť, súhlas, čo priniesť. Všetko na jednom mieste.'),
         card('ghoskate/', 'Pripravujeme', 'Ghoskate appka', 'Mapa spotov ako herný svet: check-in, triky, crews a loot. Vytvor si ducha a pridaj prvý spot už teraz.', 'red'),
         SITE.whatsapp ? null : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu na sessiony a novinky. Odkaz dáme aj na Instagram.')))));
+  root.append(photoBand({ kicker: 'Partia', title: 'Ľudia, kvôli ktorým to robíme', items: [['hug', 'Dvaja skejteri sa objímajú po jazde', 'tall'], ['car-sitting', 'Partia oddychuje v tieni pri eventovom aute Red Bull', 'tall'], ['crowd-board', 'Skejteri v kruhu a doska v popredí', 'wide']] }));
 }
 
 /* ochrana osobných údajov (GDPR). Návrh: pred spustením ho nech skontroluje niekto, kto sa v tom vyzná. */
@@ -3056,7 +3080,7 @@ let revealIO = null;
 function reveal(main) {
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   revealIO ||= new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.remove('rv-pre'); revealIO.unobserve(e.target); } }), { rootMargin: '0px 0px -6% 0px' });
-  for (const el of main.querySelectorAll('.band, .home-sec, .tv-sec .wrap, .standings, .ev-list, .gallery, .cards')) {
+  for (const el of main.querySelectorAll('.band, .home-sec, .tv-sec .wrap, .standings, .ev-list, .gallery, .cards, .pband .pb-grid')) {
     if (el.getBoundingClientRect().top < innerHeight) continue;
     el.classList.add('rv', 'rv-pre'); revealIO.observe(el);
   }
@@ -3083,6 +3107,36 @@ async function route() {
   cleanup = typeof res === 'function' ? res : null;
   main.focus({ preventScroll: true });
   document.documentElement.classList.add('ready');
+  runIntro();
+}
+
+/* úvodná animácia na domovskej stránke (raz za reláciu): duch + GOSko ~2 s, potom doletia na miesto v hero a pozadie odroluje */
+function runIntro() {
+  const d = document.documentElement;
+  if (!d.hasAttribute('data-intro') || d.classList.contains('intro-done') || d.dataset.introRun) return;
+  d.dataset.introRun = '1';
+  try { introSequence(d); } catch (err) { console.error(err); d.classList.add('intro-done'); }
+}
+function introSequence(d) {
+  const finish = () => { d.classList.add('intro-done'); try { sessionStorage.setItem('gosko:intro', '1'); } catch { /* bez úložiska */ } };
+  const boot = document.querySelector('.boot'), g = boot?.querySelector('.bi-ghost'), w = boot?.querySelector('.bi-word');
+  const tg = document.querySelector('.vh-bigghost'), tw = document.querySelector('.vh-word');
+  if (!g || !w || !tg || !tw) return finish();
+  const go = () => {
+    const center = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: el.offsetWidth }; };
+    for (const [el, to, rot] of [[g, tg, -8], [w, tw, 0]]) {
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      const a = center(el), b = center(to);
+      el.classList.add('go');
+      el.style.transform = `translate(${(b.x - a.x).toFixed(1)}px, ${(b.y - a.y).toFixed(1)}px) scale(${(b.w / a.w).toFixed(4)}) rotate(${rot}deg)`;
+    }
+    d.classList.add('boot-go');
+    setTimeout(finish, 1000);
+  };
+  const poster = new Image(); poster.src = SITE.heroPoster || 'img/hero-poster.jpg';
+  const posterReady = new Promise(r => { poster.onload = poster.onerror = r; setTimeout(r, 3500); });
+  Promise.all([posterReady, new Promise(r => setTimeout(r, Math.max(0, 2300 - performance.now())))]).then(go);
 }
 
 /* ---------- tlačidlo Späť ---------- */
