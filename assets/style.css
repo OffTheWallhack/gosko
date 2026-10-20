@@ -2991,3 +2991,55 @@ body[data-page="partneri"] .pt-why > *{padding-top:8px;padding-bottom:8px}
   body[data-page="partneri"] .cards:has(.pack){display:grid;grid-auto-flow:column;grid-auto-columns:84%;grid-template-columns:none;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
   body[data-page="partneri"] .cards:has(.pack) > li{scroll-snap-align:start}
 }
+
+/* =====================================================================
+   v15: opravy po kontrole celého webu
+   ===================================================================== */
+/* karty top 3 bez vlastnej fotky: grafické pozadie s iniciálami (žiadna cudzia tvár) */
+.sk-bg.nophoto{background:radial-gradient(120% 80% at 80% 10%,rgba(160,20,20,.35),transparent 60%),repeating-linear-gradient(135deg,transparent 0 22px,rgba(243,235,221,.035) 22px 23px),#1a181d}
+.sk-card.r1 .sk-bg.nophoto{background:radial-gradient(120% 80% at 80% 10%,rgba(226,181,60,.28),transparent 60%),repeating-linear-gradient(135deg,transparent 0 22px,rgba(243,235,221,.04) 22px 23px),#2a1010}
+.sk-ini{position:absolute;left:12px;top:44%;transform:translateY(-50%);font-family:var(--f-display);font-size:clamp(4rem,9vw,7rem);line-height:1;color:rgba(243,235,221,.09);letter-spacing:-.02em}
+@media (max-width:720px){ .sk-ini{font-size:3.2rem;left:8px} }
+/* crew: prázdny zoznam eventov cez celú šírku */
+.cal-mini li.empty{display:block}
+/* Instagram karta v komunite */
+.cm-card.insta{background:linear-gradient(135deg,#833ab4,#c13584 45%,#e1306c 70%,#f77737);border-color:#e1306c;color:#fff}
+.cm-card.insta .mono,.cm-card.insta span:not(.mono){color:#ffe9f3}
+/* eventy na mobile: filtre v jednom posuvnom riadku */
+@media (max-width:760px){
+  .evl-tools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}
+  .evl-tools::-webkit-scrollbar{display:none}
+  .evl-tools .ev-search{flex:0 0 220px}
+  .evl-tools .chips{flex-wrap:nowrap}
+  .evl-tools > *{flex:none}
+}
+.evl-date.tentative b{font-size:1.5rem}
+.evl-row.t-gosko .evl-date.tentative b{font-size:1.9rem}
+/* mapa: menšia fotka spotu mesiaca, nech mapa ostane hore */
+.som-img{aspect-ratio:16 / 6;max-height:300px}
+@media (max-width:720px){ .som-img{aspect-ratio:16 / 8} }
+/* galéria: počítadlo */
+.lb-count{margin-right:auto;align-self:center;color:var(--cream);font-size:.85rem}
+/* garáž dosky na počítači: panel vpravo, doska vľavo */
+@media (min-width:1100px){
+  .b3.page .b3-ui{grid-template-columns:minmax(0,1fr) 440px;grid-template-rows:auto 1fr}
+  .b3.page .b3-garage{grid-column:2;grid-row:1 / span 2;align-self:start;justify-self:end;width:440px;max-height:calc(100svh - 140px);overflow:auto}
+  .b3.page .b3-head{grid-column:1}
+}
+/* pätička zarovnaná so stĺpcom, väčšie plochy na prst */
+footer .wrap > p{padding-left:0;margin-left:0}
+footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
+.brand{padding:7px 4px;margin-left:-4px}
+.sh-acct small{white-space:normal}
+.news-form .news-go{margin-top:10px}
+/* Kto sme: ľudia */
+.ab-team{margin-top:34px}
+.team{list-style:none;margin:10px 0 14px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.tm{display:flex;gap:14px;align-items:center;padding:14px;border:1px solid var(--line-dark);border-radius:var(--r-m,12px);background:var(--surf,#17161a)}
+.tm-ini{display:grid;place-items:center;flex:none;width:52px;height:52px;border-radius:50%;background:#2b2420;font-family:var(--f-display);font-size:1.3rem;color:var(--cream)}
+.tm-body{display:grid;gap:2px;min-width:0}
+.tm-body b{font-size:1.05rem}
+.tm-body > span{color:var(--muted-dark);font-size:.88rem}
+.tm-links{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px}
+.tm-links a{color:var(--cream);font-size:.86rem;padding:4px 0}
+.evl-row.t-gosko .evl-date.soon b{color:#1a1408}

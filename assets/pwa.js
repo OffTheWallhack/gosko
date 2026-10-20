@@ -9,9 +9,20 @@ export function initPwa() {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   if (standalone() || dismissedRecently()) return;
+  // ponuku ukážeme až pri druhej návšteve, po sprievodcovi a nie na stránkach s 3D (doska, stavebnica)
+  let visits = 1;
+  try { visits = Number(localStorage.getItem('gosko:visits') || 0) + 1; localStorage.setItem('gosko:visits', String(visits)); } catch { /* bez úložiska */ }
+  if (visits < 2) return;
   let deferred = null;
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; show(); });
-  if (isIos()) setTimeout(show, 3500);
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; later(); });
+  if (isIos()) later();
+  function later(n = 0) {
+    setTimeout(() => {
+      const busy = document.querySelector('.onb, dialog[open]') || ['doska', 'parky'].includes(document.body.dataset.page) || scrollY < 200;
+      if (busy) { if (n < 20) later(n + 1); return; }
+      show();
+    }, n ? 6000 : 8000);
+  }
 
   function show() {
     if (document.querySelector('.install')) return;

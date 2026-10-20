@@ -82,7 +82,7 @@ const SECTIONS = [
   ['doska', 'Navrhni si dosku', 'Tvoja 3D skateboard doska s nálepkami z GOSko eventov.'],
   ['trik-tyzdna', 'Trik týždňa', 'Pošli klip, vyberieme troch finalistov a víťaza určíte hlasovaním.'],
   ['crew', 'Crew', 'Skate crew zo Slovenska: členovia, eventy a spoty.'],
-  ['komunita', 'Komunita', 'Discord, trik týždňa, crew a všetko okolo GOSko komunity.'],
+  ['komunita', 'Komunita', 'WhatsApp skupina, trik týždňa, crew a všetko okolo GOSko komunity.'],
   ['rodicia', 'Pre rodičov', 'Ako funguje GOSko pre jazdcov do 16 rokov: bezpečnosť, súhlas rodiča, čo priniesť.'],
   ['shop', 'Shop', 'GOSko merch a podpora komunity.'],
   ['partneri', 'Pre partnerov', 'Spolupráca s GOSko: čísla, plán a ako sa pridať.'],
@@ -92,7 +92,7 @@ const SECTIONS = [
 ];
 
 /* úvodka (template = index.html, len doplníme náhľad) */
-const home = page('', { title: '', description: 'GOSko je séria Game of S.K.A.T.E. súťaží po Slovensku a v Česku. Eventy, rebríček skejterov, trik týždňa, mapa spotov a 3D doska.',
+const home = page('', { title: '', description: 'GOSko je séria Game of S.K.A.T.E. súťaží po Slovensku. Eventy, rebríček skejterov, trik týždňa, mapa spotov a 3D doska.',
   body: list(SECTIONS.map(([p, t]) => link(p, t))) });
 writeFileSync(join(ROOT, 'index.html'), home);
 writeFileSync(join(ROOT, '404.html'), home.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"'));
@@ -105,7 +105,7 @@ for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', 
 for (const r of riders.values()) page(`jazdec/${r.slug}`, { title: r.name, type: 'profile', image: RIDERS[r.slug]?.photo,
   description: clip(`${r.name} na GOSko: ${r.res.join('; ')}.`), body: list(r.res.map(esc)) });
 for (const x of postPages) page(`novinka/${x.id}`, { title: x.title, type: 'article', image: x.image, description: x.description, body: x.body });
-for (const c of CREWS) page(`crew/${c.id}`, { title: c.name, description: clip(c.about || `${c.name}: skate crew na GOSko.`), image: c.image });
+for (const c of CREWS.filter(c => !c.hidden)) page(`crew/${c.id}`, { title: c.name, description: clip(c.about || `${c.name}: skate crew na GOSko.`), image: c.image });
 
 /* sitemap a robots */
 writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages.map(p => p ? p + '/' : ''), 'hub/', 'ghoskate/'].map(p => `  <url><loc>${SITE_URL}${p}</loc></url>`).join('\n')}\n</urlset>\n`);

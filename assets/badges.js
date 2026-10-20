@@ -10,13 +10,13 @@ const I = {
 };
 
 export const BADGES = [
-  { id: 'debut', name: 'Debut', text: 'Prvé GOSko má za sebou', icon: I.debut,
+  { id: 'debut', name: 'Debut', text: 'Prvé GOSko za sebou', icon: I.debut,
     test: r => r.events.length > 0, detail: r => [...r.events].sort((a, b) => (a.date || '9').localeCompare(b.date || '9'))[0]?.name },
-  { id: 'podium', name: 'Pódium', text: 'Stál na bedni', icon: I.podium, test: r => r.results.some(x => x.place <= 3) },
-  { id: 'champ', name: 'Šampión', text: 'Vyhral GOSko', icon: I.champ, test: r => r.results.some(x => x.place === 1) },
+  { id: 'podium', name: 'Pódium', text: 'Na bedni', icon: I.podium, test: r => r.results.some(x => x.place <= 3) },
+  { id: 'champ', name: 'Šampión', text: 'Víťazstvo na GOSku', icon: I.champ, test: r => r.results.some(x => x.place === 1) },
   { id: 'junior', name: 'Junior', text: 'Jazdí v U16', icon: I.junior, test: r => r.results.some(x => x.cat === 'u16') },
   { id: 'women', name: 'Babská sila', text: 'Jazdí v babskej kategórii', icon: I.women, test: r => r.results.some(x => x.cat === 'women') },
-  { id: 'trick', name: 'Best Trick', text: 'Trik dňa', icon: I.trick, test: r => r.awards.some(a => a.name === 'Best Trick') },
+  { id: 'trick', name: 'Best Trick', text: 'Najlepší trik eventu, 20 b.', icon: I.trick, test: r => r.awards.some(a => a.name === 'Best Trick') },
   { id: 'loyal', name: 'Verný jazdec', text: 'Odjazdil všetky zastávky sezóny', icon: I.loyal,
     test: (r, ctx) => ctx.seasonEvents.length >= 2 && ctx.seasonEvents.every(ev => r.events.includes(ev)) },
 ];

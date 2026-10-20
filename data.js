@@ -13,7 +13,7 @@ export const CONFIG = {
 
 export const SITE = {
   instagram: 'g.o.s.ko',
-  email: '',            // kontaktný e-mail pre partnerov, napr. 'ahoj@gosko.sk'
+  email: 'rdurica1995@gmail.com',   // kontaktný e-mail (neskôr info@gosko.sk)
   season: 2026,
   photoCredit: '',      // autor fotiek, zobrazí sa pod galériou
   /* Video na pozadí úvodky. Krátky klip bez zvuku (10 – 20 s, MP4, ideálne do 8 MB), nahraj ho do priečinka video/.
@@ -54,7 +54,7 @@ export const CATEGORIES = [
 export const EVENTS = [
   {
     id: 'bratislava-2026-05',
-    name: 'GOSko Bratislava',
+    name: 'GOSko 1 Bratislava',
     city: 'Bratislava',
     date: '2026-05-31',
     place: 'Skatepark Rača, Tbiliská',
@@ -146,7 +146,7 @@ export const FACTS = [
   { num: '2', label: 'odjazdené eventy: Bratislava 31. 5. a Žilina 27. 6. 2026' },
   { num: '19 000+', label: 'zobrazení na Instagrame (5 príspevkov @g.o.s.ko)' },
   { num: '6 826', label: 'zobrazení plagátu GOSko Bratislava' },
-  { num: '11', label: 'partnerov a spolupracovníkov, od Red Bullu po mesto Žilina' },
+  { num: '5', label: 'partnerov a spolupracovníkov, od Red Bullu po 3Style Academy' },
   { num: '1 811', label: 'účtov oslovil jeden spoločný post s výsledkami' },
 ];
 
@@ -156,7 +156,6 @@ export const PLAN = [
   { when: '2027', title: 'Stop 1', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
-  { when: '2027 · CZ', title: 'Česko', place: 'prvý stop v Česku', dark: true },
   { when: '2027', title: 'Finále', place: 'Bratislava', red: true },
 ];
 /* Balíčky bez cien. Cena na vyžiadanie. */
@@ -204,8 +203,24 @@ export const SEASON_RULES = {
    RULES: [{ title: 'Ako sa hrá', text: 'Text. Prázdny riadok = nový odstavec.' }]
    FAQ:   [{ q: 'Otázka?', a: 'Odpoveď.' }]
    Pošli mi ich a doplním ich presne tak, ako ich napíšeš. */
-export const RULES = [];
-export const FAQ = [];
+export const RULES = [
+  { title: 'Hlavná súťaž: Game of S.K.A.T.E.', text: 'Jazdí sa na rovnej ploche, teda flatground. Nie všetky triky na zemi sú však povolené.\n\nŽiadne dotyky zeme rukami ani nohami. To znamená žiadne triky s nohou položenou na zemi, žiadne opieranie sa o ruku, žiadne skákanie bez dosky a žiadne chytanie dosky rukami.\n\nŽiadne manuály.\n\nŽiadne šúchanie ani šmýkanie trikov po zemi, ak tvoj súper urobil čistý pop.' },
+  { title: 'Ako prebieha súboj', text: 'Jazdec zadá trik, súper ho musí zopakovať. Kto nezopakuje, dostane písmeno. Kto prvý vyskladá S.K.A.T.E., vypadáva.\n\nJazdec s posledným písmenom má na splnenie triku dva pokusy.\n\nPri útočnom dotyku nohy o zem máš jeden opravný pokus.\n\nPri obrannom dotyku nohy o zem je väčšia tolerancia na chybu. O všetkom rozhoduje rozhodca.\n\nDržme sa čestného súboja a čistého štýlu. Žiadne výhovorky, žiadne zbytočné drámy. Na konci môže byť len jeden víťaz.' },
+  { title: 'Kategórie', text: 'Open (nad 16 rokov), U16 (do 16 rokov) a Babská kategória. Najlepší trik dňa dostane ocenenie Best Trick.\n\nJazdci do 16 rokov sa registrujú so súhlasom rodiča.' },
+  { title: 'Bonus: Mimo zem (prekážkový súboj)', text: 'Po semifinále hlavného programu otvárame dobrovoľnú kategóriu pre všetkých, ktorí chcú ukázať, čo vedia na prekážkach. Prihlásiť sa môžeš priamo na mieste u organizátorov.\n\nVšetky triky sú povolené. Organizátori vyberú päť prekážok a diváci hlasovaním vyberú dve, na ktorých sa súťaží. Každé kolo si jazdec vyberie, na ktorej z nich zadá trik.\n\nPlatí rovnaký princíp: jeden jazdec zadá trik, druhý ho musí zopakovať. Po troch neúspešných pokusoch sa dá prekážka vymeniť, opäť ju vyberajú diváci.\n\nNajlepšie triky postupujú a vyberie sa Best Trick na prekážke.' },
+  { title: 'Body do rebríčka', text: 'Za umiestnenie v Game of S.K.A.T.E.: 1. miesto 100 b., 2. miesto 80 b., 3. – 4. miesto 60 b., 5. – 8. miesto 40 b., 9. – 16. miesto 20 b., účasť 5 b. Ocenenie Best Trick je za 20 b.\n\nPri rovnakom počte bodov je vyššie Open, potom U16 a Babská kategória a skorší event má prednosť.' },
+];
+export const FAQ = [
+  { q: 'Koľko stojí štartovné?', a: 'Nič. GOSko je bez vstupného aj bez štartovného, ceny dodávajú partneri.' },
+  { q: 'Ako sa prihlásim?', a: 'Na stránke eventu klikni na „Chcem jazdiť“ a vyplň krátky formulár. Dostaneš QR pass, ktorý na mieste ukážeš pri check-ine. Prihlásiť sa dá aj priamo na mieste, kým je voľná kapacita.' },
+  { q: 'Môžem jazdiť, ak mám menej ako 16 rokov?', a: 'Áno, v kategórii U16. Pri registrácii treba súhlas rodiča alebo zákonného zástupcu. Viac na stránke Pre rodičov.' },
+  { q: 'Aké triky sú povolené?', a: 'Jazdí sa na rovnej ploche (flatground). Bez dotyku zeme rukami či nohou, bez manuálov a bez chytania dosky. Presné pravidlá sú vyššie.' },
+  { q: 'Čo si mám priniesť?', a: 'Dosku, prilbu (pri U16 povinná) a dobrú náladu. Pitie a hudbu zabezpečíme.' },
+  { q: 'Ako fungujú body a rebríček?', a: 'Za každé umiestnenie dostaneš body do sezónneho rebríčka. Najlepší jazdci sezóny postupujú do finále v Bratislave.' },
+  { q: 'Môžem prísť len pozerať?', a: 'Jasné. Vstup je voľný pre všetkých, diváci hlasujú v bonusovej kategórii a na konci je afterparty.' },
+  { q: 'Kde nájdem fotky a výsledky?', a: 'Na stránke každého eventu a v rebríčku. Novinky dávame aj na Instagram @g.o.s.ko.' },
+  { q: 'Chcem GOSko u nás alebo byť partner. Komu napíšem?', a: 'Na stránke Pre partnerov je formulár „Zavolaj si GOSko“, alebo napíš na rdurica1995@gmail.com.' },
+];
 
 /* Známe skateparky na mape. Poloha je orientačná: ak pin nesedí, v Google Maps podrž prst na
    presnom mieste, skopíruj súradnice a prepíš lat a lng. Navigácia hľadá park podľa názvu a mesta. */
@@ -214,6 +229,7 @@ export const FAQ = [];
 export const EVENT_MEDIA = {
   '3473b315-274b-4190-a3e8-9f37cab0f274': {
     title: 'Otvorenie skateparku v Liptovskom Mikuláši',
+    date: '2026-10-17', city: 'Liptovský Mikuláš', place: 'Skatepark Liptovský Mikuláš', country: 'Slovensko',
     photos: [
       { src: 'img/ev/lm-2026/park.webp', alt: 'Skatepark Liptovský Mikuláš plný ľudí' },
       { src: 'img/ev/lm-2026/dav.webp', alt: 'Ľudia pri otvorení skateparku' },
@@ -232,7 +248,7 @@ export const SKATEPARKS = [
   { name: 'Skatepark Rača (Urbanpark Tbiliská)', city: 'Bratislava', area: 'Rača', lat: 48.2049, lng: 17.1516, about: 'Domovský park prvého GOSka (31. 5. 2026).', tag: 'GOSko' },
   { name: 'Hangair', city: 'Bratislava', area: 'Vajnory', lat: 48.2045, lng: 17.1890, about: 'Akadémia akčných športov. Vnútorný park s minirampou a vonkajší betónový park.', tag: 'indoor' },
   { name: 'Skatepark Solinky', city: 'Žilina', area: 'Solinky', lat: 49.2160, lng: 18.7650, about: 'Tu bolo druhé GOSko na Shred Feste (27. 6. 2026).', tag: 'GOSko' },
-  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v roku 2025.', tag: 'betón', photo: 'img/ev/lm-2026/park.webp', photosFrom: '3473b315-274b-4190-a3e8-9f37cab0f274' },
+  { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v októbri 2026.', tag: 'betón', photo: 'img/ev/lm-2026/park.webp', photosFrom: '3473b315-274b-4190-a3e8-9f37cab0f274' },
   { name: 'Skatepark KVP', city: 'Košice', area: 'Sídlisko KVP', lat: 48.7166, lng: 21.2145, about: 'Moderný park na Moskovskej triede, tu sa jazdili Majstrovstvá SR 2026.', tag: 'betón' },
   { name: 'Sketon Skatepark', city: 'Sládkovičovo', area: '', lat: 48.2003, lng: 17.6371, about: 'Domov Cube Skate Day.', tag: 'betón' },
 ];
