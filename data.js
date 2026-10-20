@@ -263,7 +263,10 @@ export const SKATEPARKS = [
                 Každá časť môže byť aj farba, napr. grip: '#F4C2D7', wheels: '#39FF14', trucks: '#E2B53C'.
    Príklad:
      'sebastian-kozmann': { instagram: 'sebo', city: 'Bratislava', look: { deck: 'black', wheels: 'red' } }, */
-export const RIDERS = {};
+export const RIDERS = {
+  'sebastian-kozmann': { photo: 'img/riders/sebastian-kozmann.webp' },
+  'tomas-cekovsky': { photo: 'img/riders/tomas-cekovsky.webp' },
+};
 
 /* Súkromie jazdcov. Predvolene sa mená ukazujú celé (rovnako ako na Instagrame).
    Ak si rodič alebo jazdec praje skrátené meno, pridaj riadok:
