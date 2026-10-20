@@ -282,10 +282,15 @@ async function requireLogin(after) { if (await store.signedIn()) return true; lo
 function lightbox(photos, index) {
   let i = index;
   const img = h('img', { alt: '' });
-  const show = () => { img.src = photos[i].src; img.alt = photos[i].alt; };
+  const cnt = h('span', { class: 'lb-count mono' });
+  const show = () => { img.src = photos[i].src; img.alt = photos[i].alt; cnt.textContent = photos.length > 1 ? `${i + 1} / ${photos.length}` : ''; };
+  // potiahnutie prstom doľava/doprava prepína fotky
+  let sx = null;
+  img.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+  img.addEventListener('touchend', e => { if (sx === null) return; const d = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(d) > 50) { i = (i + (d < 0 ? 1 : -1) + photos.length) % photos.length; show(); } }, { passive: true });
   const dlg = h('dialog', { class: 'lightbox', 'aria-label': 'Fotka' },
     img,
-    h('div', { class: 'lb-bar' },
+    h('div', { class: 'lb-bar' }, cnt,
       h('button', { class: 'btn', type: 'button', onclick: () => { i = (i - 1 + photos.length) % photos.length; show(); } }, 'Predošlá'),
       h('button', { class: 'btn', type: 'button', onclick: () => { i = (i + 1) % photos.length; show(); } }, 'Ďalšia'),
       h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Zavrieť')));
@@ -302,7 +307,7 @@ function bands() {
   return h('nav', { class: 'bands', 'aria-label': 'Eventy GOSko' }, EVENTS.filter(e => e.status === 'done' || e.status === 'next').map(ev =>
     h('a', { class: 'band' + (ev.status === 'next' ? ' next' : ''), href: '#/event/' + ev.id },
       h('span', { class: 'city wide' }, ev.city),
-      h('span', { class: 'meta cond' }, ev.status === 'next' ? (ev.date ? `Ďalší stop, ${fmtDate(ev.date)}` : 'Ďalší stop, dátum čoskoro') : [ev.place, fmtDate(ev.date)].filter(Boolean).join(', ') || 'Odjazdené'),
+      h('span', { class: 'meta cond' }, ev.status === 'next' ? (ev.date ? `Ďalší stop, ${fmtDate(ev.date)}` : `Ďalší stop, ${soonDate(ev)}`) : [ev.place, fmtDate(ev.date)].filter(Boolean).join(', ') || 'Odjazdené'),
       h('span', { class: 'arr', 'aria-hidden': 'true' }, '→'))));
 }
 function standingsListPlain(rows, { limit, eventMode } = {}) {
@@ -384,7 +389,7 @@ function podiumEl(rows) {
 const scoringNote = () => h('p', { class: 'note' },
   `Body: 1. miesto ${pointsFor(1)}, 2. miesto ${pointsFor(2)}, 3. až 4. miesto ${pointsFor(3)}, 5. až 8. ${pointsFor(5)}, 9. až 16. ${pointsFor(9)}, účasť ${pointsFor(99)}. `,
   SEASON_RULES.countBest ? `Do rebríčka sa rátajú ${SEASON_RULES.countBest} najlepšie výsledky jazdca. ` : '',
-  'Z prvých eventov poznáme len top 3, od ďalšieho zapisujeme celý pavúk. Best Trick je ocenenie, nie body.');
+  'Z prvých eventov poznáme len top 3, od ďalšieho zapisujeme celý pavúk. Best Trick je ocenenie za 20 b.');
 function photoGrid(photos, limit) {
   const list = limit ? photos.slice(0, limit) : photos;
   return h('div', { class: 'gallery' }, list.map((p, i) => h('button', { type: 'button', class: 'ph', onclick: () => lightbox(photos, i), 'aria-label': 'Zväčšiť: ' + p.alt },
@@ -413,6 +418,8 @@ function daysUntil(dateStr) {
   const t0 = new Date();
   return Math.round((Date.UTC(p.y, p.m - 1, p.d) - Date.UTC(t0.getFullYear(), t0.getMonth(), t0.getDate())) / 864e5);
 }
+/* krátky dátum pre ďalší event bez presného dátumu: „14. alebo 21. 11.“ (z ev.when), inak „čoskoro“ */
+const soonDate = ev => ev?.when ? String(ev.when).replace(/\s*20\d\d\s*$/, '') : 'čoskoro';
 const nextEvent = () => EVENTS.filter(e => e.status === 'next').sort((a, b) => (a.date || '9').localeCompare(b.date || '9'))[0];
 function countdownEl(ev) {
   if (!ev) return null;
@@ -516,7 +523,7 @@ function toast(text, img) {
 function tickerEl() {
   const items = [];
   for (const ev of EVENTS) {
-    if (ev.status === 'next') items.push(`Ďalší stop: ${ev.city}${ev.date ? ' ' + fmtDate(ev.date) : ', dátum čoskoro'}`);
+    if (ev.status === 'next') items.push(`Ďalší stop: ${ev.city}${ev.date ? ' ' + fmtDate(ev.date) : ', ' + soonDate(ev)}`);
     else if (ev.status === 'done') {
       items.push(`${ev.city}${ev.date ? ' ' + fmtDate(ev.date) : ''} · odjazdené`);
       const win = (ev.results?.open || [])[0];
@@ -574,7 +581,7 @@ function newsRotator(next) {
         h('button', { type: 'button', 'aria-label': 'Ďalšia novinka', onclick: () => show(i + 1, 1) }, '→'))),
     stage, bar);
   if (next) { const n = next.date ? dayDiff(todayStr(), next.date) : null;
-    slides.push({ kicker: n !== null && n >= 0 ? `Ďalší stop · ${n === 0 ? 'dnes!' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`}` : 'Ďalší stop · coming soon', title: next.name, sub: next.date ? `${fmtDate(next.date)}${next.place ? ', ' + next.place : ''}. Zaregistruj sa.` : 'Zaregistruj sa a dáme ti vedieť medzi prvými.', href: '#/event/' + next.id, img: null }); }
+    slides.push({ kicker: n !== null && n >= 0 ? `Ďalší stop · ${n === 0 ? 'dnes!' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`}` : `Ďalší stop · ${soonDate(next)}`, title: next.name, sub: next.date ? `${fmtDate(next.date)}${next.place ? ', ' + next.place : ''}. Zaregistruj sa.` : 'Zaregistruj sa a dáme ti vedieť medzi prvými.', href: '#/event/' + next.id, img: null }); }
   show(0);
   if (next) loadLogo().then(logo => { slides[0].img = stickerCanvas(eventSticker(next), logo, 256).toDataURL(); if (i === 0) { const im = stage.lastChild?.querySelector('.nr-img'); if (im) { im.classList.remove('ghost'); im.firstChild.src = slides[0].img; } } }).catch(() => {});
   loadPosts().then(posts => { slides.push(...posts.slice(0, 5).map(p => ({ kicker: 'Novinka · ' + fmtDateTime(p.created_at), title: p.title, sub: p.summary, href: '#/novinka/' + p.id, img: p.image_url }))); show(i); });
@@ -587,7 +594,7 @@ function mountRoller(host) {
   const nav = h('nav', { class: 'ticker er er-top', 'aria-label': 'Skate eventy doma a vo svete' },
     h('a', { class: 'er-label mono', href: '#/eventy#kalendar' }, 'Skate kalendár'), h('div', { class: 'er-track' }, inner));
   const fill = list => {
-    const gk = EVENTS.filter(e => e.status === 'next').map(e => ({ ours: true, name: e.name, country: 'Slovensko', label: e.date ? shortDate(e.date) : 'čoskoro', href: '#/event/' + e.id }));
+    const gk = EVENTS.filter(e => e.status === 'next').map(e => ({ ours: true, name: e.name, country: 'Slovensko', label: e.date ? shortDate(e.date) : soonDate(e), href: '#/event/' + e.id }));
     const items = [...gk, ...list.slice(0, 20).map(e => ({ ...e, label: shortDate(e.date), href: '#/eventy#kalendar' }))];
     const run = () => items.map(e => h('a', { href: e.href, class: e.ours ? 'ours' : '' }, flag(e.country), h('b', {}, e.label), e.city ? h('span', { class: 'er-city' }, e.city) : null, h('span', {}, e.name)));
     inner.replaceChildren(...run(), ...run(), ...(items.length < 6 ? [...run(), ...run()] : []));
@@ -623,7 +630,7 @@ function stickerWall({ bare = false } = {}) {
     return h('a', { class: 'sw-item' + (isNext ? ' next' : ''), href: '#/event/' + e.id, style: `--r:${[-6, 4, -2, 7][k % 4]}deg`, onclick: ev => peel(ev, e), 'aria-label': `${e.name}: otvoriť svet eventu` },
       h('span', { class: 'sw-st' }, img, h('span', { class: 'sw-corner', 'aria-hidden': 'true' })),
       h('span', { class: 'sw-cap' },
-        h('span', { class: 'mono sw-date' }, isNext ? 'Ďalší stop · coming soon' : fmtDate(e.date)),
+        h('span', { class: 'mono sw-date' }, isNext ? (e.date ? `Ďalší stop · ${fmtDate(e.date)}` : `Ďalší stop · ${soonDate(e)}`) : fmtDate(e.date)),
         h('b', {}, e.name),
         h('span', { class: 'sw-hint' }, isNext ? 'Registrácia a info' : 'Fotky, výsledky, videá', h('span', { 'aria-hidden': 'true' }, ' →'))));
   }));
@@ -799,16 +806,13 @@ function skaterCards(rows, label = `Open ${SITE.season}`) {
   const stat = (n, t) => h('span', {}, h('b', {}, String(n)), h('small', {}, t));
   /* fotka jazdca ako pozadie karty; kým ju nemáme, fotka z eventu, kde jazdil (každý jazdec inú) */
   const cardPhoto = (r, rd) => {
-    const info = RIDERS[r.slug] || {};
-    if (info.photo) return info.photo;
-    const pools = (rd?.results || []).map(x => x.ev.photos || []).filter(p => p.length);
-    const pool = pools[0] || allPhotos();
-    return pool.length ? pool[hashStr(r.slug) % pool.length].src : 'img/ba-podium.webp';
+    // len vlastná fotka jazdca – cudzia tvár pod menom by bola chyba; bez fotky ostane grafické pozadie
+    return (RIDERS[r.slug] || {}).photo || null;
   };
   const card = (r, i) => {
     const rd = R.get(r.slug);
     return h('a', { class: `sk-card r${i + 1}`, href: '#/jazdec/' + r.slug, onpointermove: tilt, onpointerleave: untilt },
-      h('span', { class: 'sk-bg', 'aria-hidden': 'true' }, h('img', { class: 'sk-photo', src: cardPhoto(r, rd), alt: '', loading: 'lazy' }), h('span', { class: 'sk-shade' })),
+      h('span', { class: 'sk-bg' + (cardPhoto(r, rd) ? '' : ' nophoto'), 'aria-hidden': 'true' }, cardPhoto(r, rd) ? h('img', { class: 'sk-photo', src: cardPhoto(r, rd), alt: '', loading: 'lazy' }) : h('span', { class: 'sk-ini' }, initials(r.name)), h('span', { class: 'sk-shade' })),
       h('span', { class: 'sk-top' }, h('span', { class: 'sk-rank' }, `#${i + 1}`), h('span', { class: 'mono sk-cat' }, label)),
       h('span', { class: 'sk-art' }, rd ? boardImg(rd, 'sk-bimg') : null),
       h('span', { class: 'sk-name' }, r.name),
@@ -1048,7 +1052,7 @@ function pageStandings(root, focus) {
   /* úprimne, čo v rebríčku je: z prvých GOSiek máme len stupne víťazov, celé výsledky zbierame od ďalšieho */
   const nextEv = nextEvent();
   const stats = h('div', { class: 'rk-info' },
-    h('p', {}, h('b', {}, 'Ako vznikol rebríček. '), `Z ${doneEv.map(e => e.name.replace(/^GOSko/, 'GOSka')).join(' a ') || 'prvých eventov'} máme zapísané len stupne víťazov, teda prvé tri miesta v kategóriách, ktoré sa jazdili. Body majú zatiaľ len jazdci, ktorí boli na stupňoch.`),
+    h('p', {}, h('b', {}, 'Ako vznikol rebríček. '), `Z ${doneEv.map(e => e.name.replace(/^GOSko/, 'GOSka')).join(' a ') || 'prvých eventov'} máme zapísané len stupne víťazov, teda prvé tri miesta v kategóriách, ktoré sa jazdili. Body majú zatiaľ jazdci, ktorí boli na stupňoch, a víťaz Best Trick (20 b.).`),
     h('p', {}, `Od ${nextEv ? nextEv.name.replace(/^GOSko/, 'GOSka') : 'ďalšieho GOSka'} zapisujeme celý pavúk, takže body dostane každý, kto jazdí.`));
   function render() {
     const doneEvents = EVENTS.filter(e => e.status === 'done' && e.season === season);
@@ -1061,7 +1065,7 @@ function pageStandings(root, focus) {
         chips([['season', `Sezóna ${season}`], ...doneEvents.map(e => [e.id, e.name])], scope, v => { scope = v; }),
         chips([...CATEGORIES.map(c => [c.id, c.name]), ['award', 'Best Trick']], cat, v => { cat = v; })),
       ev && ev.awards?.length ? h('p', { class: 'note' }, ev.awards.map(a => [`${a.name}: `, h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider), '. '])) : null,
-      rows.length ? [skaterCards(rows, `${catName(cat)} · ${em ? ev.name.replace(/^GOSko\s*/, '') : season}`), standingsList(rows, { eventMode: em, from: 3 })] : standingsList(rows),
+      rows.length ? [skaterCards(rows, `${catName(cat)} · ${em ? ev.name.replace(/^GOSko\s*/, '') : season}`), standingsList(rows, { eventMode: em, from: 3 })] : h('p', { class: 'empty' }, em ? 'V tejto kategórii sa na tomto evente nejazdilo.' : 'Výsledky doplníme.'),
       scope === 'season' ? finaleEl(cat, season) : null);
   }
   const pts = h('div', { class: 'rk-points' }, h('h3', { class: 'mono' }, 'Bodovanie'),
@@ -1165,7 +1169,12 @@ async function pageEvents(root) {
 
   function dateCell(e) {
     const p = parseDate(e.date);
-    if (!p) return h('div', { class: 'evl-date soon' }, h('b', {}, '?'), h('span', {}, 'čoskoro'));
+    if (!p) {
+      // „14. alebo 21. 11.“ → veľké „14/21“, malé „nov?“
+      const m = String(e.ev?.when || '').match(/(\d+)\.\s*alebo\s*(\d+)\.\s*(\d+)\./);
+      return m ? h('div', { class: 'evl-date soon tentative' }, h('b', {}, `${m[1]}/${m[2]}`), h('span', {}, MON[+m[3] - 1] + '?'))
+        : h('div', { class: 'evl-date soon' }, h('b', {}, '?'), h('span', {}, 'čoskoro'));
+    }
     const z = parseDate(lastDay(e)), multi = z && (z.d !== p.d || z.m !== p.m);
     return h('div', { class: 'evl-date' }, h('b', {}, multi ? `${p.d}–${z.d}` : String(p.d)), h('span', {}, MON[p.m - 1] + (multi && z.m !== p.m ? '–' + MON[z.m - 1] : '')));
   }
@@ -1173,7 +1182,7 @@ async function pageEvents(root) {
   function actions(e) {
     if (e.tier === 'gosko') {
       const ev = e.ev, isNext = ev.status === 'next';
-      return [isNext && ev.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: x => { x.preventDefault(); registerDialog(ev); } }, 'Prihlásiť sa') : null,
+      return [isNext && ev.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: x => { x.preventDefault(); registerDialog(ev); } }, 'Chcem jazdiť') : null,
         h('a', { class: 'btn small', href: '#/event/' + ev.id }, isNext ? 'Info' : 'Výsledky')];
     }
     const ig = e.instagram ? (/^https?:/.test(e.instagram) ? e.instagram : `https://www.instagram.com/${String(e.instagram).replace(/^@/, '')}/`) : (/instagram\.com/.test(e.link || '') ? e.link : null);
@@ -1208,8 +1217,9 @@ async function pageEvents(root) {
     // po mesiacoch, ako na HLTV
     const groups = [];
     for (const e of all) {
-      const p = parseDate(e.date), key = p ? `${p.y}-${p.m}` : 'soon';
-      let g = groups.at(-1); if (!g || g.key !== key) groups.push(g = { key, label: p ? `${MONTHS_NOM[p.m - 1]} ${p.y}` : 'Dátum čoskoro', items: [] });
+      const p = parseDate(e.date), w = !p && String(e.ev?.when || '').match(/(\d+)\.\s*(20\d\d)/);
+      const key = p ? `${p.y}-${p.m}` : w ? `${w[2]}-${+w[1]}` : 'soon';
+      let g = groups.find(x => x.key === key); if (!g) groups.push(g = { key, label: p ? `${MONTHS_NOM[p.m - 1]} ${p.y}` : w ? `${MONTHS_NOM[+w[1] - 1]} ${w[2]}` : 'Dátum čoskoro', items: [] });
       g.items.push(e);
     }
     listBox.replaceChildren(...groups.map(g => h('section', { class: 'evl-month' }, h('h3', { class: 'evl-mh' }, g.label), h('ul', { class: 'evl-list' }, g.items.map(row)))));
@@ -1353,21 +1363,23 @@ async function pageCalEvent(root, id) {
   try { e = (await store.listEvents()).find(x => x.id === id) || null; } catch (err) { console.error(err); }
   if (!e && !media) return pageNotFound(root);
   const m = media || {}, title = m.title || e?.name || 'Event';
-  const p = e ? parseDate(e.date) : null;
+  const p = parseDate(e?.date || m.date);
   const when = p ? `${p.d}. ${p.m}. ${p.y}` : '';
-  const where = e ? [e.place, e.city].filter(Boolean).join(', ') : '';
+  const where = [e?.place || m.place, e?.city || m.city].filter(Boolean).join(', ');
+  const park = SKATEPARKS.find(x => x.photosFrom === id);
   const photos = m.photos || [];
   root.append(pageHead(title, [when, where].filter(Boolean).join(' · ')),
     h('div', { class: 'wrap page-body cev' },
       h('div', { class: 'cev-top' },
         h('div', { class: 'cev-info' },
-          h('span', { class: 'mono hs-k' }, e ? [e.country, e.kind].filter(Boolean).join(' · ') : 'Event'),
+          h('span', { class: 'mono hs-k' }, [e?.country || m.country, e?.kind].filter(Boolean).join(' · ') || 'Event'),
           h('ul', { class: 'cev-facts' },
             when ? h('li', {}, h('span', { class: 'mono' }, 'Kedy'), h('b', {}, when)) : null,
             where ? h('li', {}, h('span', { class: 'mono' }, 'Kde'), h('b', {}, where)) : null,
             e?.organizer ? h('li', {}, h('span', { class: 'mono' }, 'Organizuje'), h('b', {}, e.organizer)) : null),
           h('div', { class: 'actions' },
             e?.link ? h('a', { class: 'btn small', href: e.link, target: '_blank', rel: 'noopener' }, 'Web eventu') : null,
+            park ? h('a', { class: 'btn small', href: '#/mapa' }, 'Skatepark na mape') : null,
             h('a', { class: 'btn small', href: '#/eventy' }, 'Všetky eventy')))),
       photos.length ? h('section', { class: 'cev-photos' }, h('h2', { class: 'wide sub' }, 'Fotky'),
         h('div', { class: 'cev-grid' }, photos.map((ph, i) => h('button', { type: 'button', class: 'cev-ph', onclick: () => lightbox(photos, i), 'aria-label': 'Zväčšiť: ' + ph.alt }, h('img', { src: ph.src, alt: ph.alt, loading: 'lazy' }))))) : null));
@@ -1435,7 +1447,7 @@ async function pageEvent(root, id) {
     h('div', { class: 'wrap evw-grid' },
       h('div', { class: 'evw-st' }, stk),
       h('div', { class: 'evw-copy' },
-        h('p', { class: 'mono evw-k' }, isNext ? 'Ďalší stop · coming soon' : `Odjazdené · ${ev.city}`),
+        h('p', { class: 'mono evw-k' }, isNext ? `Ďalší stop · ${ev.date ? fmtDate(ev.date) : soonDate(ev)}` : `Odjazdené · ${ev.city}`),
         h('h1', {}, ev.name),
         h('dl', { class: 'evw-facts' }, facts.map(([k, v]) => h('div', {}, h('dt', { class: 'mono' }, k), h('dd', {}, v)))),
         ev.about ? h('p', { class: 'lead' }, ev.about) : null,
@@ -1459,7 +1471,7 @@ async function pageEvent(root, id) {
   const mini = h('div', { class: 'evw-mini' }, others.map(e => {
     const im = h('img', { alt: '', width: 120, height: 120 });
     loadLogo().then(logo => { im.src = stickerCanvas(eventSticker(e), logo, 384).toDataURL(); }).catch(() => {});
-    return h('a', { href: '#/event/' + e.id, class: 'evw-mi' }, im, h('b', {}, e.name), h('span', { class: 'mono' }, e.status === 'next' ? 'coming soon' : fmtDate(e.date)));
+    return h('a', { href: '#/event/' + e.id, class: 'evw-mi' }, im, h('b', {}, e.name), h('span', { class: 'mono' }, e.status === 'next' ? (e.date ? fmtDate(e.date) : soonDate(e)) : fmtDate(e.date)));
   }));
   const cal = h('ul', { class: 'cal-mini' });
   moreBox.append(mini, h('div', { class: 'cal-box' }, h('div', { class: 'cal-head' }, h('h3', { class: 'mono' }, 'Zo skate kalendára'), h('a', { class: 'linkish', href: '#/eventy#kalendar' }, 'Celý kalendár')), cal));
@@ -1480,7 +1492,7 @@ async function pageEvent(root, id) {
         clips.length ? h('ul', { class: 'clip-list' }, clips) : null,
         !items.length ? h('p', { class: 'empty' }, 'Máš vlastnú fotku alebo klip z eventu? Pošli ho a pridáme ho sem.') : null,
         h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => requireLogin(() => photoDialog(ev, load)).then(ok => ok && photoDialog(ev, load)) }, 'Pošli svoju fotku alebo klip')),
-        h('p', { class: 'note' }, 'Si na fotke a nechceš tam byť? ', h('button', { class: 'linklike', type: 'button', onclick: () => privacyDialog({ target: ev.name }) }, 'Napíš nám'), ' a odstránime ju.'),
+        (photos.length || ev.photos?.length) && h('p', { class: 'note' }, 'Si na fotke a nechceš tam byť? ', h('button', { class: 'linklike', type: 'button', onclick: () => privacyDialog({ target: ev.name }) }, 'Napíš nám'), ' a odstránime ju.'),
       ].filter(Boolean));
     };
     await load();
@@ -1493,7 +1505,7 @@ function pageRider(root, s) {
   const r = riders().find(x => x.slug === s);
   if (!r) return pageNotFound(root);
   const canvas = h('canvas', { 'aria-label': `Doska jazdca ${r.name} s nálepkami` });
-  const rankIn = r.cats.map(c => { const st = standings(c); const i = st.findIndex(x => x.slug === r.slug); return i >= 0 ? `${i + 1}. v rebríčku ${catName(c)}` : null; }).filter(Boolean);
+  const rankIn = [...r.cats, ...(r.awards.length ? ['award'] : [])].map(c => { const st = standings(c); const i = st.findIndex(x => x.slug === r.slug); return i >= 0 ? `${i + 1}. v rebríčku ${catName(c)}` : null; }).filter(Boolean);
   root.append(h('header', { class: 'hero rider-hero' }, h('div', { class: 'wrap hero-grid' },
     h('div', {},
       h('div', { class: 'rider-id' }, avatarEl(r.name, r.slug), h('h1', { class: 'wide' }, r.name)),
@@ -1506,7 +1518,7 @@ function pageRider(root, s) {
       h('h2', { class: 'sub' }, 'Výsledky'),
       h('ul', { class: 'r-results' },
         r.results.map(x => h('li', {}, h('a', { href: '#/event/' + x.ev.id }, x.ev.name), ` ${x.place}. miesto, ${catName(x.cat)}, ${pointsFor(x.place)} b.`)),
-        r.awards.map(a => h('li', {}, h('a', { href: '#/event/' + a.ev.id }, a.ev.name), ` ${a.name}`))),
+        r.awards.map(a => h('li', {}, h('a', { href: '#/event/' + a.ev.id }, a.ev.name), ` ${a.name}, ${awardPoints(a.name)} b.`))),
       h('h2', { class: 'sub' }, 'Odznaky'),
       h('ul', { class: 'badges' }, riderBadges(r).map(b => h('li', { class: 'badge' }, h('span', { class: 'b-ico', html: badgeSvg(b, 22) }),
         h('span', {}, h('strong', {}, b.name), h('small', {}, b.detail ? `${b.text}: ${b.detail}` : b.text))))),
@@ -1669,13 +1681,13 @@ function pagePartners(root, sub) {
       h('div', { class: 'pt-bg', 'aria-hidden': 'true' }, h('img', { src: 'img/ba-trick-1.webp', alt: '' })),
       h('div', { class: 'wrap pt-in' },
         h('span', { class: 'mono pt-k' }, 'Pre partnerov · sezóna 2026/27'),
-        h('h1', { class: 'pt-h' }, 'Séria skate súťaží na Slovensku a v Česku'),
+        h('h1', { class: 'pt-h' }, 'Séria skate súťaží na Slovensku'),
         h('p', { class: 'lead' }, 'GOSko je nový organizátor skate eventov. Komunitná značka, ktorá robí pop-up súťaže Game of S.K.A.T.E., rebríček jazdcov a vlastný digitálny svet.'),
         h('p', {}, 'Organizačne za projektom stojí občianske združenie Slovenská Federácia Skateboardingu.'),
         h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#zavolaj', onclick: e => { e.preventDefault(); form.scrollIntoView({ behavior: 'smooth' }); } }, 'Chcem spolupracovať'), h('a', { class: 'btn', href: '#/partneri/mediakit' }, 'Media kit (PDF)')))),
 
     h('section', { class: 'sec' }, h('div', { class: 'wrap pt-three' },
-      [['01', 'Eventy', 'Pop-up súťaže po mestách na Slovensku a v Česku.'], ['02', 'Rebríček a web', 'Body, výsledky a profil každého jazdca.'], ['03', 'Komunita', 'Mapa spotov, parky a klipy.']].map(([n, t, d]) =>
+      [['01', 'Eventy', 'Pop-up súťaže po mestách na Slovensku.'], ['02', 'Rebríček a web', 'Body, výsledky a profil každého jazdca.'], ['03', 'Komunita', 'Mapa spotov, parky a klipy.']].map(([n, t, d]) =>
         h('div', { class: 'pt-card' }, h('span', { class: 'pt-num' }, n), h('h3', {}, t), h('p', {}, d))))),
 
     h('section', { class: 'sec pt-format' }, h('div', { class: 'wrap pt-split' },
@@ -1716,10 +1728,10 @@ function pagePartners(root, sub) {
     h('section', { class: 'sec light' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Plán 2026/27'),
       h('h2', {}, 'Pilot v novembri, potom hlavná sezóna'),
-      h('p', { class: 'lead' }, 'Tri krajské mestá, prvý stop v Česku a finále. Mestá vyberáme spolu s partnermi.'),
+      h('p', { class: 'lead' }, 'Tri krajské mestá a finále v Bratislave. Mestá vyberáme spolu s partnermi.'),
       h('ol', { class: 'pt-plan' }, PLAN.map(p => h('li', { class: (p.dark ? 'dark' : '') + (p.red ? ' red' : '') }, h('span', { class: 'mono' }, p.when), h('b', {}, p.title), h('span', {}, p.place), p.note ? h('small', {}, p.note) : null))),
       h('div', { class: 'pt-three small' },
-        [['Expanzia do Česka', 'Prvý zahraničný stop a rebríček pre SK aj CZ.'], ['Komunitné eventy', 'GOSko pop-upy na festivaloch a jamoch, ako Shred Fest Žilina.'], ['Naše ďalšie projekty', 'GOSko sa objaví aj tam. A partner spolu s ním.']].map(([t, d]) => h('div', { class: 'pt-card' }, h('h3', {}, t), h('p', {}, d)))))),
+        [['Komunitné eventy', 'GOSko pop-upy na festivaloch a jamoch, ako Shred Fest Žilina.'], ['Naše ďalšie projekty', 'GOSko sa objaví aj tam. A partner spolu s ním.']].map(([t, d]) => h('div', { class: 'pt-card' }, h('h3', {}, t), h('p', {}, d)))))),
 
     h('section', { class: 'sec pt-secret' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Plánované projekty 2027'),
@@ -1865,7 +1877,7 @@ async function pagePost(root, id) {
       h('h1', { class: 'post-title' }, p.title),
       p.summary ? h('p', { class: 'post-lead' }, p.summary) : null,
       h('div', { class: 'post-body' }, paras(p.body)),
-      link ? h('div', { class: 'actions' }, link) : null)));
+      h('div', { class: 'actions' }, link || null, h('a', { class: 'btn', href: '#/novinky' }, '← Všetky novinky')))));
 }
 
 async function pageProfile(root) {
@@ -1928,11 +1940,11 @@ async function pageProfile(root) {
         : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu.'),
       edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
-    ghSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Tvoj duch a Ghoskate'),
+    ghSlot.replaceChildren(...[h('h2', { class: 'evw-h' }, 'Tvoj duch a Ghoskate'),
       p ? h('p', {}, 'Prezývka ', h('b', {}, p.nickname), '. Ducha a dosku máš uložené v účte, takže ich uvidíš tu na webe aj v appke Ghoskate.')
         : h('p', {}, 'Ešte nemáš svojho ducha v účte. Vytvor si ho v Ghoskate, našej skate appke, a pridaj prvý spot. Do spustenia dostaneš aj Founder loot.'),
       items.length ? h('ul', { class: 'pf-loot' }, items) : null,
-      h('a', { class: 'btn primary', href: 'ghoskate/#vytvor' }, p ? 'Doska a prezývka v Ghoskate' : 'Vytvoriť ducha v Ghoskate'));
+      h('a', { class: 'btn primary', href: 'ghoskate/#vytvor' }, p ? 'Doska a prezývka v Ghoskate' : 'Vytvoriť ducha v Ghoskate')].filter(Boolean));
   })();
   const xpSlot = h('section', { class: 'pf-xp' }, h('p', { class: 'empty' }, 'Načítavam XP…'));
   const rpSlot = h('section', { class: 'pf-rider' });
@@ -2128,7 +2140,8 @@ async function pageAdmin(root) {
 }
 
 function pageNotFound(root) {
-  root.append(pageHead('Tu nič nie je', 'Stránka neexistuje alebo sa presunula.'), h('div', { class: 'wrap page-body' }, h('a', { class: 'btn', href: '#/' }, 'Na úvod')));
+  root.append(pageHead('Tu nič nie je', 'Stránka neexistuje alebo sa presunula.'), h('div', { class: 'wrap page-body' }, h('div', { class: 'actions' },
+    h('a', { class: 'btn primary', href: '#/' }, 'Na úvod'), h('a', { class: 'btn', href: '#/eventy' }, 'Eventy'), h('a', { class: 'btn', href: '#/rebricek' }, 'Rebríček'), h('a', { class: 'btn', href: '#/mapa' }, 'Mapa spotov'))));
 }
 
 
@@ -2166,8 +2179,9 @@ function newsletterInline(source) {
   const consent = h('input', { type: 'checkbox', required: true });
   const msg = h('p', { class: 'form-msg', role: 'status' });
   const form = h('form', { class: 'news-form', novalidate: true },
-    h('div', { class: 'news-row' }, email, h('button', { class: 'btn primary', type: 'submit' }, 'Chcem vedieť')),
+    h('div', { class: 'news-row' }, email),
     h('label', { class: 'check' }, consent, h('span', {}, 'Súhlasím so zasielaním správ o GOSko eventoch. Odhlásiť sa dá kedykoľvek. ', h('a', { href: '#/sukromie', target: '_blank', rel: 'noopener' }, 'Ako narábame s údajmi'), '.')), msg);
+  form.querySelector('.check').after(h('button', { class: 'btn primary news-go', type: 'submit' }, 'Chcem vedieť'));
   form.addEventListener('submit', async e => {
     e.preventDefault(); msg.textContent = '';
     if (!isEmail(email.value.trim())) { msg.textContent = 'Skontroluj e-mail.'; return; }
@@ -2333,7 +2347,7 @@ function updateMenu() {
   const nx = nextEvent(), a = document.getElementById('sh-next');
   if (a) {
     if (nx) { a.setAttribute('href', 'event/' + nx.id); document.getElementById('sh-next-t').textContent = nx.name;
-      document.getElementById('sh-next-d').textContent = nx.date ? [fmtDate(nx.date), nx.place || nx.city].filter(Boolean).join(' · ') : 'Dátum čoskoro · registrácia otvorená'; }
+      document.getElementById('sh-next-d').textContent = nx.date ? [fmtDate(nx.date), nx.place || nx.city].filter(Boolean).join(' · ') : `${soonDate(nx)} · ${nx.city} · registrácia otvorená`; }
     else { document.getElementById('sh-next-t').textContent = 'Eventy'; document.getElementById('sh-next-d').textContent = 'Kalendár GOSko aj ďalších'; }
   }
   const wa = document.getElementById('sh-wa'); if (wa && SITE.whatsapp) { wa.href = SITE.whatsapp; wa.hidden = false; }
@@ -2391,8 +2405,8 @@ function pageMediaKit(root) {
   const cats = new Set(allResults().map(r => r.cat));
   const numbers = [
     [String(done.length), plural(done.length, 'odjazdený event', 'odjazdené eventy', 'odjazdených eventov'), done.map(e => e.city).join(', ')],
-    [String(list.length), plural(list.length, 'jazdec v rebríčku', 'jazdci v rebríčku', 'jazdcov v rebríčku'), 'po prvej sezóne'],
-    [String(cats.size), plural(cats.size, 'kategória', 'kategórie', 'kategórií'), CATEGORIES.filter(c => cats.has(c.id)).map(c => c.name).join(', ')],
+    [String(list.length), plural(list.length, 'jazdec v rebríčku', 'jazdci v rebríčku', 'jazdcov v rebríčku'), 'po prvých eventoch'],
+    [String(CATEGORIES.length + 1), plural(CATEGORIES.length + 1, 'kategória', 'kategórie', 'kategórií'), [...CATEGORIES.map(c => c.name), 'Best Trick'].join(', ')],
     ...FACTS.filter(f => /zobrazen|partner/i.test(f.label)).map(f => [f.num, f.label, '']),
   ];
   const photos = (EVENTS.find(e => e.photos?.length)?.photos || []).slice(0, 3);
@@ -2457,15 +2471,27 @@ function pageAbout(root) {
       h('section', { class: 'about ab-grid' },
         h('div', { class: 'ab-copy' },
           h('p', { class: 'lead' }, 'Robíme pop-up súťaže po mestách, vedieme rebríček jazdcov a staviame digitálny svet pre skejterov: mapu spotov, 3D dosky a trik týždňa.'),
-          h('p', {}, 'Začali sme v máji 2026 v Bratislave, v júni nasledovala Žilina na Shred Feste. V novembri štartuje pilot novej sezóny a v roku 2027 chceme obísť krajské mestá a prvý stop v Česku.'),
+          h('p', {}, 'Začali sme v máji 2026 v Bratislave, v júni nasledovala Žilina na Shred Feste. V novembri štartuje pilot novej sezóny a v roku 2027 chceme obísť krajské mestá na Slovensku.'),
           h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí občianske združenie Slovenská Federácia Skateboardingu.'),
           h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
         h('div', { class: 'ab-pillars' },
           pillar('#/eventy', '01', 'Eventy', 'Kde sme jazdili a kde budeme.'),
           pillar('#/rebricek', '02', 'Rebríček a jazdci', 'Kto vedie sezónu a kto vyhral ktorý stop.'),
           pillar('#/komunita', '03', 'Komunita', 'Trik týždňa, crew a mapa spotov.'),
-          pillar('#/partneri', '04', 'Pre partnerov', 'Ako sa pridať k sérii.')))));
+          pillar('#/partneri', '04', 'Pre partnerov', 'Ako sa pridať k sérii.'))),
+      h('section', { class: 'ab-team' },
+        h('h2', { class: 'wide sub' }, 'Ľudia za GOSkom'),
+        h('ul', { class: 'team' }, TEAM.map(t => h('li', { class: 'tm' },
+          h('span', { class: 'tm-ini', 'aria-hidden': 'true' }, t.ini),
+          h('span', { class: 'tm-body' }, h('b', {}, t.name), h('span', {}, t.role),
+            h('span', { class: 'tm-links' }, t.links.map(([label, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, label))))))),
+        h('p', { class: 'note' }, 'Píš nám na ', h('a', { href: 'mailto:' + SITE.email }, SITE.email), ' alebo na Instagram ', igLink(SITE.instagram), '.'))));
 }
+const TEAM = [
+  { name: 'Robert Ďurica', ini: 'RĎ', role: 'Organizácia, eventy a web', links: [['Web', 'https://offthewallhack.github.io/rd2026/'], ['@robodurica', 'https://www.instagram.com/robodurica/']] },
+  { name: 'Radoslav „Piry“ Pirožek', ini: 'RP', role: 'Studnica hypotéz', links: [['@studnicahypotez', 'https://www.instagram.com/studnicahypotez/']] },
+  { name: 'Jakub Sluka', ini: 'JS', role: '3Style Academy, partner a jazdec', links: [['@3styleacademy.eu', 'https://www.instagram.com/3styleacademy.eu/'], ['Profil jazdca', '#/jazdec/jakub-sluka']] },
+];
 
 function pageRules(root) {
   const any = RULES.length > 0 || FAQ.length > 0;
@@ -2818,7 +2844,7 @@ function pageCrews(root) {
       const n = crewMembers(c).length;
       /* skryté crew (hidden: true v data.js): kým nemáme dohodu, karta je rozmazaná a bez odkazu */
       if (c.hidden) return h('div', { class: 'crew-card blur', 'aria-hidden': 'true' },
-        h('span', { class: 'crew-mark' }, '??'), h('b', {}, c.name), h('span', { class: 'mono' }, 'čoskoro'), h('span', { class: 'crew-about' }, c.about));
+        h('span', { class: 'crew-mark' }, '??'), h('b', {}, 'Ďalšia crew'), h('span', { class: 'mono' }, 'čoskoro'), h('span', { class: 'crew-about' }, 'Pripravujeme spoluprácu s ďalšou partiou zo scény.'));
       return h('a', { class: 'crew-card', href: '#/crew/' + c.id },
         h('span', { class: 'crew-mark' }, c.name.slice(0, 2).toUpperCase()), h('b', {}, c.name),
         h('span', { class: 'mono' }, [c.city, n ? `${n} ${plural(n, 'jazdec', 'jazdci', 'jazdcov')}` : null].filter(Boolean).join(' · ') || 'Slovensko'),
@@ -2908,14 +2934,15 @@ function pageCommunity(root) {
     h('div', { class: 'wrap page-body' },
       h('div', { class: 'cm-grid' },
         SITE.whatsapp ? card(SITE.whatsapp, 'WhatsApp', 'Pridaj sa do WhatsApp skupiny', 'Dohadovanie sessionov, novinky a info o GOSku skôr ako inde.', 'whatsapp')
-          : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu na sessiony a novinky. Odkaz pridáme sem aj na Instagram.')),
+          : card(`https://www.instagram.com/${SITE.instagram}/`, 'Instagram', '@' + SITE.instagram, 'Novinky, výsledky a klipy z eventov tu dávame ako prvé.', 'insta'),
         card('#/trik-tyzdna', 'Každý týždeň', 'Trik týždňa', 'Pošli klip, vyberieme troch finalistov a ty hlasuješ.', 'red'),
         card('#/crew', 'Partie', 'Crew', CREWS.filter(c => !c.hidden).map(c => c.name).join(', ') + ' a ďalšie. Jazdci, eventy, spoty.'),
         park ? card('#/mapa', 'Spot mesiaca', park.name, SITE.spotOfMonthNote || park.about, 'cream') : null,
         card('#/mapa', 'Mapa', 'Spoty s hodnotením', 'Pridaj spot, ohodnoť povrch, svetlo aj to, či je kryté.'),
         card('#/profil', 'Profil', 'XP a odznaky', 'Za check-in, triky, spoty aj parky zbieraš XP a odomykáš odznaky.'),
         card('#/rodicia', 'U16', 'Pre rodičov', 'Bezpečnosť, súhlas, čo priniesť. Všetko na jednom mieste.'),
-        card('ghoskate/', 'Pripravujeme', 'Ghoskate appka', 'Mapa spotov ako herný svet: check-in, triky, crews a loot. Vytvor si ducha a pridaj prvý spot už teraz.', 'red'))));
+        card('ghoskate/', 'Pripravujeme', 'Ghoskate appka', 'Mapa spotov ako herný svet: check-in, triky, crews a loot. Vytvor si ducha a pridaj prvý spot už teraz.', 'red'),
+        SITE.whatsapp ? null : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu na sessiony a novinky. Odkaz dáme aj na Instagram.')))));
 }
 
 /* ochrana osobných údajov (GDPR). Návrh: pred spustením ho nech skontroluje niekto, kto sa v tom vyzná. */
