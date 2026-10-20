@@ -2881,3 +2881,6 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .ph-photo::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(14,13,12,.94) 10%,rgba(14,13,12,.6) 75%,rgba(14,13,12,.72)),var(--ph-s) var(--ph-pos,50% 40%) / cover no-repeat}
 @media (min-width:900px){ .ph-photo::before{background:linear-gradient(90deg,rgba(14,13,12,.94) 14%,rgba(14,13,12,.5) 75%,rgba(14,13,12,.62)),var(--ph-l) var(--ph-pos,50% 40%) / cover no-repeat} }
 .ph-photo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:56px;z-index:-1;background:linear-gradient(180deg,transparent,var(--black))}
+
+/* v18: pás troch výškových fotiek na celú šírku */
+@media (min-width:900px){ .pb-grid.n3.t3{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto} .pb-grid.n3.t3 .pb-it{aspect-ratio:3 / 4} }

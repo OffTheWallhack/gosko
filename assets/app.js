@@ -405,7 +405,9 @@ const partnerNode = p => (p.logo ? h('img', { class: 'p-logo', src: p.logo, alt:
 const partnerItem = (id, p) => h('li', {}, partnerNode(p), p.about ? h('a', { href: '#/partner/' + id }, 'O partnerovi') : null, igLink(p.instagram));
 /* fotky z eventov (img/gosko1): [šírka, výška] originálu, menšia a väčšia verzia sú pripravené */
 const PHOTOS = { 'board-red': [2250, 1500], 'flip-bollard': [2576, 1717], 'crowd-board': [2576, 1717], 'crowd-low': [2576, 1717], 'carry-table': [2576, 1717], 'flip-santacruz': [2576, 1717],
-  'flip-black': [1717, 2576], 'flip-car': [1717, 2576], 'car-sitting': [1717, 2576], hug: [1717, 2576] };
+  'flip-black': [1717, 2576], 'flip-car': [1717, 2576], 'car-sitting': [1717, 2576], hug: [1717, 2576],
+  'flip-fisheye': [1717, 2576], 'flip-lakers': [1717, 2576], 'flip-tank': [1717, 2576], 'bench-crew': [1717, 2576], 'bowl-portrait': [1717, 2576], peace: [1717, 2576],
+  'cap-gesture': [2576, 1717], 'mc-newspirit': [2576, 1717], pointing: [2576, 1717] };
 function photoImg(name, alt, pos) {
   const [w, hgt] = PHOTOS[name], land = w >= hgt, sw = land ? 720 : 640, lw = land ? 1600 : 1100;
   return h('img', { src: `img/gosko1/${name}-s.webp`, srcset: `img/gosko1/${name}-s.webp ${sw}w, img/gosko1/${name}-l.webp ${lw}w`, sizes: land ? '(max-width: 900px) 100vw, 50vw' : '(max-width: 900px) 50vw, 25vw',
@@ -415,7 +417,7 @@ function photoImg(name, alt, pos) {
 function photoBand({ kicker, title, lead, items, cta, cls = '' }) {
   return h('section', { class: 'sec pband ' + cls }, h('div', { class: 'wrap' },
     kicker ? h('span', { class: 'mono hs-k' }, kicker) : null, title ? h('h2', { class: 'wide' }, title) : null, lead ? h('p', { class: 'lead' }, lead) : null,
-    h('div', { class: `pb-grid n${items.length}` }, items.map(([n, alt, shape, pos]) => h('figure', { class: 'pb-it ' + (shape || '') }, photoImg(n, alt, pos)))),
+    h('div', { class: `pb-grid n${items.length}` + (items.length === 3 && items.every(i => i[2] === 'tall') ? ' t3' : '') }, items.map(([n, alt, shape, pos]) => h('figure', { class: 'pb-it ' + (shape || '') }, photoImg(n, alt, pos)))),
     cta ? h('div', { class: 'actions cta-row' }, cta) : null));
 }
 /* nadpis stránky s fotkou v pozadí */
@@ -1896,7 +1898,7 @@ function postCard(p, { big } = {}) {
 }
 async function pageNews(root) {
   const list = h('div', { class: 'post-grid' }, h('p', { class: 'empty' }, 'Načítavam…'));
-  root.append(pageHead('Novinky', 'Čo sa deje v GOSku: eventy, výsledky, nové veci na webe.'), h('div', { class: 'wrap page-body' }, list));
+  root.append(photoHead(pageHead('Novinky', 'Čo sa deje v GOSku: eventy, výsledky, nové veci na webe.'), 'mc-newspirit', '50% 18%'), h('div', { class: 'wrap page-body' }, list));
   POSTS = null;
   const posts = await loadPosts();
   list.replaceChildren(...(posts.length ? posts.map((p, i) => postCard(p, { big: i === 0 })) : [h('p', { class: 'empty' }, 'Zatiaľ žiadne novinky.')]));
@@ -2528,7 +2530,7 @@ function pageHall(root) {
 
 function pageAbout(root) {
   const pillar = (href, n, t, d) => h('a', { class: 'pl', href }, h('span', { class: 'pl-n mono' }, n), h('span', { class: 'pl-t' }, t), h('span', { class: 'pl-d' }, d), h('span', { class: 'pl-a', 'aria-hidden': 'true' }, '→'));
-  root.append(pageHead('Kto sme', 'Partia skejterov, ktorá robí Game of S.K.A.T.E. po Slovensku.'),
+  root.append(photoHead(pageHead('Kto sme', 'Partia skejterov, ktorá robí Game of S.K.A.T.E. po Slovensku.'), 'cap-gesture', '82% 26%'),
     h('div', { class: 'wrap page-body' },
       h('section', { class: 'about ab-grid' },
         h('div', { class: 'ab-copy' },
@@ -2557,7 +2559,7 @@ const TEAM = [
 
 function pageRules(root) {
   const any = RULES.length > 0 || FAQ.length > 0;
-  root.append(pageHead('Pravidlá', any ? 'Ako sa hrá GOSko a čo treba vedieť.' : 'Pravidlá a odpovede na časté otázky dopĺňame.'));
+  root.append(photoHead(pageHead('Pravidlá', any ? 'Ako sa hrá GOSko a čo treba vedieť.' : 'Pravidlá a odpovede na časté otázky dopĺňame.'), 'pointing', '78% 16%'));
   const body = h('div', { class: 'wrap page-body' });
   const paras = txt => String(txt).split(/\n\s*\n/).map(x => h('p', {}, x));
   for (const r of RULES) put(body, h('section', { class: 'rule' }, h('h2', { class: 'wide sub' }, r.title), paras(r.text)));
@@ -2858,6 +2860,7 @@ function trickDialog(ch, done) {
 async function pageTrick(root) {
   root.append(pageHead('Trik týždňa', 'Pošli klip, my vyberieme troch finalistov a víťaza určíte vy hlasovaním. Víťaz dostane odznak a miesto v novinkách.'));
   const body = h('div', { class: 'wrap page-body tk' }); root.append(body);
+  root.append(photoBand({ kicker: 'Z ihriska', title: 'Takto vyzerá dobrý trik', items: [['flip-fisheye', 'Flip nad rovinkou, širokouhlý záber', 'tall'], ['flip-lakers', 'Kickflip v dresovom tričku', 'tall'], ['flip-tank', 'Skejter v ľahkom predklone na ploche', 'tall']] }));
   let ch = null; try { ch = await store.currentChallenge(); } catch (err) { console.error(err); }
   if (!ch) { put(body, h('p', { class: 'empty' }, 'Nový trik týždňa čoskoro.')); return; }
   const STATUS = { open: ['Posielaj klipy', 'open'], voting: ['Hlasovanie', 'vote'], closed: ['Uzavreté', 'closed'] };
@@ -2907,7 +2910,7 @@ function pageCrews(root) {
         h('span', { class: 'crew-mark' }, c.name.slice(0, 2).toUpperCase()), h('b', {}, c.name),
         h('span', { class: 'mono' }, [c.city, n ? `${n} ${plural(n, 'jazdec', 'jazdci', 'jazdcov')}` : null].filter(Boolean).join(' · ') || 'Slovensko'),
         h('span', { class: 'crew-about' }, c.about));
-    }))));
+    }))), photoBand({ kicker: 'Scéna', title: 'Partie, ktoré to ťahajú', items: [['bench-crew', 'Partia oddychuje na lavičke pri skateparku', 'tall'], ['bowl-portrait', 'Organizátor s vodou a jedlom v rukách', 'tall'], ['peace', 'Skejter zdvíha ruky pred plagátom partnera', 'tall']] }));
 }
 async function pageCrew(root, id) {
   const c = CREWS.find(x => x.id === id);
