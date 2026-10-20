@@ -2931,3 +2931,15 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .sw-link{width:min(240px,100%)}
 .sw-st{width:100%}
 @media (max-width:720px){ .sw-link{width:min(170px,100%)} .sw-item:first-child .sw-link{width:min(210px,70%)} .sw-st,.sw-item:first-child .sw-st{width:100%} }
+
+/* v22: jeden editor, záložky Duch | Doska */
+.pf-editor{min-width:0}
+.pf-editor>h2{margin-bottom:12px}
+.pf-edtabs{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line-dark);border-radius:999px;background:rgba(255,255,255,.04);margin-bottom:18px}
+.pf-edtab{font:inherit;font-weight:700;font-size:.95rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-dark);background:transparent;border:0;border-radius:999px;padding:.65em 1.6em;min-height:44px;cursor:pointer}
+.pf-edtab[aria-selected="true"]{background:var(--cream);color:#111}
+.pf-edtab:focus-visible{outline:2px solid var(--cream);outline-offset:2px}
+.pf-pane[hidden]{display:none}
+.pf-pane>p{color:var(--muted-dark);max-width:62ch;margin-top:0}
+.b3-ghostlink{margin-top:12px;align-self:flex-start}
+.pf-ghoskate:empty{display:none}

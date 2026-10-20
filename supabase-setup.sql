@@ -324,3 +324,6 @@ create table if not exists public.trick_votes (challenge_id uuid references publ
 -- view trick_results = finalisti + počet hlasov (anon môže čítať). Bucket 'clips' (video do 30 MB).
 create table if not exists public.spot_ratings (spot_key text not null, user_id uuid not null default auth.uid(), stars smallint not null check (stars between 1 and 5), tags text[] not null default '{}', created_at timestamptz default now(), primary key (spot_key, user_id));
 -- funkcia my_activity(): počty aktivít prihláseného používateľa pre XP a odznaky.
+
+-- Doska jazdca (z editora v Mojom profile) sa ukazuje aj na kartičke jazdca
+alter table public.rider_profiles add column if not exists loadout jsonb;

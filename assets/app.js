@@ -331,6 +331,8 @@ function avatarEl(name, s, { rank } = {}) {
 }
 /* vzhľad dosky jazdca: z data.js, inak sa odvodí z mena, aby každý mal inú */
 function riderLook(s) {
+  const mine = RIDERS[s]?.extra?.loadout;   // doska, ktorú si jazdec postavil v editore
+  if (mine && typeof mine === 'object') return { ...DEFAULT_LOOK, ...mine };
   if (RIDERS[s]?.look) return { ...DEFAULT_LOOK, ...RIDERS[s].look };
   const n = hashStr(s), pick = (o, k) => Object.keys(o)[Math.floor(n / k) % Object.keys(o).length];
   return { deck: pick(DECKS, 1), grip: pick(GRIPS, 5), wheels: pick(WHEELS, 15), trucks: pick(TRUCKS, 45) };
@@ -339,15 +341,16 @@ const boardImgCache = new Map();
 let boardQueue = Promise.resolve(), boardIO = null;
 function boardImg(r, cls = '') {
   const img = h('img', { class: 'board-img ' + cls, alt: `Doska jazdcu ${r.name}`, width: 150, height: 210, decoding: 'async' });
-  if (boardImgCache.has(r.slug)) { img.src = boardImgCache.get(r.slug); return img; }
+  const key = r.slug + JSON.stringify(RIDERS[r.slug]?.extra?.loadout || '');
+  if (boardImgCache.has(key)) { img.src = boardImgCache.get(key); return img; }
   img.classList.add('loading');
   img._load = () => {
     boardQueue = boardQueue.then(async () => {
-      if (!boardImgCache.has(r.slug)) {
+      if (!boardImgCache.has(key)) {
         const c = await renderBoardImage(riderStickers(r), { width: 300, height: 420, tilt: -.3, turn: -.55, look: riderLook(r.slug) });
-        boardImgCache.set(r.slug, c.toDataURL('image/png'));
+        boardImgCache.set(key, c.toDataURL('image/png'));
       }
-      img.src = boardImgCache.get(r.slug); img.classList.remove('loading');
+      img.src = boardImgCache.get(key); img.classList.remove('loading');
     }).catch(err => console.error(err));
   };
   if (!('IntersectionObserver' in window)) { img._load(); return img; }
@@ -699,7 +702,10 @@ function saveLoadoutSoon(look) {
   loadoutTimer = setTimeout(async () => {
     // vlastná fotka na doske žije len v tomto zariadení, do účtu ide posledná farba dosky
     const deck = look.deck === 'photo' ? (cachedProfile()?.loadout?.deck || 'cream') : look.deck;
-    try { const p = await store.saveProfile({ loadout: { deck, grip: look.grip, wheels: look.wheels, trucks: look.trucks } }); cacheProfile(p); } catch (err) { console.error(err); }
+    const loadout = { deck, grip: look.grip, wheels: look.wheels, trucks: look.trucks };
+    try { const p = await store.saveProfile({ loadout }); cacheProfile(p); } catch (err) { console.error(err); }
+    // ak je účet prepojený s jazdcom, tá istá doska sa ukáže aj na jeho kartičke
+    try { await store.saveRiderLoadout?.(loadout); } catch (err) { console.error(err); }
   }, 900);
 }
 
@@ -719,7 +725,7 @@ function boardTeaser() {
       h('span', { class: 'bt-copy' },
         h('span', { class: 'mono hs-k' }, 'Tvoja 3D doska'),
         h('span', { class: 'bt-h' }, 'Navrhni si dosku'),
-        h('span', { class: 'bt-p' }, 'Farby, grip, kolieska, podvozky aj vlastná fotka na spodku. Nálepky z eventov, kde si jazdil, pribudnú samy.'),
+        h('span', { class: 'bt-p' }, 'Farby, grip, kolieska, podvozky aj vlastná fotka na spodku. Doska je tvoja skutočná, stojí na nej tvoj duch a ukáže sa aj na kartičke jazdca.'),
         h('span', { class: 'btn primary cta' }, 'Otvoriť garáž', icon('arrow'))))));
   return { el, cleanup: () => { if (api) api(); } };
 }
@@ -843,9 +849,10 @@ function boardStudio({ page = false } = {}) {
     stage,
     h('div', { class: 'b3-ui' },
       h('div', { class: 'b3-head' }, h('span', { class: 'mono hs-k' }, 'Tvoja 3D doska'), h(page ? 'h1' : 'h2', {}, 'Postav si dosku'),
-        h('p', {}, 'Farby, grip, kolieska, podvozky aj vlastná fotka na spodku dosky. Nálepky z eventov sú pod doskou, ťuknutím otvoríš event.')),
+        h('p', {}, 'Farby, grip, kolieska, podvozky aj vlastná fotka na spodku dosky. Nálepky z eventov sú pod doskou, ťuknutím otvoríš event.'),
+        page ? h('a', { class: 'btn small b3-ghostlink', href: '#/profil' }, 'Uprav aj ducha, ktorý na nej stojí →') : null),
       sceneBar,
-      h('div', { class: 'b3-garage' }, tabsBar, panel, h('div', { class: 'gar-foot' }, hint, tools))));
+      h('div', { class: 'b3-garage' }, tabsBar, panel, h('div', { class: 'gar-foot' }, hint, tools)),));
   return { el, cleanup: () => { startBoard(); return boardP.then(a => a()); } };
 }
 
@@ -1972,15 +1979,20 @@ async function pageProfile(root) {
     h('button', { type: 'button', class: 'btn small', onclick: () => avatar.api.then(a => a?.emote?.('scared')) }, 'Zľakni ho'),
     h('button', { type: 'button', class: 'btn small', onclick: () => avatar.api.then(a => a?.trick?.('flip')) }, 'Kickflip'));
   const stage = h('div', { class: 'pf-stage' }, avatarSlot, h('div', { class: 'pf-stage-bar' }, styleBar, quick));
-  const edSlot = h('section', { class: 'pf-ghost-ed' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha'), h('p', {}, 'Načítavam…'));
+  const edSlot = h('div', { class: 'pf-pane', id: 'pf-pane-ghost', role: 'tabpanel' }, h('p', {}, 'Načítavam…'));
   // doska ducha = doska z garáže: tu sa upravuje tá istá, zmena sa hneď ukáže na duchovi (3D aj pixel) a uloží do účtu
   const gar = garageEditor(myLook(), l => avatar.api.then(a => a?.setLook?.({ ...DEFAULT_LOOK, ...l })));
-  const boardSec = h('section', { class: 'pf-board' },
-    h('h2', { class: 'evw-h' }, 'Uprav si dosku'),
-    h('p', {}, 'Tá istá doska ako v 3D garáži a pod duchom. Čo zmeníš tu, zmení sa všade.'),
+  const boardSec = h('div', { class: 'pf-pane', id: 'pf-pane-board', role: 'tabpanel', hidden: true },
+    h('p', {}, 'Toto je tvoja skutočná doska. Duch na nej stojí, rovnaká je v 3D garáži a ak si prepojený s jazdcom, aj na tvojej kartičke v rebríčku.'),
     h('div', { class: 'b3-garage pf-garage' }, gar.tabsBar, gar.panel),
     h('a', { class: 'btn small', href: '#/doska' }, 'Otvoriť 3D garáž'));
-  put(body, h('section', { class: 'pf-studio' }, stage, h('div', { class: 'pf-panels' }, edSlot, boardSec)));
+  /* jeden editor: záložky Duch | Doska */
+  const paneOf = { ghost: edSlot, board: boardSec };
+  const edTabs = h('div', { class: 'pf-edtabs', role: 'tablist', 'aria-label': 'Čo upravuješ' },
+    [['ghost', 'Duch'], ['board', 'Doska']].map(([k, n], i) => h('button', { type: 'button', role: 'tab', class: 'pf-edtab', 'data-t': k, 'aria-selected': String(i === 0), 'aria-controls': 'pf-pane-' + k,
+      onclick: () => { for (const [kk, el] of Object.entries(paneOf)) el.hidden = kk !== k; edTabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.t === k))); } }, n)));
+  const editorSec = h('section', { class: 'pf-editor' }, h('h2', { class: 'evw-h' }, 'Uprav si ducha a dosku'), edTabs, edSlot, boardSec);
+  put(body, h('section', { class: 'pf-studio' }, stage, h('div', { class: 'pf-panels' }, editorSec)));
   paintStyle();
   const ghSlot = h('section', { class: 'pf-ghoskate' });
   put(body, ghSlot);
@@ -2008,7 +2020,7 @@ async function pageProfile(root) {
       onEmote: k => avatar.api.then(a => a?.emote?.(k)),
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
-    edSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Uprav si ducha'),
+    edSlot.replaceChildren(
       h('p', {}, p ? `Si na leveli ${level} (${LEVELS[level - 1][1]}). Všetko, čo tu zmeníš, sa uloží do účtu. Duch je ten istý v 3D aj v pixeloch.`
         : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Po prihlásení sa uložia do účtu. Duch je ten istý v 3D aj v pixeloch.'),
       edBox);
