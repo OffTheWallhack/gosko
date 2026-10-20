@@ -1889,7 +1889,7 @@ html{scroll-padding-top:calc(var(--hdr) + 12px)}
 .boot-plain{width:84px;height:auto;filter:drop-shadow(0 12px 24px rgba(0,0,0,.55));animation:ghostFloat 2.6s ease-in-out infinite}
 .boot-bg,.boot-intro{display:none}
 /* úvodná animácia: duch a nápis GOSko, potom sa presunú na miesto na titulke a čierne pozadie odroluje hore */
-html[data-intro]:not(.intro-done){overflow:hidden}
+html[data-intro]:not(.intro-done){overflow:hidden;scrollbar-gutter:stable}
 html[data-intro]:not(.intro-done) .boot{z-index:100000;opacity:1;visibility:visible;transition:none;background:none}
 html[data-intro] .boot-plain{display:none}
 html[data-intro] .boot-bg{display:block;position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 40%,#1c1917,var(--black) 70%);transition:transform .95s cubic-bezier(.7,0,.2,1)}
@@ -1901,7 +1901,6 @@ html.boot-go .boot-bg{transform:translateY(-101%)}
 .bi-bar{display:block;width:min(46vw,200px);height:3px;background:rgba(243,235,221,.16);position:relative;overflow:hidden;opacity:1;transition:opacity .3s}
 .bi-bar::after{content:"";position:absolute;inset:0;background:var(--red,#d3222a);transform:scaleX(0);transform-origin:0 50%;animation:biBar 2.1s cubic-bezier(.3,.6,.3,1) .2s forwards}
 html.boot-go .bi-bar{opacity:0}
-.bi-ghost.go,.bi-word.go{transition:transform .95s cubic-bezier(.7,0,.2,1);animation:none}
 @keyframes biGhostIn{from{opacity:0;transform:translateY(-34px) scale(.55) rotate(-14deg)}to{opacity:1;transform:none}}
 @keyframes biWordIn{from{clip-path:inset(0 100% 0 0);opacity:.2}to{clip-path:inset(0);opacity:1}}
 @keyframes biBar{to{transform:scaleX(1)}}
@@ -2889,3 +2888,23 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .sec-photo{position:relative;isolation:isolate;overflow:hidden}
 .sec-photo::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,var(--black) 0,rgba(14,13,12,.8) 22%,rgba(14,13,12,.84) 72%,var(--black) 100%),var(--ph-s) var(--ph-pos,50% 50%) / cover no-repeat;opacity:.9}
 @media (min-width:900px){ .sec-photo::before{background:linear-gradient(90deg,rgba(14,13,12,.94) 10%,rgba(14,13,12,.74) 60%,rgba(14,13,12,.8)),linear-gradient(180deg,var(--black) 0,transparent 20%,transparent 78%,var(--black) 100%),var(--ph-l) var(--ph-pos,50% 50%) / cover no-repeat} }
+
+/* v20: nálepka ďalšieho eventu v titulke, menšia sekcia eventov, väčší štítok Novinky */
+.vh-stk{position:absolute;z-index:3;top:18px;right:max(14px,calc((100vw - 1200px) / 2 + 16px));display:grid;justify-items:center;width:max-content}
+.vh-stk-img{width:clamp(104px,13vw,168px)}
+.vh-stk-img{display:block;transform:rotate(6deg);transition:transform .3s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 10px 18px rgba(0,0,0,.55))}
+.vh-stk-img img{display:block;width:100%;height:auto}
+.vh-stk-img:hover{transform:rotate(2deg) scale(1.04)}
+.vh-stk-btn{margin-top:-14px;position:relative;z-index:1;transform:rotate(-4deg);font:inherit;font-family:var(--f-display);white-space:nowrap;text-transform:uppercase;letter-spacing:.02em;font-size:clamp(1rem,1.5vw,1.25rem);line-height:1;color:var(--cream);background:var(--red);border:3px solid #fff;border-radius:999px;padding:.55em 1.1em .5em;cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.5);transition:transform .2s}
+.vh-stk-btn:hover{transform:rotate(-1deg) scale(1.06)}
+.vh-stk-btn:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
+@media (prefers-reduced-motion:no-preference){ .vh-stk-btn{animation:stkWiggle 3.6s ease-in-out 1.5s infinite} }
+@keyframes stkWiggle{0%,86%,100%{transform:rotate(-4deg)}90%{transform:rotate(-8deg) scale(1.05)}94%{transform:rotate(0deg) scale(1.05)}}
+@media (max-width:720px){ .vh-stk{top:12px} .vh-stk-img{width:100px} .vh-stk-btn{font-size:.9rem;border-width:2.5px} }
+.nr-live{font-size:.9rem;letter-spacing:.1em;gap:9px}
+.nr-live i{width:9px;height:9px}
+.nr-head{padding-top:10px}
+.sw-reg{display:inline-block;margin-top:2px;font-family:var(--f-display);text-transform:uppercase;font-size:1rem;line-height:1;color:var(--cream);background:var(--red);border:2px solid #fff;border-radius:999px;padding:.45em .95em .4em;transform:rotate(-2deg);box-shadow:0 5px 12px rgba(0,0,0,.4);transition:transform .2s}
+.sw-item:hover .sw-reg{transform:rotate(1deg) scale(1.06)}
+.after-hero .after-solid > .sw-sec{padding-top:clamp(30px,5vw,56px);padding-bottom:clamp(34px,5vw,60px)}
+.sw-sec .sec-head{margin-bottom:12px}
