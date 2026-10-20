@@ -133,6 +133,7 @@ function demoStore() {
     async myRiderProfile() { return LS.get('gosko:rider-profiles', []).find(r => r.user_id === 'demo') || null; },
     async claimRider(slug, fields) { const a = LS.get('gosko:rider-profiles', []); if (a.some(r => r.slug === slug)) throw new Error('taken'); a.push({ slug, user_id: 'demo', status: 'approved', ...fields }); LS.set('gosko:rider-profiles', a); },
     async saveRiderProfile(slug, fields, photo) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) Object.assign(r, fields, photo ? { photo_url: await toDataUrl(photo) } : {}); LS.set('gosko:rider-profiles', a); },
+    async saveRiderLoadout(loadout) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.user_id === 'demo'); if (r) { r.loadout = loadout; LS.set('gosko:rider-profiles', a); } },
     async adminRiderPhoto(slug, photo) { const a = LS.get('gosko:rider-profiles', []); let r = a.find(x => x.slug === slug); if (!r) { r = { slug, status: 'approved' }; a.push(r); } r.photo_url = await toDataUrl(photo); LS.set('gosko:rider-profiles', a); },
     async pendingRiderClaims() { return LS.get('gosko:rider-profiles', []).filter(r => r.status === 'pending'); },
     async setRiderStatus(slug, status) { const a = LS.get('gosko:rider-profiles', []); const r = a.find(x => x.slug === slug); if (r) r.status = status; LS.set('gosko:rider-profiles', a); },
@@ -356,6 +357,7 @@ async function liveStore(CONFIG) {
       }
       must(await sb.from('rider_profiles').update(r).eq('slug', slug));
     },
+    async saveRiderLoadout(loadout) { const s = await session(); if (!s) return; must(await sb.from('rider_profiles').update({ loadout }).eq('user_id', s.user.id)); },
     async adminRiderPhoto(slug, photo) {
       const path = `riders/${slug}-${newToken().slice(0, 8)}.jpg`;
       must(await sb.storage.from('photos').upload(path, photo, { contentType: 'image/jpeg', upsert: false }));
