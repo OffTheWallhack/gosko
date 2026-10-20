@@ -8,7 +8,7 @@ function h(tag, props, ...kids) {
   for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k instanceof Node ? k : String(k));
   return el;
 }
-const TABS = [['level', 'Level'], ['nalada', 'Nálada'], ['farba', 'Farba'], ['tvar', 'Tvár'], ['povrch', 'Povrch'], ['stav', 'Stav'], ['veci', 'Veci'], ['doska', 'Tenisky'], ['kamos', 'Kamoš'], ['scena', 'Scéna']];
+const TABS = [['level', 'Level'], ['nalada', 'Nálada'], ['telo', 'Telo'], ['tvar', 'Tvár'], ['veci', 'Veci'], ['doska', 'Tenisky'], ['okolie', 'Okolie']];
 
 /* root: kam sa editor vykreslí. ghost: nastavenie. inventory: zoznam vecí. onChange(ghost, { full }) sa volá pri každej zmene; onEmote(k); onAuto(bool). */
 export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onChange, onEmote, onAuto, onStyle, autoOn = true } = {}) {
@@ -69,10 +69,20 @@ export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onCha
       p.push(sec('Sám od seba', h('label', { class: 'ge-tgl', for: 'ge-auto' }, cb, ' Duch robí grimasy sám od seba'), h('p', { class: 'ge-note' }, 'Chvíľu len tak visí, potom sa rozhliadne, zamračí, potiahne nosom alebo zazíva. Ťuk na ducha ho zľakne.')));
       p.push(sec('Vyskúšaj', h('div', { class: 'ge-opts' }, Object.entries(EMOTES).map(([k, o]) => h('button', { type: 'button', class: 'ge-opt', onclick: () => onEmote?.(k) }, h('b', {}, o.name), h('small', {}, o.about))))));
     }
-    if (tab === 'farba') {
-      p.push(sec('Telo', swatches(BODY_COLORS, G.color, (hex, l) => live('color', hex, l))));
+    if (tab === 'telo') {
+      p.push(sec('Farba tela', swatches(BODY_COLORS, G.color, (hex, l) => live('color', hex, l))));
       p.push(sec('Vzor', options(PATTERNS, G.pattern, k => set({ pattern: k }))));
       if (G.pattern !== 'none') p.push(sec('Druhá farba', swatches(BODY_COLORS, G.color2, (hex, l) => live('color2', hex, l))));
+      p.push(sec('Povrch', options(FINISHES, G.finish, k => set({ finish: k }))));
+      const cb = h('input', { id: 'ge-ol', type: 'checkbox', checked: G.outline || null }); cb.addEventListener('change', () => set({ outline: cb.checked }));
+      p.push(sec('Obrys', h('label', { class: 'ge-tgl', for: 'ge-ol' }, cb, ' Čierny obrys ako v logu')));
+      const cur = Object.entries(WEAR_PRESETS).find(([, w]) => w.dirt === G.dirt && w.scuff === G.scuff && w.stickers === G.stickers)?.[0];
+      p.push(sec('Stav', h('div', { class: 'ge-opts' }, Object.entries(WEAR_PRESETS).map(([k, o]) => h('button', { type: 'button', class: 'ge-opt', 'aria-pressed': String(k === cur), onclick: () => set({ dirt: o.dirt, scuff: o.scuff, stickers: o.stickers }, false) }, chip('free'), h('b', {}, o.name), h('small', {}, o.about))))));
+      const st = h('input', { id: 'ge-st', type: 'checkbox', checked: G.stickers || null }); st.addEventListener('change', () => set({ stickers: st.checked }, false));
+      p.push(sec('Doladiť', h('div', { class: 'ge-fine' },
+        slider('ge-sd', 'Špina', G.dirt, v => { G.dirt = v; emit(false); }), slider('ge-sw', 'Ošúchanie', G.scuff, v => { G.scuff = v; emit(false); }),
+        h('label', { class: 'ge-tgl', for: 'ge-st' }, st, ' Nálepky z odjazdených GOSkov'),
+        h('div', { class: 'ge-row' }, h('button', { type: 'button', class: 'btn small', onclick: () => set({ seed: Math.floor(Math.random() * 9999) }, false) }, 'Nové fľaky a škrabance'), h('span', { class: 'ge-note' }, `Duch č. ${String(G.seed).padStart(4, '0')}. Každý účet má svoje číslo, takže fľaky sú vždy iné.`)))));
     }
     if (tab === 'tvar') {
       p.push(sec('Tvar očí', options(EYE_SHAPES, G.eyeShape, k => set({ eyeShape: k }))));
@@ -80,20 +90,6 @@ export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onCha
       p.push(sec('Ústa', options(MOUTHS, G.mouth, k => set({ mouth: k }))));
       p.push(sec('Tvár navyše', options(FACE_EXTRAS, G.faceExtra, k => set({ faceExtra: k }))));
       if (FACE_EXTRAS[G.faceExtra].color) p.push(sec('Farba: ' + FACE_EXTRAS[G.faceExtra].name.toLowerCase(), swatches(named(ITEM_COLORS), G.faceColor, (hex, l) => live('faceColor', hex, l))));
-    }
-    if (tab === 'povrch') {
-      p.push(sec('Povrch', options(FINISHES, G.finish, k => set({ finish: k }))));
-      const cb = h('input', { id: 'ge-ol', type: 'checkbox', checked: G.outline || null }); cb.addEventListener('change', () => set({ outline: cb.checked }));
-      p.push(sec('Obrys', h('label', { class: 'ge-tgl', for: 'ge-ol' }, cb, ' Čierny obrys ako v logu')));
-    }
-    if (tab === 'stav') {
-      const cur = Object.entries(WEAR_PRESETS).find(([, w]) => w.dirt === G.dirt && w.scuff === G.scuff && w.stickers === G.stickers)?.[0];
-      p.push(sec('Ako vyzerá', h('div', { class: 'ge-opts' }, Object.entries(WEAR_PRESETS).map(([k, o]) => h('button', { type: 'button', class: 'ge-opt', 'aria-pressed': String(k === cur), onclick: () => set({ dirt: o.dirt, scuff: o.scuff, stickers: o.stickers }, false) }, chip('free'), h('b', {}, o.name), h('small', {}, o.about))))));
-      const st = h('input', { id: 'ge-st', type: 'checkbox', checked: G.stickers || null }); st.addEventListener('change', () => set({ stickers: st.checked }, false));
-      p.push(sec('Doladiť', h('div', { class: 'ge-fine' },
-        slider('ge-sd', 'Špina', G.dirt, v => { G.dirt = v; emit(false); }), slider('ge-sw', 'Ošúchanie', G.scuff, v => { G.scuff = v; emit(false); }),
-        h('label', { class: 'ge-tgl', for: 'ge-st' }, st, ' Nálepky z odjazdených GOSkov'),
-        h('div', { class: 'ge-row' }, h('button', { type: 'button', class: 'btn small', onclick: () => set({ seed: Math.floor(Math.random() * 9999) }, false) }, 'Nové fľaky a škrabance'), h('span', { class: 'ge-note' }, `Duch č. ${String(G.seed).padStart(4, '0')}. Každý účet má svoje číslo, takže fľaky sú vždy iné.`)))));
     }
     if (tab === 'veci') {
       p.push(sec('Hlava', options(HEADS, G.head, k => set({ head: k }))));
@@ -111,13 +107,11 @@ export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onCha
       p.push(sec('Tenisky na doske', options(SHOES, G.shoes, k => set({ shoes: k }))));
       if (SHOES[G.shoes].color) p.push(sec('Farba tenisiek', swatches(named(SHOE_COLORS), G.shoeColor, (hex, l) => live('shoeColor', hex, l))));
       p.push(sec('Doplnok dosky', options(BOARD_EXTRAS, G.boardExtra, k => set({ boardExtra: k }))));
-      p.push(h('p', { class: 'ge-note' }, 'Farby dosky, grip, kolieska a podvozky nastavíš nižšie v časti Uprav si dosku. Je to tá istá doska ako v 3D garáži.'));
+      p.push(h('p', { class: 'ge-note' }, 'Farby dosky, grip, kolieska a podvozky nastavíš v časti Doska. Je to tá istá doska ako v 3D garáži a v appke Ghoskate.'));
     }
-    if (tab === 'kamos') {
+    if (tab === 'okolie') {
       p.push(sec('Kamoš', options(BUDDIES, G.buddy, k => set({ buddy: k }))));
-      if (BUDDIES[G.buddy].color) p.push(sec('Farba', swatches(named(ITEM_COLORS), G.buddyColor, (hex, l) => live('buddyColor', hex, l))));
-    }
-    if (tab === 'scena') {
+      if (BUDDIES[G.buddy].color) p.push(sec('Farba kamoša', swatches(named(ITEM_COLORS), G.buddyColor, (hex, l) => live('buddyColor', hex, l))));
       p.push(sec('Kde jazdí', options(SCENES, G.scene, k => set({ scene: k }))));
       p.push(sec('Efekt', options(EFFECTS, G.effect, k => set({ effect: k }))));
       p.push(sec('Reset', h('button', { type: 'button', class: 'btn small', onclick: () => { G = ghostOf(DEFAULT_GHOST); emit(); render(); } }, 'Späť na klasika')));

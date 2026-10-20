@@ -178,7 +178,7 @@ const ART = {
   sniffM: ['.####.', '#....#'],
   grimace: ['.#############.', '#w#ww#ww#ww#w#', '#w#ww#ww#ww#w#', '.#############.'].map(r => r.padEnd(15, '.')),
 };
-const CODE = { '#': 1, w: 2, r: 3, t: 4 };
+const CODE = { '#': 1, w: 2, r: 3, t: 4, m: 13 };
 const flipArt = a => a.map(r => [...r].reverse().join(''));
 function stamp(c, art, cx, cy) { const h = art.length, w = art[0].length, ox = Math.round(cx - w / 2), oy = Math.round(cy - h / 2); art.forEach((row, y) => [...row].forEach((ch, x) => { const X = ox + x, Y = oy + y; if (CODE[ch] && M(X, Y)) c[Y * GW + X] = CODE[ch]; })); }
 /* vystrašené oko: čierne a okrúhle, len s malým odleskom, ktorý sa posúva podľa pohľadu */
@@ -190,6 +190,7 @@ const EYE_ART = {
   dots: ['.##.', '####', '.##.'],
   slits: ['######', '.#####', '..####'],
   sleepy: ['#####', '.####', '..###'],
+  x: ['#...#', '.#.#.', '..#..', '.#.#.', '#...#'],
 };
 function eyeBase(shape) {
   const pts = [];
@@ -206,7 +207,7 @@ const EX = {
   sleepy: { eyes: 'relax', mouth: 'small' }, yawn: { eyes: 'relax', mouth: 'yawn' }, ouch: { eyes: 'ouch', mouth: 'grimace' },
 };
 function faceCodes(ex) {
-  const c = new Uint8Array(GW * GH), dx = ex.dx || 0, mdx = Math.sign(dx), eyes = ex.eyes || 'logo', mouth = ex.mouth || 'logo';
+  const c = new Uint8Array(GW * GH), dx = ex.dx || 0, mdx = Math.sign(dx), eyes = ex.eyes || 'logo', mouth = ex.mouth || (S.mouth === 'teeth' ? 'grin' : S.mouth === 'o' ? 'O' : 'logo');
   const putM = (x, y, v) => { if (M(x, y)) c[y * GW + x] = v; };
   if (eyes === 'logo' || eyes === 'squint' || eyes === 'closed') {
     const k = eyes === 'squint' ? .42 : eyes === 'closed' ? .1 : 1;   // prižmúrenie = oko stlačené na výšku, sklon ostane
@@ -249,10 +250,13 @@ function faceCodes(ex) {
   if (fe === 'bandaid') stamp(c, ['7777.', '.7777', '..777'], ER.cx + 3, ER.y1 + 3);
   if (fe === 'eyeblack') [EL, ER].forEach(E => { for (let x = Math.round(E.cx) - 3; x <= Math.round(E.cx) + 3; x++) { putM(x, E.y1 + 2, 1); } });
   if (fe === 'scar') { for (let k = 0; k < 5; k++) putM(Math.round(ER.cx) + 1 + Math.round(k * .5), ER.y0 - 3 + k, 6); for (const k of [0, 2, 4]) { putM(Math.round(ER.cx) + Math.round(k * .5), ER.y0 - 3 + k, 6); putM(Math.round(ER.cx) + 2 + Math.round(k * .5), ER.y0 - 3 + k, 6); } }
-  if (fe === 'piercing') { const nx = Math.round(MB.cx), ny = Math.round(EL.y1) + 4; putM(nx, ny, 10); putM(nx - 1, ny + 1, 10); putM(nx, ny + 2, 10); }
+  if (fe === 'piercing') { const nx = Math.round(MB.cx), ny = Math.round(EL.y1) + 4; putM(nx, ny, 10); putM(nx - 1, ny + 1, 10); putM(nx, ny + 2, 10); putM(nx + 1, ny + 1, 1); }
+  if (fe === 'mustache') stamp(c, ['##.......##', '###.....###', '.####.####.', '..###.###..'].map(r => r.replace(/#/g, 'm')), MB.cx, MB.y0 - 2.5);
+  if (fe === 'eyepatch') { for (let y = ER.y0 - 1; y <= ER.y1 + 1; y++) for (let x = ER.x0 - 1; x <= ER.x1 + 1; x++) putM(x, y, 11); for (let x = EL.x0 - 2; x < ER.x0 - 1; x++) putM(x, Math.round(ER.y0 - 1 + (x - EL.x0) * .15), 11); }
+  if (fe === 'monocle') { const cx0 = Math.round(ER.cx), cy0 = Math.round(ER.cy), r = 5; for (let a = 0; a < 32; a++) { const x = Math.round(cx0 + Math.cos(a / 32 * Math.PI * 2) * r), y = Math.round(cy0 + Math.sin(a / 32 * Math.PI * 2) * r); if (!c[y * GW + x]) putM(x, y, 12); } for (let k = 0; k < 5; k++) putM(cx0 + r + (k < 3 ? 0 : -1), cy0 + 2 + k, 12); }
   return c;
 }
-const FACE_COL = { 2: [250, 246, 236], 3: [74, 16, 24], 4: [214, 92, 104], 5: [240, 130, 150], 6: [120, 80, 60], 7: [232, 201, 166], 10: [220, 220, 225] };
+const FACE_COL = { 2: [250, 246, 236], 3: [74, 16, 24], 4: [214, 92, 104], 5: [240, 130, 150], 6: [120, 80, 60], 7: [232, 201, 166], 10: [220, 220, 225], 11: null, 12: [226, 181, 60], 13: [42, 29, 22] };
 function applyFace(arr, codes) {
   const e = EYES[S.eyes], ec = hexRgb(e.color), core = mix(ec, [255, 255, 255], .5);
   const a = new Int32Array(arr), keep = new Uint8Array(GW * GH);
@@ -260,7 +264,7 @@ function applyFace(arr, codes) {
   for (let y = 1; y < GH - 1; y++) for (let x = 1; x < GW - 1; x++) {
     const i = y * GW + x, v = codes[i]; if (!v) continue;
     if (v === 1) { const inner = codes[i - 1] === 1 && codes[i + 1] === 1 && codes[i - GW] === 1 && codes[i + GW] === 1; a[i] = pack(e.glow ? (inner ? core : ec) : INK); }
-    else a[i] = pack(FACE_COL[v]);
+    else a[i] = pack(v === 11 ? ramp(S.faceColor)[1] : FACE_COL[v]);
   }
   if (e.glow) for (let y = 1; y < GH - 1; y++) for (let x = 1; x < GW - 1; x++) { const i = y * GW + x; if (!keep[i] && M(x, y) && (codes[i - 1] === 1 || codes[i + 1] === 1 || codes[i - GW] === 1 || codes[i + GW] === 1)) a[i] = pack(mix(unpack(a[i]), ec, .45)); }
   return { a, keep };
@@ -354,6 +358,9 @@ function drawItems(L, dist) {
   if (S.head === 'hood') { const R = ramp(S.headColor); for (let by = -2; by <= 24; by++) { const src = Math.max(0, Math.min(GH - 1, by)), l = spanL[src] - (by < 0 ? -2 : 2), r = spanR[src] + (by < 0 ? -2 : 2); for (let x = l; x <= r; x++) { const inside = by >= 8 && x > spanL[Math.max(0, by)] + 2 && x < spanR[Math.max(0, by)] - 2; if (inside) continue; L.set(x + PX, by + top, pack(R[(by >= 8 && (x <= spanL[Math.max(0, by)] + 2 || x >= spanR[Math.max(0, by)] - 2)) ? 0 : toneAt(x, l, r)])); } } [-3, 3].forEach(s => { for (let y = 26; y <= 34; y++) L.set(cx + s, top + y, pack([243, 235, 221])); L.set(cx + s, top + 35, pack([60, 56, 52])); }); }
   if (S.head === 'balaclava') { const R = ramp(S.headColor); for (let by = -1; by <= faceBot + 1; by++) { const src = Math.max(0, by), l = spanL[src] - (by < 0 ? -1 : 1), r = spanR[src] + (by < 0 ? -1 : 1); for (let x = l; x <= r; x++) { const slot = by >= faceTop - 1 && by <= split && x >= 7 && x <= 32; if (slot) continue; let t = toneAt(x, l, r); if ((x + by) % 4 === 0) t = Math.min(3, t + 1); L.set(x + PX, by + top, pack(R[t])); } } }
   if (S.head === 'laurel') { const by = 8; for (let x = spanL[by] - 1; x <= spanR[by] + 1; x++) { const k = (x - spanL[by]) % 4; L.set(x + PX, top + by + (k === 1 || k === 2 ? -1 : 0), pack(k === 0 ? GOLD.D : k === 3 ? GOLD.O : GOLD.Y)); if (k === 1) L.set(x + PX, top + by - 2, pack(GOLD.H)); } }
+  if (S.head === 'catears') { const R = ramp(S.headColor), EAR = ['...h', '..hb', '.hpb', 'hppb', 'bbbs']; L.draw(EAR, cx - 13, top + colTop[CX - 10] - 4, { ...pal4(R), p: [240, 168, 184] }); L.draw(EAR, cx + 7, top + colTop[CX + 8] - 4, { ...pal4(R), p: [240, 168, 184] }, true); }
+  if (S.head === 'cone') { const CONE = ['....oo....', '....oo....', '...oOOo...', '...wwww...', '..oOOOOo..', '..oOOOOo..', '.wwwwwwww.', '.oOOOOOOo.', 'oOOOOOOOOo', 'kkkkkkkkkk']; L.draw(CONE, cx - 5, top - 9, { o: [255, 150, 60], O: [255, 122, 26], w: [243, 235, 221], k: [42, 34, 40] }); }
+  if (S.head === 'mohawk') { const R = ramp(S.headColor); for (let i = -7; i <= 7; i++) { const x = cx + i, h = 3 + Math.round(Math.cos(i / 7 * 1.4) * 4), y0 = top + colTop[Math.max(0, Math.min(GW - 1, x - PX))]; for (let k = 1; k <= h; k++) L.set(x, y0 - k, pack(R[k === h ? 0 : i % 2 ? 2 : 1])); L.set(x, y0, pack(R[3])); } }
   /* ---- tvár navyše v pixeloch (okuliare) ---- */
   if (S.faceExtra === 'sunglasses') { const F = ramp(S.faceColor); for (const [E, fl] of [[EL, 0], [ER, 1]]) { const x0 = Math.round(E.cx) - 5, y0 = Math.round(E.cy) - 2; for (let y = 0; y < 5; y++) for (let x = 0; x < 10; x++) { const edge = y === 0 || y === 4 || x === 0 || x === 9; L.set(PX + x0 + x, top + y0 + y, pack(edge ? F[2] : y === 1 && x < 4 ? [70, 70, 76] : [18, 16, 20])); } } for (let x = Math.round(EL.cx) + 5; x < Math.round(ER.cx) - 5; x++) L.set(PX + x, top + Math.round(EL.cy) - 1, pack(F[2])); for (const x of [spanL[Math.round(EL.cy)] - 1, spanR[Math.round(EL.cy)] + 1]) for (let k = 0; k < 2; k++) L.set(PX + x + (x < CX ? k : -k), top + Math.round(EL.cy) - 1, pack(F[3])); }
   if (S.faceExtra === 'goggles') { const F = ramp(S.faceColor); for (let x = cx - 9; x <= cx + 9; x++) for (let y = 9; y <= 12; y++) { const edge = y === 9 || y === 12 || x === cx - 9 || x === cx + 9 || x === cx; L.set(x, top + y, pack(edge ? F[2] : (y === 10 && x % 5 === 1) ? [255, 220, 150] : [255, 140, 50])); } for (let x = spanL[10] - 1; x <= spanR[10] + 1; x++) if (x + PX < cx - 9 || x + PX > cx + 9) L.set(x + PX, top + 10, pack([21, 19, 18])); }
@@ -366,6 +373,8 @@ function drawItems(L, dist) {
   if (S.extra === 'lanyard') { const Rr = ramp('#A01414'); for (let k = 0; k < 9; k++) { L.set(cx - 7 + Math.round(k * .7), top + faceBot + 3 + k, pack(Rr[2])); L.set(cx + 6 - Math.round(k * .7), top + faceBot + 3 + k, pack(Rr[2])); } L.draw(['kkkkkkk', 'kwwwwwk', 'kwrrrwk', 'kwwwwwk', 'kwrwrwk', 'kwwwwwk', 'kkkkkkk'], cx - 3, top + faceBot + 11, { k: [21, 19, 18], w: [243, 235, 221], r: [160, 20, 20] }); }
   if (S.extra === 'camera') { for (let k = 0; k < 8; k++) { L.set(cx - 9 + k, top + faceBot + 2 + Math.round(k * .5), pack([21, 19, 18])); L.set(cx + 8 - k, top + faceBot + 2 + Math.round(k * .5), pack([21, 19, 18])); } L.draw(['.kkkkkkkk.', 'kkkkggkkkk', 'kkggbbggkk', 'kkggbbggkk', 'kkkkggkkkk', '.kkkkkkkk.'], cx - 5, top + faceBot + 6, { k: [26, 26, 30], g: [70, 72, 78], b: [60, 110, 170] }); L.set(cx + 3, top + faceBot + 7, pack([255, 40, 40])); }
   if (S.extra === 'wings') { const Wg = ['#......', '##.....', '####...', '#######', '.######', '...###.', '....##.']; L.draw(Wg, spanL[24] + PX - 8, top + 20, { '#': [27, 22, 32] }); L.draw(flipArt(Wg), spanR[24] + PX + 2, top + 20, { '#': [27, 22, 32] }); }
+  if (S.extra === 'scarf') { const R = ramp(S.extraColor); for (let by = faceBot + 2; by <= faceBot + 6; by++) { const l = spanL[by] - 1, r = spanR[by] + 1; for (let x = l; x <= r; x++) { let t = toneAt(x, l, r); if ((x + by) % 3 === 0) t = Math.min(3, t + 1); if (by === faceBot + 6) t = 3; L.set(x + PX, by + top, pack(R[t])); } } for (let k = 0; k < 9; k++) { const y = faceBot + 7 + k, x = cx - 9 + (k > 5 ? 1 : 0); L.set(x, top + y, pack(R[k % 2 ? 1 : 2])); L.set(x + 1, top + y, pack(R[k % 2 ? 2 : 1])); L.set(x + 2, top + y, pack(R[3])); } for (let k = 0; k < 3; k++) L.set(cx - 8 + k, top + faceBot + 16, pack(R[3])); }
+  if (S.extra === 'medal') { const Rr = ramp('#A01414'); for (let k = 0; k < 7; k++) { L.set(cx - 6 + Math.round(k * .7), top + faceBot + 3 + k, pack(Rr[k % 2 ? 2 : 1])); L.set(cx + 5 - Math.round(k * .7), top + faceBot + 3 + k, pack(Rr[k % 2 ? 2 : 1])); } L.draw(['..HYY..', '.YYYYO.', 'HYYDYOO', 'YYYDYYO', 'YYDDDOO', '.OOOOO.', '..DDD..'], cx - 3, top + faceBot + 9, GOLD); }
   if (S.extra === 'chain') {
     const y0 = top + faceBot + 2;
     const pts = []; for (let i = -11; i <= 11; i++) pts.push([cx + i, y0 + Math.round((11 - Math.abs(i)) * 3 / 11)]);

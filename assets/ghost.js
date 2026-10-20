@@ -50,10 +50,12 @@ export const EYE_COLORS = {
 export const EYE_SHAPES = {
   logo: { name: 'Z loga', about: 'Zlé šikmé oči ako na logu.', lvl: 1 }, round: { name: 'Okrúhle', about: 'Guľaté, trochu prekvapené.', lvl: 1 },
   dots: { name: 'Bodky', about: 'Malé, pokojné.', lvl: 1 }, slits: { name: 'Štrbiny', about: 'Úzke, nahnevané.', lvl: 3 }, sleepy: { name: 'Ospalé', about: 'Napoly zavreté, chill.', lvl: 2 },
+  x: { name: 'Krížiky', about: 'Oči ako po slame. Knockout.', lvl: 5 },
 };
 export const MOUTHS = {
   logo: { name: 'Úsmev z loga', about: 'Široký zlý úsmev.', lvl: 1 }, flat: { name: 'Rovné', about: 'Poker face.', lvl: 1 }, tongue: { name: 'Jazyk', about: 'Vyplazený jazyk.', lvl: 1 },
   fangs: { name: 'Tesáky', about: 'Úsmev s dvoma zubami.', lvl: 1, lock: 'after' }, gap: { name: 'Medzera v zuboch', about: 'Po slamu na raile.', lvl: 4 }, smirk: { name: 'Úškrn', about: 'Jeden kútik hore.', lvl: 2 },
+  teeth: { name: 'Vycerené zuby', about: 'Zuby stále von. Hype.', lvl: 3 }, o: { name: 'Prekvapené', about: 'Ústa do O. Videl trik.', lvl: 2 },
 };
 export const FACE_EXTRAS = {
   none: { name: 'Nič', about: 'Čistá tvár.', lvl: 1 },
@@ -65,6 +67,9 @@ export const FACE_EXTRAS = {
   goggles: { name: 'Okuliare na čelo', about: 'Snowboardové, vytiahnuté hore.', lvl: 4, color: true },
   scar: { name: 'Jazva', about: 'Cez obočie. Z ledgu.', lvl: 5 },
   piercing: { name: 'Piercing', about: 'Krúžok v nose.', lvl: 4 },
+  mustache: { name: 'Fúzy', about: 'Hustý knír. Movember.', lvl: 3 },
+  eyepatch: { name: 'Páska cez oko', about: 'Pirát z parku.', lvl: 4, color: true },
+  monocle: { name: 'Monokel', about: 'Sklíčko na retiazke. Džentlmen.', lvl: 6 },
 };
 export const HEADS = {
   none: { name: 'Nič', about: 'Holá hlava.', lvl: 1 },
@@ -79,6 +84,9 @@ export const HEADS = {
   hood: { name: 'Kapucňa', about: 'Mikina s kapucňou na hlave.', lvl: 3, color: true },
   bandana: { name: 'Šatka', about: 'Bandana okolo hlavy.', lvl: 1, lock: 'ba3', color: true },
   balaclava: { name: 'Kukla', about: 'Len oči von.', lvl: 5, color: true },
+  catears: { name: 'Mačacie uši', about: 'Dve špicaté uši.', lvl: 2, color: true },
+  cone: { name: 'Kužeľ', about: 'Dopravný kužeľ z parku. Na hlave.', lvl: 3 },
+  mohawk: { name: 'Irokez', about: 'Punk hrebeň cez celú hlavu.', lvl: 4, color: true },
   horns: { name: 'Rohy', about: 'Malý čertík.', lvl: 1, lock: 'founder' },
   crown: { name: 'Koruna', about: 'Pre kráľa parku.', lvl: 8 },
   laurel: { name: 'Vavrín', about: 'Zlatý veniec šampióna.', lvl: 9 },
@@ -94,6 +102,8 @@ export const EXTRAS = {
   lanyard: { name: 'Šnúrka s pasom', about: 'Event pass z GOSka.', lvl: 3 },
   chain: { name: 'Retiazka', about: 'Zlatá s doskou.', lvl: 1, lock: 'night' },
   camera: { name: 'Kamera', about: 'Fisheye na krku. Filmer.', lvl: 4 },
+  scarf: { name: 'Šál', about: 'Pletený, omotaný okolo krku.', lvl: 2, color: true },
+  medal: { name: 'Medaila', about: 'Zlatá na stuhe. Z bedne.', lvl: 7 },
   wings: { name: 'Krídla', about: 'Malé netopierie krídla.', lvl: 7 },
   halo: { name: 'Svätožiara', about: 'Vznáša sa nad hlavou.', lvl: 1, lock: 'founder' },
 };
@@ -260,7 +270,7 @@ function rrect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x 
 export function drawFace(c, g, exprName = 'idle', alpha = false) {
   g = ghostOf(g); const ex = EX[exprName] || EX.idle, e = EYE_COLORS[g.eyes], { L, R, M } = paths();
   const ink = alpha ? '#fff' : (e.glow ? e.color : '#0e0d0c'), white = alpha ? '#fff' : '#faf6ec', red = alpha ? '#fff' : '#4a1018', pink = alpha ? '#fff' : '#d65c68';
-  const dx = (ex.dx || 0) * 24, eyes = ex.eyes || 'logo', mouth = ex.mouth || 'logo', EC = EYE_CENTERS, [mx, my] = MOUTH_CENTER;
+  const dx = (ex.dx || 0) * 24, eyes = ex.eyes || 'logo', mouth = ex.mouth || (g.mouth === 'teeth' ? 'grin' : g.mouth === 'o' ? 'O' : 'logo'), EC = EYE_CENTERS, [mx, my] = MOUTH_CENTER;
   c.lineCap = 'round'; c.lineJoin = 'round';
   const eyeShape = i => {
     const [x, y] = EC[i]; c.fillStyle = ink;
@@ -269,6 +279,7 @@ export function drawFace(c, g, exprName = 'idle', alpha = false) {
     if (g.eyeShape === 'round') c.arc(x, y, 40, 0, 7);
     else if (g.eyeShape === 'dots') c.arc(x, y + 6, 22, 0, 7);
     else if (g.eyeShape === 'sleepy') { c.arc(x, y + 8, 40, Math.PI * .05, Math.PI * .95); c.closePath(); }
+    else if (g.eyeShape === 'x') { c.strokeStyle = ink; c.lineWidth = 16; c.moveTo(x - 32, y - 32); c.lineTo(x + 32, y + 32); c.moveTo(x + 32, y - 32); c.lineTo(x - 32, y + 32); c.stroke(); return; }
     else { const d = i ? -1 : 1; c.moveTo(x - 60 * d, y - 22); c.lineTo(x + 60 * d, y - 2); c.lineTo(x + 60 * d, y + 16); c.lineTo(x - 60 * d, y + 2); c.closePath(); }
     c.fill();
   };
@@ -307,8 +318,11 @@ export function drawFace(c, g, exprName = 'idle', alpha = false) {
   if (fe === 'freckles') { c.fillStyle = alpha ? '#fff' : 'rgba(110,70,50,.75)'; [[250, 495], [272, 512], [292, 498], [262, 528], [548, 495], [526, 512], [506, 498], [536, 528]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); }); }
   if (fe === 'bandaid') { c.save(); c.translate(545, 505); c.rotate(-.5); c.fillStyle = alpha ? '#fff' : '#e8c9a6'; rrect(c, -46, -16, 92, 32, 10); c.fill(); c.fillStyle = alpha ? '#fff' : '#d9b48f'; c.fillRect(-18, -12, 36, 24); if (!alpha) { c.fillStyle = 'rgba(0,0,0,.18)'; for (let i = -12; i <= 12; i += 8) for (let j = -8; j <= 8; j += 8) { c.beginPath(); c.arc(i, j, 1.8, 0, 7); c.fill(); } } c.restore(); }
   if (fe === 'eyeblack') { c.fillStyle = alpha ? '#fff' : '#1a1416'; [[322, 505], [478, 505]].forEach(([x, y]) => c.fillRect(x - 34, y - 9, 68, 18)); }
-  if (fe === 'scar') { c.strokeStyle = alpha ? '#fff' : '#b0616a'; c.lineWidth = 7; c.beginPath(); c.moveTo(505, 318); c.lineTo(530, 372); c.stroke(); c.lineWidth = 4; [330, 345, 360].forEach(y => { c.beginPath(); c.moveTo(505 + (y - 318) * .46 - 12, y); c.lineTo(505 + (y - 318) * .46 + 12, y); c.stroke(); }); }
-  if (fe === 'piercing') { c.strokeStyle = alpha ? '#fff' : '#d8d8dc'; c.lineWidth = 6; c.beginPath(); c.arc(400, 500, 14, Math.PI * .1, Math.PI * .9); c.stroke(); }
+  if (fe === 'scar') { c.strokeStyle = alpha ? '#fff' : '#b0616a'; c.lineWidth = 9; c.beginPath(); c.moveTo(538, 372); c.lineTo(560, 428); c.stroke(); c.lineWidth = 5; [384, 398, 412].forEach(y => { c.beginPath(); c.moveTo(538 + (y - 372) * .39 - 13, y); c.lineTo(538 + (y - 372) * .39 + 13, y); c.stroke(); }); }
+  if (fe === 'piercing') { c.lineWidth = 11; c.strokeStyle = alpha ? '#fff' : '#2a2628'; c.beginPath(); c.arc(400, 498, 16, Math.PI * .05, Math.PI * .95); c.stroke(); if (!alpha) { c.lineWidth = 5; c.strokeStyle = '#e8e8ec'; c.beginPath(); c.arc(400, 498, 16, Math.PI * .05, Math.PI * .95); c.stroke(); } }
+  if (fe === 'mustache') { c.fillStyle = alpha ? '#fff' : '#2a1d16'; c.beginPath(); c.moveTo(400, 520); c.quadraticCurveTo(360, 490, 318, 512); c.quadraticCurveTo(330, 536, 365, 530); c.quadraticCurveTo(385, 526, 400, 534); c.quadraticCurveTo(415, 526, 435, 530); c.quadraticCurveTo(470, 536, 482, 512); c.quadraticCurveTo(440, 490, 400, 520); c.closePath(); c.fill(); }
+  if (fe === 'eyepatch') { const col = alpha ? '#fff' : g.faceColor; c.strokeStyle = col; c.lineWidth = 10; c.beginPath(); c.moveTo(258, 400); c.lineTo(440, 372); c.stroke(); c.fillStyle = col; rrect(c, 428, 394, 108, 84, 26); c.fill(); if (!alpha) { c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 4; rrect(c, 440, 404, 84, 62, 20); c.stroke(); } }
+  if (fe === 'monocle') { c.strokeStyle = alpha ? '#fff' : '#e2b53c'; c.lineWidth = 9; c.beginPath(); c.arc(478, 436, 58, 0, 7); c.stroke(); c.lineWidth = 5; c.beginPath(); c.moveTo(528, 468); c.quadraticCurveTo(548, 520, 520, 560); c.stroke(); if (!alpha) { c.fillStyle = 'rgba(200,230,255,.22)'; c.beginPath(); c.arc(478, 436, 54, 0, 7); c.fill(); c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 6; c.beginPath(); c.arc(478, 436, 44, Math.PI * 1.1, Math.PI * 1.45); c.stroke(); } }
   if (fe === 'sunglasses' && !alpha && c.canvas && c.canvas.dataset?.flat) { c.fillStyle = g.faceColor; [[322, 436], [478, 436]].forEach(([x, y]) => { rrect(c, x - 62, y - 30, 124, 60, 14); c.fill(); }); c.fillRect(380, 430, 40, 10); }
 }
 /* Obrys ducha z loga (telo), SVG súradnice ako tvár. */
