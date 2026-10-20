@@ -328,6 +328,7 @@ export function mountBuilder(root) {
   function syncButtons() {
     const it = sel();
     for (const a of ['delete', 'duplicate']) { const b = $(`[data-act=${a}]`); if (b) b.disabled = !it || !!B.viewing; }
+    const bar = $('.sel-bar'); if (bar) bar.hidden = !it || !!B.viewing;
     const u = $('[data-act=undo]'), r = $('[data-act=redo]');
     if (u) u.disabled = !B.undo.length || !!B.viewing;
     if (r) r.disabled = !B.redo.length || !!B.viewing;
@@ -384,8 +385,34 @@ export function mountBuilder(root) {
     say('Presúvaš prekážku. Pusť ju na voľné miesto.'); draw();
   }
   canvas.addEventListener('contextmenu', e => e.preventDefault());
+  /* dva prsty: priblíženie, posun a otočenie pohľadu */
+  const fingers = new Map();
+  let pinch = null;
+  const pinchState = () => { const [a, b] = [...fingers.values()]; return { d: Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, ang: Math.atan2(b.y - a.y, b.x - a.x) }; };
+  function pinchMove() {
+    const n = pinchState(), o = pinch; pinch = n;
+    B.view.zoom = clamp(B.view.zoom * o.d / n.d, .3, 1.6);
+    let da = n.ang - o.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+    B.view.angle -= da;
+    const dx = n.mx - o.mx, dy = n.my - o.my;
+    const k = camDist * .0016 * 600 / Math.max(300, canvas.clientWidth);
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0); right.y = 0; right.normalize();
+    const fwd = new THREE.Vector3(right.z, 0, -right.x);
+    B.view.panX = clamp(B.view.panX - (right.x * dx - fwd.x * dy) * k, -S().w / 2, S().w / 2);
+    B.view.panZ = clamp(B.view.panZ - (right.z * dx - fwd.z * dy) * k, -S().d / 2, S().d / 2);
+    aim();
+  }
+  function touchStart(e) {
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (fingers.size !== 2) return false;
+    if (g) { clearTimeout(g.timer); if (g.mode === 'move') { const it = B.park.items.find(i => i.id === g.id); if (it) Object.assign(it, g.orig); hover.visible = false; rebuild(); } g = null; }
+    pinch = pinchState(); say(''); return true;
+  }
+  function touchEnd(e) { fingers.delete(e.pointerId); if (fingers.size < 2) pinch = null; }
   canvas.addEventListener('pointerdown', e => {
     canvas.focus({ preventScroll: true });
+    if (e.pointerType === 'touch' && touchStart(e)) return;
+    if (e.pointerType === 'touch' && fingers.size > 1) return;
     aimRay(e);
     const id = !B.viewing && e.button === 0 && !e.shiftKey ? itemAt() : null;
     g = { pid: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, type: e.pointerType, btn: e.button, shift: e.shiftKey, id, mode: 'pending' };
@@ -397,6 +424,7 @@ export function mountBuilder(root) {
     if (id) { const it = B.park.items.find(i => i.id === id); aimRay(e); const t = tileAt(); g.grab = t ? { dx: t.tx - it.x, dz: t.tz - it.z } : { dx: 0, dz: 0 }; }
   });
   canvas.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch' && fingers.has(e.pointerId)) { fingers.get(e.pointerId).x = e.clientX; fingers.get(e.pointerId).y = e.clientY; if (pinch) { pinchMove(); return; } }
     if (!g || e.pointerId !== g.pid) { if (e.pointerType === 'mouse') hoverAt(e); return; }
     const dist = Math.hypot(e.clientX - g.x, e.clientY - g.y);
     if (g.mode === 'pending' && dist > (g.type === 'mouse' ? 4 : 10)) {
@@ -429,8 +457,9 @@ export function mountBuilder(root) {
       aim();
     }
   });
-  canvas.addEventListener('touchmove', e => { if (g && (g.mode === 'move' || g.mode === 'orbit')) e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { if (pinch || (g && (g.mode === 'move' || g.mode === 'orbit'))) e.preventDefault(); }, { passive: false });
   function endGesture(e, cancelled) {
+    if (e.pointerType === 'touch') touchEnd(e);
     if (!g || (e && e.pointerId !== g.pid)) return;
     clearTimeout(g.timer);
     const done = g; g = null;
@@ -570,8 +599,18 @@ export function mountBuilder(root) {
     if (!fits(B.park, c, it.id)) { say('Tam sa nedá posunúť.'); return true; }
     remember(); Object.assign(it, c); rebuild(); saveDraft(); say(''); return true;
   }
+  /* posun podľa toho, odkiaľ sa pozeráš (šípky na klávesnici aj tlačidlá na dotyku) */
+  function nudgeView(dir) {
+    const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+    const f = Math.abs(fwd.x) > Math.abs(fwd.z) ? { x: Math.sign(fwd.x), z: 0 } : { x: 0, z: Math.sign(fwd.z) };
+    const r = { x: -f.z, z: f.x };
+    const d = { up: f, down: { x: -f.x, z: -f.z }, right: r, left: { x: -r.x, z: -r.z } }[dir];
+    if (d) nudge(d.x, d.z);
+  }
   const act = (name, fn) => { const b = $(`[data-act=${name}]`); if (b) b.addEventListener('click', fn); };
   act('rotate', rotate); act('delete', del); act('duplicate', duplicate); act('undo', undo); act('redo', redo);
+  act('sel-rotate', rotate); act('sel-delete', del); act('sel-duplicate', duplicate);
+  for (const d of ['left', 'up', 'down', 'right']) act('nudge-' + d, () => nudgeView(d));
   act('clear', () => {
     if (!B.park.items.length || !confirm('Naozaj vyčistiť celú plochu?')) return;
     remember(); B.park.items = []; B.selected = null; rebuild(); saveDraft(); say('Plocha je prázdna. Ctrl+Z ju vráti.');
@@ -613,15 +652,7 @@ export function mountBuilder(root) {
     else if (k === '-' || k === '_') { B.view.zoom = clamp(B.view.zoom * 1.15, .3, 1.6); aim(); }
     else if (k === 'f' || k === 'F' || k === 'Home') { B.view = defaultView(); aim(); }
     else if (/^[1-9]$/.test(k)) { const key = Object.keys(TYPES)[+k - 1]; if (key) setTool(B.tool === key ? null : key); }
-    else if (k.startsWith('Arrow') && B.selected) {
-      // šípky idú podľa toho, odkiaľ sa pozeráš
-      e.preventDefault();
-      const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
-      const f = Math.abs(fwd.x) > Math.abs(fwd.z) ? { x: Math.sign(fwd.x), z: 0 } : { x: 0, z: Math.sign(fwd.z) };
-      const r = { x: -f.z, z: f.x };
-      const d = { ArrowUp: f, ArrowDown: { x: -f.x, z: -f.z }, ArrowRight: r, ArrowLeft: { x: -r.x, z: -r.z } }[k];
-      if (d) nudge(d.x, d.z);
-    }
+    else if (k.startsWith('Arrow') && B.selected) { e.preventDefault(); nudgeView(k.slice(5).toLowerCase()); }
   }
   addEventListener('keydown', onKey);
   const help = $('.kbd-help'); if (help) help.hidden = !finePointer;
