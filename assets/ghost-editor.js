@@ -20,7 +20,8 @@ export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onCha
   const tabsEl = h('div', { class: 'ge-tabs', role: 'tablist' }), pane = h('div', { class: 'ge-pane', role: 'tabpanel' });
   root.replaceChildren(h('div', { class: 'ge' }, tabsEl, pane));
 
-  function swatches(list, cur, onPick, custom = true) {
+  const BASIC = new Set(['#F3EBDD', '#C9332C', '#2a2826', '#8d8a84'].map(x => x.toLowerCase()));   // základné farby tela, ostatné sa získavajú
+  function swatches(list, cur, onPick, custom = false) {
     const w = h('div', { class: 'ge-sws' });
     for (const [n, hex] of list) w.append(h('button', { type: 'button', class: 'ge-sw', title: n, 'aria-label': n, style: `background:${hex}`, 'aria-pressed': String(hex.toLowerCase() === String(cur).toLowerCase()), onclick: () => onPick(hex) }));
     if (custom) {
@@ -56,9 +57,9 @@ export function mountGhostEditor(root, { ghost, inventory = [], level = 1, onCha
     tabsEl.replaceChildren(...TABS.map(([k, n]) => h('button', { type: 'button', class: 'ge-tab', role: 'tab', 'aria-selected': String(k === tab), onclick: () => { tab = k; render(); pane.scrollTop = 0; } }, n)));
     const p = [];
     if (tab === 'telo') {
-      p.push(sec('Farba tela', swatches(BODY_COLORS, G.color, (hex, l) => live('color', hex, l))));
+      p.push(sec('Farba tela', swatches(BODY_COLORS.filter(([, hex]) => BASIC.has(hex.toLowerCase())), G.color, (hex, l) => live('color', hex, l))));
       p.push(sec('Vzor', options(PATTERNS, G.pattern, k => set({ pattern: k }))));
-      if (G.pattern !== 'none') p.push(sec('Druhá farba', swatches(BODY_COLORS, G.color2, (hex, l) => live('color2', hex, l))));
+      if (G.pattern !== 'none') p.push(sec('Druhá farba', swatches(BODY_COLORS.filter(([, hex]) => BASIC.has(hex.toLowerCase())), G.color2, (hex, l) => live('color2', hex, l))));
       p.push(sec('Povrch', options(FINISHES, G.finish, k => set({ finish: k }))));
       const cb = h('input', { id: 'ge-ol', type: 'checkbox', checked: G.outline || null }); cb.addEventListener('change', () => set({ outline: cb.checked }));
       p.push(sec('Obrys', h('label', { class: 'ge-tgl', for: 'ge-ol' }, cb, ' Čierny obrys ako v logu')));
