@@ -93,3 +93,18 @@ select v.*, true from (values
   ('Cassovia Skate Cup 2026', '2026-06-06'::date, null::date, 'Košice', null, 'Slovensko', 'Contest', 'https://collosseum.sk/2026/05/11/cassovia-skate-cup-2026-afterparty/', null, null)
 ) as v(name, date, end_date, city, place, country, kind, link, organizer, prize)
 where not exists (select 1 from public.community_events e where e.name = v.name and e.date = v.date);
+
+-- Doplnené 2026-10-21: overené udalosti (oficiálne stránky organizátorov / World Skate / SLS)
+insert into public.community_events (name, date, end_date, city, place, country, kind, link, organizer, prize, approved)
+select v.*, true from (values
+  ('Skate SM Park 2026', '2026-10-23'::date, '2026-10-24'::date, 'Tampere', 'Grip Skatepark', 'Fínsko', 'Contest', 'https://www.rullalauta.fi/skatesm', 'Suomen Rullalautaliitto', null),
+  ('Swiss Skateboard Cup Winterthur', '2026-10-31'::date, null::date, 'Winterthur', null, 'Švajčiarsko', 'Contest', 'https://www.boardriding.com/events/swiss-skateboard-cup-winterthur-2026', 'Swiss Skateboard Open', null),
+  ('Belgium Open Freestyle 2026', '2026-11-07'::date, '2026-11-08'::date, 'Antverpy', 'Parkloods, Park Spoor Noord', 'Belgicko', 'Contest', 'https://skateboardeventcalendar.com/en/events/belgium-open-freestyle-skateboarding-2026/', 'SBA Antwerp', null),
+  ('Shenzhen Skateboarding Vert Open 2026', '2026-11-26'::date, '2026-11-29'::date, 'Shenzhen', 'Longgang', 'Čína', 'Contest', 'https://www.worldskate.org/events/upcoming-events/event/507.html', 'World Skate', null),
+  ('Skate SM Street 2026', '2026-11-27'::date, '2026-11-29'::date, 'Lahti', 'Vipukulman skeittihalli', 'Fínsko', 'Contest', 'https://www.rullalauta.fi/skatesm', 'Suomen Rullalautaliitto', null),
+  ('Swiss Skateboard Cup Laax', '2026-12-05'::date, null::date, 'Laax', 'Freestyle Academy', 'Švajčiarsko', 'Contest', 'https://www.boardriding.com/events/swiss-skateboard-cup-laax-freestyle-academy-2026', 'Swiss Skateboard Open', null),
+  ('SLS Super Crown World Championship', '2026-12-12'::date, '2026-12-13'::date, 'São Paulo', 'Ginásio do Ibirapuera', 'Brazília', 'Contest', 'https://www.streetleague.com/supercrownwc2026', 'Street League Skateboarding', null),
+  ('Swampfest 2027', '2027-03-11'::date, '2027-03-13'::date, 'Waldo', 'Waldo RV and Motorsports Park', 'USA', 'Contest', 'https://theboardr.com/events/4363/Swampfest_Presented_by_Monster_Energy', null, null),
+  ('Mystic Sk8 Cup 2027', '2027-06-25'::date, '2027-06-28'::date, 'Praha', 'Mystic Skatepark Štvanice', 'Česko', 'Contest', 'https://www.mysticsk8cup.cz/en', null, null)
+) as v(name, date, end_date, city, place, country, kind, link, organizer, prize)
+where not exists (select 1 from public.community_events e where e.name = v.name and e.date = v.date);
