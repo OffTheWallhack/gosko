@@ -2,11 +2,10 @@
    Nastavenie ducha (profiles.ghost, verzia 2) vykreslí 3D model (mascot.js) aj 2D obrázok (profile.js). */
 
 /* ===== Katalóg ducha (3D, pixel, PS1). Veci sa odomykajú levelmi (XP) a eventmi (vec v inventári). ===== */
-export const LEVELS = [
-  [1, 'Nováčik', 'Registrácia. Základná výbava.'], [2, 'Prvý spot', 'Pridal si spot na mapu.'], [3, 'Check-in', 'Prvý check-in na GOSku.'],
-  [4, 'Lokál', '3 check-iny. Park ťa pozná.'], [5, 'Jazdec', 'Odjazdené GOSko.'], [6, 'Crew', '3 GOSká alebo člen crew.'],
-  [7, 'Best trick', 'Top 3 alebo Best Trick.'], [8, 'Víťaz', 'Vyhral si GOSko.'], [9, 'Šampión', 'Vyhral si finále sezóny.'], [10, 'Legenda', 'Sieň slávy GOSka.'],
-];
+/* Jediný zdroj pravdy pre levely: XP z aktivity na webe (profil, editor ducha aj Ghoskate). */
+export const LEVEL_XP = [0, 50, 150, 350, 700, 1200, 1800, 2600, 3600, 5000];
+const LEVEL_NAMES = ['Nováčik', 'Pusher', 'Ollie', 'Kickflip', 'Tre flip', 'Manual', 'Grind', 'Big spin', 'Šampión', 'Legenda'];
+export const LEVELS = LEVEL_NAMES.map((name, i) => [i + 1, name, i ? 'Od ' + LEVEL_XP[i] + ' XP.' : 'Registrácia. Základná výbava.']);
 export const RARITY = { free: { cls: 'r-free', label: { sk: 'Free', cs: 'Free', en: 'Free' } }, lvl: { cls: 'r-lvl', label: { sk: 'Lvl', cs: 'Lvl', en: 'Lvl' } }, event: { cls: 'r-event', label: { sk: 'Event', cs: 'Event', en: 'Event' } }, wave: { cls: 'r-wave', label: { sk: '1. vlna', cs: '1. vlna', en: 'Wave 1' } }, win: { cls: 'r-win', label: { sk: 'Víťaz', cs: 'Vítěz', en: 'Winner' } } };
 export const FLAGS = { founder: '1. vlna (Founder)', winter: 'GOSko Winter', after: 'Afterparty GOSka', night: 'Nočný check-in', ba3: 'GOSko 3 Bratislava' };
 /* ktorá vec v inventári odomkne event/vlnu */
@@ -218,10 +217,10 @@ export function ghostOf(g) {
 export const withSkin = (g, skin) => { const s = GHOST_SKINS[skin] || GHOST_SKINS.classic; return ghostOf({ ...ghostOf(g), color: s.color, finish: s.holo ? 'holo' : (ghostOf(g).finish === 'holo' ? 'vinyl' : ghostOf(g).finish) }); };
 export const skinColor = g => ghostOf(g).color;
 /* Level ducha (1–10) z aktivity na webe: rovnaké XP ako v Mojom profile. */
-export const XP_RULES = [['checkins', 100], ['finalist', 100], ['rider', 50], ['tricks', 40], ['spots', 30], ['parks', 25], ['photos', 20], ['ratings', 5], ['trick_votes', 5], ['park_votes', 2]];
-export const LEVEL_XP = [0, 50, 150, 350, 700, 1200, 1800, 2600, 3600, 5000];
+export const XP_RULES = [['checkins', 100, 'check-in na evente'], ['finalist', 100, 'finále triku týždňa'], ['rider', 50, 'overený profil jazdca'], ['tricks', 40, 'poslaný trik'], ['spots', 30, 'pridaný spot'], ['parks', 25, 'postavený park'], ['photos', 20, 'fotka z eventu'], ['ratings', 5, 'hodnotenie spotu'], ['trick_votes', 5, 'hlas za trik'], ['park_votes', 2, 'hlas za park']];
 export const xpOf = a => XP_RULES.reduce((s, [k, w]) => s + (a?.[k] || 0) * w, 0);
-export const ghostLevel = a => { const xp = xpOf(a); let l = 1; LEVEL_XP.forEach((m, i) => { if (xp >= m) l = i + 1; }); return l; };
+export const levelOfXp = xp => { let l = 1; LEVEL_XP.forEach((m, i) => { if (xp >= m) l = i + 1; }); return l; };
+export const ghostLevel = a => levelOfXp(xpOf(a));
 /* Je voľba odomknutá? ctx = { level, inventory } */
 export const isUnlocked = (o, ctx = {}) => !!o && (o.lvl || 1) <= (ctx.level || 1) && (!o.lock || (ctx.inventory || []).includes(FLAG_ITEMS[o.lock]));
 /* Chip na kartu voľby: [trieda, text] */
