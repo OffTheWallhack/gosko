@@ -577,6 +577,18 @@ const shuffled = list => { const a = [...list]; for (let i = a.length - 1; i > 0
 const allPhotos = () => EVENTS.flatMap(e => e.photos || []);
 
 /* rotátor noviniek v hero: každých 6 sekúnd ďalšia */
+/* nálepka ďalšieho eventu vpravo hore v titulke + tlačidlo na registráciu */
+function heroSticker(next) {
+  if (!next || !next.registration) return null;
+  const d = next.date ? daysUntil(next.date) : null;
+  if (d !== null && d < 0) return null;
+  const img = h('img', { alt: '', width: 240, height: 240 });
+  loadLogo().then(logo => { img.src = stickerCanvas(eventSticker(next), logo, 480).toDataURL(); }).catch(err => console.error(err));
+  return h('div', { class: 'vh-stk' },
+    h('a', { class: 'vh-stk-img', href: '#/event/' + next.id, 'aria-label': next.name + ': info o evente' }, img),
+    h('button', { class: 'vh-stk-btn', type: 'button', onclick: () => registerDialog(next) }, 'Registruj sa'));
+}
+
 function newsRotator(next) {
   const stage = h('div', { class: 'nr-stage', 'aria-live': 'polite' });
   const count = h('span', { class: 'nr-count mono' });
@@ -659,14 +671,13 @@ function stickerWall({ bare = false } = {}) {
       h('span', { class: 'sw-cap' },
         h('span', { class: 'mono sw-date' }, isNext ? (e.date ? `Ďalší stop · ${fmtDate(e.date)}` : `Ďalší stop · ${soonDate(e)}`) : fmtDate(e.date)),
         h('b', {}, e.name),
-        h('span', { class: 'sw-hint' }, isNext ? 'Registrácia a info' : 'Fotky, výsledky, videá', h('span', { 'aria-hidden': 'true' }, ' →'))));
+        isNext && e.registration ? h('span', { class: 'sw-reg' }, 'Registruj sa', h('span', { 'aria-hidden': 'true' }, ' →')) : h('span', { class: 'sw-hint' }, isNext ? 'Info' : 'Fotky, výsledky, videá', h('span', { 'aria-hidden': 'true' }, ' →'))));
   }));
   loadLogo().then(logo => evs.forEach(e => { imgs.get(e.id).src = stickerCanvas(eventSticker(e), logo, 720).toDataURL(); })).catch(err => console.error(err));
   if (bare) return wall;
   return h('section', { class: 'hs sw-sec', id: 'eventy' }, h('div', { class: 'wrap' },
     h('div', { class: 'sec-head' }, h('div', {},
-      h('span', { class: 'mono hs-k' }, 'Eventy GOSko'), h('h2', {}, 'Kde sme jazdili a kam ideme'),
-      h('p', { class: 'lead' }, 'Ťukni na nálepku a pozri si fotky, výsledky a videá z daného dňa.')),
+      h('h2', {}, 'Naše eventy')),
       h('a', { class: 'btn cta', href: '#/eventy' }, 'Všetky eventy', icon('arrow'))),
     wall));
 }
@@ -951,6 +962,7 @@ function pageHome(root) {
   const shade = h('div', { class: 'vh-shade', 'aria-hidden': 'true' });
   const hero = h('header', { class: 'vh' },
     shade,
+    heroSticker(next),
     heroIn);
   if (!reduced) {
     hero.addEventListener('pointermove', e => {
@@ -3132,17 +3144,27 @@ function introSequence(d) {
   const boot = document.querySelector('.boot'), g = boot?.querySelector('.bi-ghost'), w = boot?.querySelector('.bi-word');
   const tg = document.querySelector('.vh-bigghost'), tw = document.querySelector('.vh-word');
   if (!g || !w || !tg || !tw) return finish();
+  /* Duch a nápis letia na miesto v titulke. Cieľ sa meria znova v každom okamihu pohybu, takže
+     dopadnú presne, aj keď sa rozloženie titulky medzitým posunie (novinky, písma, posuvník). */
   const go = () => {
-    const center = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: el.offsetWidth }; };
-    for (const [el, to, rot] of [[g, tg, -8], [w, tw, 0]]) {
-      el.style.animation = 'none';
+    const DUR = REDUCED() ? 1 : 950;
+    const box = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: el.offsetWidth }; };
+    const items = [[g, tg, -8], [w, tw, 0]].map(([el, to, rot]) => {
+      el.style.animation = 'none'; el.style.transition = 'none'; el.style.transform = 'none';
       void el.offsetWidth;
-      const a = center(el), b = center(to);
-      el.classList.add('go');
-      el.style.transform = `translate(${(b.x - a.x).toFixed(1)}px, ${(b.y - a.y).toFixed(1)}px) scale(${(b.w / a.w).toFixed(4)}) rotate(${rot}deg)`;
-    }
+      return { el, to, rot, a: box(el) };
+    });
     d.classList.add('boot-go');
-    setTimeout(finish, 1000);
+    const t0 = performance.now(), ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const frame = now => {
+      const t = Math.min(1, (now - t0) / DUR), p = ease(t);
+      for (const { el, to, rot, a } of items) {
+        const b = box(to);
+        el.style.transform = `translate(${((b.x - a.x) * p).toFixed(2)}px, ${((b.y - a.y) * p).toFixed(2)}px) scale(${(1 + (b.w / a.w - 1) * p).toFixed(4)}) rotate(${(rot * p).toFixed(2)}deg)`;
+      }
+      if (t < 1) requestAnimationFrame(frame); else finish();
+    };
+    requestAnimationFrame(frame);
   };
   const poster = new Image(); poster.src = SITE.heroPoster || 'img/hero-poster.jpg';
   const posterReady = new Promise(r => { poster.onload = poster.onerror = r; setTimeout(r, 3500); });
