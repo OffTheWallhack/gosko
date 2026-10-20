@@ -154,7 +154,7 @@ const LSX = {
   get(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const eventSticker = ev => ({ kind: ev.sticker, title: ev.city, sub: ev.stickerDate, link: '#/event/' + ev.id });
+const eventSticker = ev => ({ kind: 'event', num: (String(ev.name || '').match(/\d+/) || [''])[0], title: ev.city, link: '#/event/' + ev.id });
 function riderStickers(r) {
   const out = [];
   for (const ev of [...r.events].sort((a, b) => (b.date || '').localeCompare(a.date || ''))) {
@@ -666,12 +666,13 @@ function stickerWall({ bare = false } = {}) {
   const wall = h('div', { class: 'sw' }, evs.map((e, k) => {
     const img = h('img', { alt: '', width: 260, height: 260 }); imgs.set(e.id, img);
     const isNext = e.status === 'next';
-    return h('a', { class: 'sw-item' + (isNext ? ' next' : ''), href: '#/event/' + e.id, style: `--r:${[-6, 4, -2, 7][k % 4]}deg`, onclick: ev => peel(ev, e), 'aria-label': `${e.name}: otvoriť svet eventu` },
-      h('span', { class: 'sw-st' }, img, h('span', { class: 'sw-corner', 'aria-hidden': 'true' })),
+    return h('div', { class: 'sw-item' + (isNext ? ' next' : ''), style: `--r:${[-3, 2, -2, 3][k % 4]}deg` },
+      h('a', { class: 'sw-link', href: '#/event/' + e.id, onclick: ev => peel(ev, e), 'aria-label': `${e.name}: otvoriť svet eventu` },
+        h('span', { class: 'sw-st' }, img, h('span', { class: 'sw-corner', 'aria-hidden': 'true' }))),
       h('span', { class: 'sw-cap' },
-        h('span', { class: 'mono sw-date' }, isNext ? (e.date ? `Ďalší stop · ${fmtDate(e.date)}` : `Ďalší stop · ${soonDate(e)}`) : fmtDate(e.date)),
-        h('b', {}, e.name),
-        isNext && e.registration ? h('span', { class: 'sw-reg' }, 'Registruj sa', h('span', { 'aria-hidden': 'true' }, ' →')) : h('span', { class: 'sw-hint' }, isNext ? 'Info' : 'Fotky, výsledky, videá', h('span', { 'aria-hidden': 'true' }, ' →'))));
+        h('b', { class: 'sw-date' }, e.date ? fmtDate(e.date) : soonDate(e)),
+        isNext && e.registration ? h('button', { class: 'sw-reg', type: 'button', onclick: () => registerDialog(e) }, 'Registruj sa')
+          : h('a', { class: 'sw-more', href: '#/event/' + e.id }, isNext ? 'Info' : 'Fotky a výsledky', h('span', { 'aria-hidden': 'true' }, ' →'))));
   }));
   loadLogo().then(logo => evs.forEach(e => { imgs.get(e.id).src = stickerCanvas(eventSticker(e), logo, 720).toDataURL(); })).catch(err => console.error(err));
   if (bare) return wall;
@@ -1718,13 +1719,9 @@ function mockSvg(kind) {
   return `<svg viewBox="0 0 200 200" aria-hidden="true"><path d="${kind === 'hoodie' ? hood : tee}" fill="#111" stroke="#2E2B28" stroke-width="2"/>${L(72, 62, 56)}</svg>`;
 }
 function pageShop(root) {
-  root.append(pageHead('Shop', 'Shop ešte nepredáva. Daj vedieť, čo by si chcel, a podľa záujmu dáme veci vyrobiť.'),
-    h('div', { class: 'wrap page-body' }, h('ul', { class: 'cards' }, PRODUCTS.map(p => h('li', { class: 'card product' },
-      p.img ? h('img', { src: p.img, alt: p.name, loading: 'lazy', width: 800, height: 800 }) : h('div', { class: 'mock', html: mockSvg(p.mock) }),
-      h('div', { class: 'card-body' },
-        h('h2', { class: 'card-title' }, p.name), h('p', {}, p.note),
-        h('p', { class: 'price cond' }, p.mock ? 'Ukážka dizajnu, cena čoskoro' : 'Cena čoskoro'),
-        h('button', { class: 'btn primary', type: 'button', onclick: () => interestDialog(p) }, 'Mám záujem')))))));
+  root.append(pageHead('Shop', 'Coming soon. Merch GOSka pripravujeme.'),
+    h('div', { class: 'wrap page-body' }, h('p', { class: 'lead' }, 'Zatiaľ tu nič nepredávame. Novinky dávame na Instagram.'),
+      h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/' }, 'Späť na úvod'), h('a', { class: 'btn', href: `https://www.instagram.com/${SITE.instagram}/`, target: '_blank', rel: 'noopener' }, '@' + SITE.instagram))));
 }
 function interestDialog(p) {
   formDialog({
@@ -1798,13 +1795,6 @@ function pagePartners(root, sub) {
       h('ol', { class: 'pt-plan' }, PLAN.map(p => h('li', { class: (p.dark ? 'dark' : '') + (p.red ? ' red' : '') }, h('span', { class: 'mono' }, p.when), h('b', {}, p.title), h('span', {}, p.place), p.note ? h('small', {}, p.note) : null))),
       h('div', { class: 'pt-three small' },
         [['Komunitné eventy', 'GOSko pop-upy na festivaloch a jamoch, ako Shred Fest Žilina.'], ['Naše ďalšie projekty', 'GOSko sa objaví aj tam. A partner spolu s ním.']].map(([t, d]) => h('div', { class: 'pt-card' }, h('h3', {}, t), h('p', {}, d)))))),
-
-    h('section', { class: 'sec pt-secret' }, h('div', { class: 'wrap' },
-      h('span', { class: 'mono pt-k' }, 'Plánované projekty 2027'),
-      h('h2', {}, 'Ghoskate: skate appka, kde je mapa spotov herný svet'),
-      h('p', { class: 'lead' }, 'Check-in na spotoch, triky, crews a digitálny loot za reálnu jazdu. Výsledky z GOSko eventov majú v appke váhu. Spúšťame na jar 2027, partner môže mať v appke vlastný loot a odmeny.'),
-      h('a', { class: 'btn primary', href: 'ghoskate/' }, 'Pozrieť Ghoskate'),
-      h('div', { class: 'pt-lock', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('span', { class: 'mono' }, 'Ghoskate')))),
 
     h('section', { class: 'sec light' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Spolupráca'),
@@ -1947,7 +1937,7 @@ async function pagePost(root, id) {
 }
 
 async function pageProfile(root) {
-  root.append(pageHead('Môj profil', 'Tvoj GOSko účet. Ten istý účet, duch a doska platia aj v appke Ghoskate.'));
+  root.append(pageHead('Môj profil', 'Tvoj GOSko účet: duch, doska a XP na jednom mieste.'));
   const body = h('div', { class: 'wrap page-body profile' }); root.append(body);
   const avatarSlot = h('div', { class: 'pf-avatar' });
   if (store.mode === 'live' && !(await store.signedIn())) {
@@ -1987,7 +1977,7 @@ async function pageProfile(root) {
   const gar = garageEditor(myLook(), l => avatar.api.then(a => a?.setLook?.({ ...DEFAULT_LOOK, ...l })));
   const boardSec = h('section', { class: 'pf-board' },
     h('h2', { class: 'evw-h' }, 'Uprav si dosku'),
-    h('p', {}, 'Tá istá doska ako v 3D garáži a pod duchom. Čo zmeníš tu, zmení sa všade, aj v appke Ghoskate.'),
+    h('p', {}, 'Tá istá doska ako v 3D garáži a pod duchom. Čo zmeníš tu, zmení sa všade.'),
     h('div', { class: 'b3-garage pf-garage' }, gar.tabsBar, gar.panel),
     h('a', { class: 'btn small', href: '#/doska' }, 'Otvoriť 3D garáž'));
   put(body, h('section', { class: 'pf-studio' }, stage, h('div', { class: 'pf-panels' }, edSlot, boardSec)));
@@ -2019,15 +2009,11 @@ async function pageProfile(root) {
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
     edSlot.replaceChildren(h('h2', { class: 'evw-h' }, 'Uprav si ducha'),
-      h('p', {}, p ? `Si na leveli ${level} (${LEVELS[level - 1][1]}). Všetko, čo tu zmeníš, sa uloží do účtu a uvidíš to tu aj v appke Ghoskate. Duch je ten istý v 3D aj v pixeloch.`
-        : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Keď si vytvoríš ducha v Ghoskate, uložia sa do účtu. Duch je ten istý v 3D aj v pixeloch.'),
+      h('p', {}, p ? `Si na leveli ${level} (${LEVELS[level - 1][1]}). Všetko, čo tu zmeníš, sa uloží do účtu. Duch je ten istý v 3D aj v pixeloch.`
+        : 'Zmeny sa zatiaľ pamätajú len v tomto prehliadači. Po prihlásení sa uložia do účtu. Duch je ten istý v 3D aj v pixeloch.'),
       edBox);
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
-    ghSlot.replaceChildren(...[h('h2', { class: 'evw-h' }, 'Tvoj duch a Ghoskate'),
-      p ? h('p', {}, 'Prezývka ', h('b', {}, p.nickname), '. Ducha a dosku máš uložené v účte, takže ich uvidíš tu na webe aj v appke Ghoskate.')
-        : h('p', {}, 'Ešte nemáš svojho ducha v účte. Vytvor si ho v Ghoskate, našej skate appke, a pridaj prvý spot. Do spustenia dostaneš aj Founder loot.'),
-      items.length ? h('ul', { class: 'pf-loot' }, items) : null,
-      h('a', { class: 'btn primary', href: 'ghoskate/#vytvor' }, p ? 'Doska a prezývka v Ghoskate' : 'Vytvoriť ducha v Ghoskate')].filter(Boolean));
+    ghSlot.replaceChildren(...[items.length ? h('h2', { class: 'evw-h' }, 'Tvoj loot') : null, items.length ? h('ul', { class: 'pf-loot' }, items) : null].filter(Boolean));
   })();
   const xpSlot = h('section', { class: 'pf-xp' }, h('p', { class: 'empty' }, 'Načítavam XP…'));
   const rpSlot = h('section', { class: 'pf-rider' });
@@ -2350,7 +2336,7 @@ function spotDialog(refresh) {
 }
 /* fotky skateparku: hlavná fotka + fotky z eventu v tom parku (photosFrom = id eventu v EVENT_MEDIA) */
 const parkPhotos = p => {
-  const extra = p.photosFrom ? (EVENT_MEDIA[p.photosFrom]?.photos || []) : [];
+  const extra = p.photos || (p.photosFrom ? (EVENT_MEDIA[p.photosFrom]?.photos || []) : []);
   return [...(p.photo ? [{ src: p.photo, alt: p.name }] : []), ...extra.filter(x => x.src !== p.photo)];
 };
 async function pageMap(root) {
@@ -3021,7 +3007,6 @@ function pageCommunity(root) {
         card('#/mapa', 'Mapa', 'Spoty s hodnotením', 'Pridaj spot, ohodnoť povrch, svetlo aj to, či je kryté.'),
         card('#/profil', 'Profil', 'XP a odznaky', 'Za check-in, triky, spoty aj parky zbieraš XP a odomykáš odznaky.'),
         card('#/rodicia', 'U16', 'Pre rodičov', 'Bezpečnosť, súhlas, čo priniesť. Všetko na jednom mieste.'),
-        card('ghoskate/', 'Pripravujeme', 'Ghoskate appka', 'Mapa spotov ako herný svet: check-in, triky, crews a loot. Vytvor si ducha a pridaj prvý spot už teraz.', 'red'),
         SITE.whatsapp ? null : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu na sessiony a novinky. Odkaz dáme aj na Instagram.')))));
   root.append(photoBand({ kicker: 'Partia', title: 'Ľudia, kvôli ktorým to robíme', items: [['hug', 'Dvaja skejteri sa objímajú po jazde', 'tall'], ['car-sitting', 'Partia oddychuje v tieni pri eventovom aute Red Bull', 'tall'], ['crowd-board', 'Skejteri v kruhu a doska v popredí', 'wide']] }));
 }
@@ -3044,7 +3029,7 @@ function pagePrivacy(root) {
           [h('b', {}, 'Odber noviniek: '), 'e-mail. Pošleme ti správu, keď vyhlásime ďalšie GOSko. Základ: tvoj súhlas, odhlásiť sa dá kedykoľvek.'],
           [h('b', {}, 'Účet: '), 'e-mail na prihlásenie a to, čo si sám doplníš do profilu jazdca (fotka, Instagram, mesto, spot, crew).'],
           [h('b', {}, 'Čo pošleš ty: '), 'fotky a klipy z eventov, spoty na mapu, parky, triky týždňa, hodnotenia a hlasy. Zobrazujú sa po schválení, pri obsahu uvádzame autora, ktorého zadáš.'],
-          [h('b', {}, 'Formuláre: '), 'Zavolaj si GOSko, záujem o shop, pridanie eventu a žiadosti o súkromie. Kontakt použijeme len na odpoveď.'],
+          [h('b', {}, 'Formuláre: '), 'Zavolaj si GOSko, pridanie eventu a žiadosti o súkromie. Kontakt použijeme len na odpoveď.'],
         ])),
       sec('Jazdci do 16 rokov',
         h('p', {}, 'Jazdec v kategórii U16 sa registruje so súhlasom rodiča alebo zákonného zástupcu. Rodič môže kedykoľvek požiadať o skrátenie mena v rebríčku, odstránenie fotky alebo zmazanie údajov. ', h('a', { href: '#/rodicia' }, 'Viac pre rodičov'), '.')),

@@ -84,7 +84,6 @@ const SECTIONS = [
   ['crew', 'Crew', 'Skate crew zo Slovenska: členovia, eventy a spoty.'],
   ['komunita', 'Komunita', 'WhatsApp skupina, trik týždňa, crew a všetko okolo GOSko komunity.'],
   ['rodicia', 'Pre rodičov', 'Ako funguje GOSko pre jazdcov do 16 rokov: bezpečnosť, súhlas rodiča, čo priniesť.'],
-  ['shop', 'Shop', 'GOSko merch a podpora komunity.'],
   ['partneri', 'Pre partnerov', 'Spolupráca s GOSko: čísla, plán a ako sa pridať.'],
   ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku. Za projektom stojí občianske združenie Slovenská Federácia Skateboardingu.'],
   ['pravidla', 'Pravidlá', 'Pravidlá Game of S.K.A.T.E. na GOSko eventoch.'],
@@ -108,6 +107,6 @@ for (const x of postPages) page(`novinka/${x.id}`, { title: x.title, type: 'arti
 for (const c of CREWS.filter(c => !c.hidden)) page(`crew/${c.id}`, { title: c.name, description: clip(c.about || `${c.name}: skate crew na GOSko.`), image: c.image });
 
 /* sitemap a robots */
-writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages.map(p => p ? p + '/' : ''), 'hub/', 'ghoskate/'].map(p => `  <url><loc>${SITE_URL}${p}</loc></url>`).join('\n')}\n</urlset>\n`);
+writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages.map(p => p ? p + '/' : ''), 'hub/'].map(p => `  <url><loc>${SITE_URL}${p}</loc></url>`).join('\n')}\n</urlset>\n`);
 writeFileSync(join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}sitemap.xml\n`);
 console.log(`Hotovo: ${pages.length} stránok, ${posts.length} článkov.`);
