@@ -267,6 +267,8 @@ export const RIDERS = {
   'sebastian-kozmann': { photo: 'img/riders/sebastian-kozmann.webp' },
   'tomas-cekovsky': { photo: 'img/riders/tomas-cekovsky.webp' },
   'dominik-hreus': { photo: 'img/riders/dominik-hreus.webp' },
+  'marek-kupkovic': { photo: 'img/riders/marek-kupkovic.webp' },
+  'jakub-sluka': { photo: 'img/riders/jakub-sluka.webp' },
 };
 
 /* Súkromie jazdcov. Predvolene sa mená ukazujú celé (rovnako ako na Instagrame).
