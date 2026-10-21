@@ -9,7 +9,7 @@ let logoPromise = null;
 export function loadLogo() {
   if (!logoPromise) {
     logoPromise = (async () => {
-      await Promise.race([document.fonts.load(`900 60px ${FONT}`), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
+      await Promise.race([Promise.all([document.fonts.load(`900 60px ${FONT}`), document.fonts.load('400 60px Anton')]), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
       const img = new Image(); img.src = 'img/logo.webp'; await img.decode();
       try { const g = new Image(); g.src = 'img/ghost.svg'; await g.decode(); GHOST = g; } catch { /* duch je len ozdoba */ }
       try { const w = new Image(); w.src = 'img/gosko-wordmark.svg'; await w.decode(); WORD = w; } catch { /* nápis je len ozdoba */ }
@@ -95,6 +95,96 @@ function stretch(ctx, v) { if ('fontStretch' in ctx) ctx.fontStretch = v; }
 
 /* spec: { kind: 'band'|'round'|'next'|'medal'|'trick', title, sub, place }
    size: rozlíšenie v px (kreslí sa v súradniciach 512 a zväčší sa, nech je nálepka ostrá aj na veľkom displeji) */
+
+/* ---------- nálepky eventov: kruh (1), štvorec (2), štít (3), potom sa tvary opakujú ---------- */
+const ANTON = '"Anton","Impact","Arial Narrow",sans-serif';
+const INK = '#0e0d0c', CREAM = '#F3EBDD', RED = '#A01414';
+/* text písmeno po písmene s rozstupom; ak je dlhší ako maxW, zmenší sa. align: 'left' | 'center' | 'right' */
+function spaced(x, text, px, py, size, sp, align = 'center', maxW = 1e9) {
+  const measure = sz => { x.font = `400 ${sz}px ${ANTON}`; const ws = [...text].map(ch => x.measureText(ch).width + sp * sz / size); return [ws, ws.reduce((a, b) => a + b, 0) - sp * sz / size]; };
+  let sz = size, [ws, tot] = measure(sz);
+  if (tot > maxW) { sz = size * maxW / tot; [ws, tot] = measure(sz); }
+  x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+  let cx = align === 'center' ? px - tot / 2 : align === 'right' ? px - tot : px;
+  [...text].forEach((ch, i) => { x.fillText(ch, cx, py); cx += ws[i]; });
+  return sz;
+}
+/* text po oblúku: top = nad stredom (písmo smeruje von), inak pod stredom (písmo smeruje ku stredu a číta sa zľava doprava) */
+function arcText(x, text, cx, cy, r, size, sp, top, maxArc = 2.1) {
+  let sz = size, ws, tot;
+  const measure = () => { x.font = `400 ${sz}px ${ANTON}`; ws = [...text].map(ch => x.measureText(ch).width + sp * sz / size); tot = ws.reduce((a, b) => a + b, 0) - sp * sz / size; };
+  measure(); if (tot / r > maxArc) { sz = size * maxArc * r / tot; measure(); }
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  let cum = 0;
+  [...text].forEach((ch, i) => {
+    const mid = (cum + ws[i] / 2 - sp * sz / size / 2) / r - tot / 2 / r; cum += ws[i];
+    x.save(); x.translate(cx, cy);
+    if (top) { x.rotate(mid); x.translate(0, -r); } else { x.rotate(Math.PI - mid); x.translate(0, -r); x.rotate(Math.PI); }
+    x.fillText(ch, 0, 0); x.restore();
+  });
+}
+/* „#“ + číslo; číslo veľké, mriežka malá nad základnou čiarou */
+function hashNum(x, num, left, base, big, small, rise, hashColor, numColor, shadow = null) {
+  x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+  x.font = `400 ${small}px ${ANTON}`; const wh = x.measureText('#').width;
+  x.font = `400 ${big}px ${ANTON}`; const wn = x.measureText(num).width;
+  const x0 = left === null ? 200 - (wh + wn) / 2 : left;
+  const draw = (dx, dy, hc, nc) => {
+    x.fillStyle = hc; x.font = `400 ${small}px ${ANTON}`; x.fillText('#', x0 + dx, base - rise + dy);
+    x.fillStyle = nc; x.font = `400 ${big}px ${ANTON}`; x.fillText(num, x0 + wh + dx, base + dy);
+  };
+  if (shadow) draw(7, 7, shadow, shadow);
+  draw(0, 0, hashColor, numColor);
+}
+const SHIELD = new Path2D('M 36 44 Q 118 36 200 8 Q 282 36 364 44 L 364 232 C 364 332 292 402 200 452 C 108 402 36 332 36 232 Z');
+function eventSticker(x, spec, title) {
+  const shape = ((parseInt(spec.num, 10) || 1) - 1) % 3, num = String(spec.num || '');
+  const ghost = (gx, gy, gw, gh) => { if (GHOST) x.drawImage(GHOST, gx, gy, gw, gh); };
+  x.save();
+  if (shape === 0) {           // kruh
+    x.scale(1.28, 1.28);
+    x.fillStyle = CREAM; x.beginPath(); x.arc(200, 200, 199, 0, 7); x.fill();
+    x.fillStyle = INK; x.beginPath(); x.arc(200, 200, 187, 0, 7); x.fill();
+    x.strokeStyle = RED; x.lineWidth = 42; x.beginPath(); x.arc(200, 200, 158, 0, 7); x.stroke();
+    x.strokeStyle = 'rgba(243,235,221,.35)'; x.lineWidth = 1.5;
+    for (const r of [136, 180]) { x.beginPath(); x.arc(200, 200, r, 0, 7); x.stroke(); }
+    x.fillStyle = CREAM; for (const px of [38, 362]) { x.beginPath(); x.arc(px, 200, 5, 0, 7); x.fill(); }
+    arcText(x, 'SKATE EVENT', 200, 200, 148, 25, 5, true, 1.7);
+    arcText(x, title, 200, 200, 170, 30, 5, false, 1.9);
+    ghost(159, 72, 82, 92);
+    if (num) hashNum(x, num, null, 308, 128, 52, 34, RED, CREAM);
+  } else if (shape === 1) {    // štvorec
+    x.scale(1.28, 1.28);
+    x.fillStyle = CREAM; rr(x, 0, 0, 400, 400, 38); x.fill();
+    x.save(); rr(x, 13, 13, 374, 374, 26); x.clip();
+    x.fillStyle = INK; x.fillRect(13, 13, 374, 374);
+    x.fillStyle = 'rgba(243,235,221,.10)';
+    for (let gy = 7; gy < 400; gy += 14) for (let gx = 7; gx < 400; gx += 14) { x.beginPath(); x.arc(gx, gy, 1.6, 0, 7); x.fill(); }
+    x.fillStyle = RED; x.fillRect(13, 318, 374, 70);
+    if (num) hashNum(x, num, 30, 272, 200, 80, 110, CREAM, CREAM, RED);
+    ghost(212, 138, 162, 182);
+    x.fillStyle = CREAM; spaced(x, title, 32, 370, 44, 2, 'left', 330);
+    x.globalAlpha = .75; x.font = `600 15px "IBM Plex Mono", monospace`; x.textAlign = 'right'; x.textBaseline = 'alphabetic'; x.fillText('SKATE EVENT', 368, 52); x.globalAlpha = 1;
+    x.restore();
+    x.strokeStyle = 'rgba(243,235,221,.3)'; x.lineWidth = 1.5; rr(x, 13, 13, 374, 374, 26); x.stroke();
+  } else {                     // štít so stuhou
+    x.translate(36, 3); x.scale(1.1, 1.1);
+    x.fillStyle = CREAM; x.strokeStyle = CREAM; x.lineWidth = 6; x.lineJoin = 'round'; x.fill(SHIELD); x.stroke(SHIELD);
+    x.save(); x.translate(200, 230); x.scale(.93, .93); x.translate(-200, -230);
+    x.fillStyle = RED; x.fill(SHIELD); x.clip(SHIELD);
+    x.strokeStyle = 'rgba(14,13,12,.16)'; x.lineWidth = 22;
+    for (const [a, b, c, d] of [[60, 40, 340, 460], [130, 20, 410, 440], [-10, 60, 270, 480]]) { x.beginPath(); x.moveTo(a, b); x.lineTo(c, d); x.stroke(); }
+    x.restore();
+    ghost(144, 34, 112, 126);
+    if (num) hashNum(x, num, null, 262, 112, 46, 30, INK, CREAM);
+    x.beginPath(); x.moveTo(8, 288); x.lineTo(392, 288); x.lineTo(376, 318); x.lineTo(392, 348); x.lineTo(8, 348); x.lineTo(24, 318); x.closePath();
+    x.fillStyle = INK; x.fill(); x.strokeStyle = CREAM; x.lineWidth = 4; x.lineJoin = 'round'; x.stroke();
+    x.fillStyle = CREAM; spaced(x, title, 200, 332, 38, 4, 'center', 300);
+    x.font = `600 15px "IBM Plex Mono", monospace`; x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.fillText('SKATE EVENT', 200, 394);
+  }
+  x.restore(); x.textAlign = 'center'; x.textBaseline = 'middle';
+}
+
 export function stickerCanvas(spec, logo, size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const x = c.getContext('2d'); x.scale(size / 512, size / 512); x.textAlign = 'center'; x.textBaseline = 'middle';
@@ -124,16 +214,7 @@ export function stickerCanvas(spec, logo, size = 512) {
       stretch(x, 'condensed'); x.fillStyle = '#F3EBDD'; const s2 = sub || 'COMING SOON'; fit(x, s2, 700, 300, 30); x.fillText(s2, 256, 420);
       break;
     }
-    case 'event': { // všetky eventy rovnako: logo GOSko, číslo eventu a mesto (dátum je pod nálepkou na stránke)
-      x.fillStyle = '#fff'; rr(x, 16, 36, 480, 440, 40); x.fill();
-      x.fillStyle = '#111'; rr(x, 30, 50, 452, 412, 28); x.fill();
-      const lw = 196, lh = lw * logo.height / logo.width; x.drawImage(logo, 256 - lw / 2, 58, lw, lh);
-      const by = 366, bh = 78;
-      if (spec.num) { stretch(x, 'expanded'); x.fillStyle = '#F3EBDD'; fit(x, '#' + spec.num, 900, 260, 84); x.fillText('#' + spec.num, 256, (58 + lh + by) / 2 + 4); }
-      x.fillStyle = '#A01414'; x.fillRect(30, by, 452, bh);
-      stretch(x, 'expanded'); x.fillStyle = '#fff'; fit(x, title, 900, 410, 52); x.fillText(title, 256, by + bh / 2 + 2);
-      break;
-    }
+    case 'event': eventSticker(x, spec, title); break;   // kruh / štvorec / štít podľa čísla eventu, v strede vždy duch GOSko
     case 'medal': {
       x.fillStyle = '#fff'; x.beginPath(); x.arc(256, 256, 236, 0, 7); x.fill();
       x.fillStyle = '#A01D21'; x.beginPath(); x.arc(256, 256, 222, 0, 7); x.fill();
