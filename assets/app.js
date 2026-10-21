@@ -2377,7 +2377,7 @@ async function pageMap(root) {
     const showOnMap = p => { if (stopMap?.focus) { mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); stopMap.focus(p.lat, p.lng); } };
     parksList.replaceChildren(...SKATEPARKS.map(p => h('li', { class: 'park-card' + (p.photo ? ' has-photo' : '') },
       h('button', { type: 'button', class: 'pk-img', 'aria-label': parkPhotos(p).length ? `Fotky: ${p.name}` : `Ukázať ${p.name} na mape`, onclick: () => parkPhotos(p).length ? lightbox(parkPhotos(p), 0) : showOnMap(p) },
-        p.photo ? h('img', { src: p.photo, alt: '', loading: 'lazy' }) : h('span', { class: 'pk-ph', 'aria-hidden': 'true' }, h('span', {}, p.city)),
+        p.photo ? h('img', { src: p.photo, alt: '', loading: 'lazy', style: p.photoPos ? `object-position:${p.photoPos}` : null }) : h('span', { class: 'pk-ph', 'aria-hidden': 'true' }, h('span', {}, p.city)),
         parkPhotos(p).length > 1 ? h('span', { class: 'pk-count mono' }, `${parkPhotos(p).length} fotiek`) : null,
         h('span', { class: 'pk-tag mono' + (p.tag === 'GOSko' ? ' hot' : '') }, p.tag)),
       h('div', { class: 'pk-body' },
