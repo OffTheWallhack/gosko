@@ -2526,15 +2526,29 @@ function hallEl() {
     }
     const evs = EVENTS.filter(e => e.season === y && e.status === 'done');
     const cards = [];
+    /* karta víťaza ako zberateľská holografická kartička: fotka, kategória, meno; fólia sa leskne a sleduje prst alebo myš */
+    const tilt = e => { const c = e.currentTarget, r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y2 = (e.clientY - r.top) / r.height; c.style.setProperty('--rx', `${(.5 - y2) * 16}deg`); c.style.setProperty('--ry', `${(x - .5) * 16}deg`); c.style.setProperty('--mx', `${x * 100}%`); c.style.setProperty('--my', `${y2 * 100}%`); c.classList.add('on'); };
+    const untilt = e => { const c = e.currentTarget; ['--rx', '--ry'].forEach(k => c.style.setProperty(k, '0deg')); c.classList.remove('on'); };
+    const holo = (name, cat, ev, kind) => {
+      const sl = slug(name), info = RIDERS[sl] || {};
+      const art = info.photo ? h('img', { src: info.photo, alt: '', loading: 'lazy', width: 400, height: 400, style: [info.photoPos && `object-position:${info.photoPos}`, info.photoFlip && 'scale:-1 1'].filter(Boolean).join(';') || null })
+        : h('span', { class: 'hc-gen', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }));
+      return h('a', { class: 'hcard ' + kind, href: '#/jazdec/' + sl, onpointermove: tilt, onpointerleave: untilt, 'aria-label': `${name}, ${cat}, ${ev.name}` },
+        h('span', { class: 'hc-art' }, art),
+        h('span', { class: 'hc-top' }, h('span', { class: 'hc-cat mono' }, cat), h('span', { class: 'hc-num mono' }, '#' + ((ev.name.match(/\d+/) || [''])[0]))),
+        h('span', { class: 'hc-name' }, name),
+        h('span', { class: 'hc-foil', 'aria-hidden': 'true' }));
+    };
     for (const ev of evs) {
       const wins = CATEGORIES.map(c => [c, (ev.results[c.id] || []).filter(x => x.place === 1)]).filter(([, l]) => l.length);
       if (!wins.length && !ev.awards.length) continue;
-      cards.push(h('div', { class: 'hof' },
+      cards.push(h('section', { class: 'hof-case' },
         h('a', { class: 'hof-ev', href: '#/event/' + ev.id }, h('b', {}, ev.name), h('span', { class: 'mono' }, [ev.place, fmtDate(ev.date)].filter(Boolean).join(' · '))),
-        h('ul', {}, wins.map(([c, l]) => l.map(x => h('li', {}, avatarEl(x.name, slug(x.name), { rank: 1 }), h('span', {}, h('small', { class: 'mono' }, c.name), h('a', { href: '#/jazdec/' + slug(x.name) }, x.name))))),
-          ev.awards.map(a => h('li', {}, avatarEl(a.rider, slug(a.rider)), h('span', {}, h('small', { class: 'mono' }, a.name), h('a', { href: '#/jazdec/' + slug(a.rider) }, a.rider)))))));
+        h('div', { class: 'hof-cards' },
+          wins.map(([c, l]) => l.map(x => holo(x.name, c.name, ev, 'win'))),
+          ev.awards.map(a => holo(a.rider, a.name, ev, 'award')))));
     }
-    put(body, cards.length ? h('div', { class: 'hof-grid' }, cards) : h('p', { class: 'empty' }, 'Výsledky doplníme.'));
+    put(body, cards.length ? h('div', { class: 'hof-wall' }, cards) : h('p', { class: 'empty' }, 'Výsledky doplníme.'));
   }
   return body;
 }
