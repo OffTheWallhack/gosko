@@ -862,7 +862,7 @@ function skaterCards(rows, label = `Open ${SITE.season}`) {
   const card = (r, i) => {
     const rd = R.get(r.slug);
     return h('a', { class: `sk-card r${i + 1}`, href: '#/jazdec/' + r.slug, onpointermove: tilt, onpointerleave: untilt },
-      h('span', { class: 'sk-bg' + (cardPhoto(r, rd) ? '' : ' nophoto'), 'aria-hidden': 'true' }, cardPhoto(r, rd) ? h('img', { class: 'sk-photo', src: cardPhoto(r, rd), alt: '', loading: 'lazy' }) : h('span', { class: 'sk-ini' }, initials(r.name)), h('span', { class: 'sk-shade' })),
+      h('span', { class: 'sk-bg' + (cardPhoto(r, rd) ? '' : ' nophoto'), 'aria-hidden': 'true' }, cardPhoto(r, rd) ? h('img', { class: 'sk-photo', src: cardPhoto(r, rd), alt: '', loading: 'lazy', style: [RIDERS[r.slug]?.photoPos && `object-position:${RIDERS[r.slug].photoPos}`, RIDERS[r.slug]?.photoFlip && 'scale:-1 1'].filter(Boolean).join(';') || null }) : h('span', { class: 'sk-ini' }, initials(r.name)), h('span', { class: 'sk-shade' })),
       h('span', { class: 'sk-top' }, h('span', { class: 'sk-rank' }, `#${i + 1}`), h('span', { class: 'mono sk-cat' }, label)),
       h('span', { class: 'sk-art' }, rd ? boardImg(rd, 'sk-bimg') : null),
       h('span', { class: 'sk-name' }, r.name),

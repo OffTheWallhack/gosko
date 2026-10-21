@@ -265,7 +265,7 @@ export const SKATEPARKS = [
      'sebastian-kozmann': { instagram: 'sebo', city: 'Bratislava', look: { deck: 'black', wheels: 'red' } }, */
 export const RIDERS = {
   'sebastian-kozmann': { photo: 'img/riders/sebastian-kozmann.webp' },
-  'tomas-cekovsky': { photo: 'img/riders/tomas-cekovsky.webp' },
+  'tomas-cekovsky': { photo: 'img/riders/tomas-cekovsky.webp', photoPos: '50% 20%', photoFlip: true },
   'dominik-hreus': { photo: 'img/riders/dominik-hreus.webp' },
   'marek-kupkovic': { photo: 'img/riders/marek-kupkovic.webp' },
   'jakub-sluka': { photo: 'img/riders/jakub-sluka.webp' },
