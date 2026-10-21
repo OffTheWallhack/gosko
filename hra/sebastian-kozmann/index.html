@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Doska Sebastiana Kozmanna | GOSko</title>
+<meta name="description" content="Zahraj si Game of S.K.A.T.E. s doskou Sebastiana Kozmanna.">
+<meta name="theme-color" content="#111111">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: one phone-width column. Letters on top, the real deck in a top-down view on concrete, trick controls underneath. */
+:root {
+  --bg: #111111;        /* site black */
+  --surface: #1a1816;   /* panel */
+  --line: #2e2b28;      /* joints and borders */
+  --fg: #f3ebdd;        /* site cream */
+  --muted: #b8aea0;     /* faded paint */
+  --accent: #f3ebdd;    /* cream marks */
+  --red: #a01d21;       /* main action only */
+  --good: #62c987;
+  --bad: #d9423f;
+  --font-display: "Anton", Impact, "Arial Narrow", sans-serif;
+  --font-body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Archivo", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+.app { max-width: 480px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; gap: 12px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 26px; letter-spacing: .01em; text-wrap: balance; line-height: 1; }
+.sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.icon-btn { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; flex: none; }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.score { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.who { font-size: 13px; font-weight: 800; color: var(--muted); min-width: 34px; }
+.letters { display: flex; gap: 6px; }
+.l { flex: 1; max-width: 52px; height: 34px; border-radius: 6px; border: 1.5px solid var(--line); display: grid; place-items: center; font-family: var(--font-display); font-size: 17px; color: var(--line); transition: background .2s, color .2s, border-color .2s; }
+.l.on { background: var(--bad); border-color: var(--bad); color: #1a0b09; }
+.l.new { animation: pulse .5s ease-out; }
+@keyframes pulse { 0% { transform: scale(1.4); } 100% { transform: scale(1); } }
+
+.stage { position: relative; flex: 1 1 auto; min-height: 280px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #23262a; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.role { position: absolute; left: 10px; top: 10px; font-size: 12px; font-weight: 700; padding: 5px 9px; border-radius: 999px; background: rgba(21,23,26,.82); color: var(--accent); border: 1px solid var(--line); }
+
+.msg { min-height: 44px; margin: 0; font-weight: 800; font-size: 17px; line-height: 1.25; text-wrap: balance; }
+.msg.good { color: var(--good); }
+.msg.bad { color: var(--bad); }
+
+.panels { display: grid; align-content: start; min-height: 236px; }
+.panels > section { grid-area: 1 / 1; }
+.panels > section[hidden] { display: none !important; }
+
+.tricks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.trick { min-height: 64px; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-weight: 800; font-size: 14px; }
+.trick:active { background: #2a2e33; border-color: var(--accent); }
+.trick .k { font-size: 11px; color: var(--muted); font-weight: 500; }
+.dots { display: flex; gap: 3px; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.dots i.f { background: var(--accent); }
+.hint { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+
+.timing { display: flex; flex-direction: column; gap: 10px; }
+.tname { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--muted); }
+.tname b { color: var(--fg); font-size: 14px; }
+.meter { position: relative; height: 34px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.zone { position: absolute; top: 0; bottom: 0; background: rgba(98,201,135,.28); border-left: 2px solid var(--good); border-right: 2px solid var(--good); box-sizing: border-box; }
+.marker { position: absolute; top: -1px; bottom: -1px; width: 4px; margin-left: -2px; background: var(--accent); border-radius: 2px; }
+.pop { height: 64px; border-radius: 12px; border: 0; background: var(--red); color: var(--fg); font-family: var(--font-display); font-size: 28px; letter-spacing: .03em; }
+.pop:active { transform: translateY(1px); filter: brightness(.9); }
+
+.end { text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; padding: 6px 0; }
+.end h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 28px; text-wrap: balance; }
+.end p { margin: 0; color: var(--muted); }
+
+footer a { color: var(--fg); }
+footer { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .l.new { animation: none; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Doska Sebastiana Kozmanna</h1>
+      <div class="sub">Game of S.K.A.T.E. od GOSka</div>
+    </div>
+    <button class="icon-btn" id="snd" aria-label="Zvuk zapnutý" title="Zvuk">
+      <svg viewBox="0 0 24 24" id="sndIcon"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+    </button>
+  </header>
+
+  <div class="score" aria-label="Písmená">
+    <span class="who">TY</span><div class="letters" id="lyou"></div>
+    <span class="who">CPU</span><div class="letters" id="lcpu"></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Skateboard zhora"></canvas>
+    <div class="role" id="role">Nastavuješ ty</div>
+  </div>
+
+  <p class="msg" id="msg" aria-live="polite">Vyber trik. CPU ho musí skopírovať.</p>
+
+  <div class="panels">
+    <section id="pChoose">
+      <div class="tricks" id="tricks"></div>
+      <p class="hint">Klávesy 1 až 6. Ťažší trik má užšiu zelenú zónu a rýchlejší ukazovateľ.</p>
+    </section>
+    <section id="pTiming" class="timing" hidden>
+      <div class="tname"><b id="tName">Ollie</b><span id="tMode">Tvoj trik</span></div>
+      <div class="meter" id="meter"><div class="zone" id="zone"></div><div class="marker" id="marker"></div></div>
+      <button class="pop" id="pop">POP</button>
+    </section>
+    <section id="pEnd" class="end" hidden>
+      <h2 id="endTitle">Koniec hry</h2>
+      <p id="endSub"></p>
+      <button class="pop" id="again" style="padding:0 28px">Hrať znova</button>
+    </section>
+  </div>
+
+  <footer><span>Space = POP</span><a href="../../#/jazdec/sebastian-kozmann">Späť na profil</a></footer>
+</div>
+
+<script>
+(function () {
+  var DECK_SRC = "../../img/riders/sebastian-kozmann-deck.jpg";
+  var TW = 384, TH = 1472;                // texture size
+  var LETTERS = "SKATE";
+
+  var TRICKS = [
+    { id: "ollie",    name: "Ollie",       diff: 1, speed: 1.1, half: 0.170, cpuCopy: 0.95, cpuSet: 0.95, dur: 900 },
+    { id: "shove",    name: "Shove-it",    diff: 2, speed: 1.3, half: 0.140, cpuCopy: 0.88, cpuSet: 0.90, dur: 1000 },
+    { id: "kickflip", name: "Kickflip",    diff: 3, speed: 1.5, half: 0.120, cpuCopy: 0.80, cpuSet: 0.82, dur: 1000 },
+    { id: "heelflip", name: "Heelflip",    diff: 3, speed: 1.6, half: 0.110, cpuCopy: 0.76, cpuSet: 0.78, dur: 1000 },
+    { id: "varial",   name: "Varial flip", diff: 4, speed: 1.8, half: 0.095, cpuCopy: 0.68, cpuSet: 0.68, dur: 1100 },
+    { id: "tre",      name: "360 flip",    diff: 5, speed: 2.0, half: 0.080, cpuCopy: 0.58, cpuSet: 0.58, dur: 1200 }
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var rad = function (d) { return d * Math.PI / 180; };
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var smooth = function (t) { return t * t * (3 - 2 * t); };
+  var clamp01 = function (t) { return Math.max(0, Math.min(1, t)); };
+
+  /* ---------- textures ---------- */
+  var deckImg = new Image();
+  var topTex = document.createElement("canvas");
+  var botTex = document.createElement("canvas");
+  topTex.width = botTex.width = TW; topTex.height = botTex.height = TH;
+  var texReady = false;
+
+  function deckPath(c) {
+    var x0 = 8, x1 = 378, y0 = 8, y1 = 1464, rx = 185, ry = 235;
+    c.moveTo(x0 + rx, y0);
+    c.lineTo(x1 - rx, y0);
+    c.ellipse(x1 - rx, y0 + ry, rx, ry, 0, -Math.PI / 2, 0);
+    c.lineTo(x1, y1 - ry);
+    c.ellipse(x1 - rx, y1 - ry, rx, ry, 0, 0, Math.PI / 2);
+    c.lineTo(x0 + rx, y1);
+    c.ellipse(x0 + rx, y1 - ry, rx, ry, 0, Math.PI / 2, Math.PI);
+    c.lineTo(x0, y0 + ry);
+    c.ellipse(x0 + rx, y0 + ry, rx, ry, 0, Math.PI, Math.PI * 1.5);
+    c.closePath();
+  }
+
+  /* ghost-on-a-board mark, drawn in a local box around (0,0), about 100 wide */
+  function ghost(c, fill, eye) {
+    c.fillStyle = fill;
+    c.beginPath();
+    c.moveTo(-19, 8);
+    c.lineTo(-19, -20);
+    c.bezierCurveTo(-19, -42, 19, -42, 19, -20);
+    c.lineTo(19, 8);
+    c.lineTo(12.5, 3);
+    c.lineTo(6.3, 8);
+    c.lineTo(0, 3);
+    c.lineTo(-6.3, 8);
+    c.lineTo(-12.5, 3);
+    c.closePath();
+    c.fill();
+    c.fillStyle = eye;
+    c.beginPath(); c.ellipse(-7, -20, 3.4, 5, 0, 0, 7); c.fill();
+    c.beginPath(); c.ellipse(7, -20, 3.4, 5, 0, 0, 7); c.fill();
+    c.beginPath(); c.ellipse(0, -8, 3, 4.2, 0, 0, 7); c.fill();
+    // little board under the ghost
+    c.fillStyle = fill;
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-24, 12, 48, 6, 3); else c.rect(-24, 12, 48, 6);
+    c.fill();
+    c.beginPath(); c.arc(-14, 21, 2.8, 0, 7); c.arc(14, 21, 2.8, 0, 7); c.fill();
+  }
+
+  function stickerGosko(c) {
+    c.save();
+    c.translate(310, 494);
+    c.rotate(rad(8));
+    c.scale(1.2, 1.2);
+    c.shadowColor = "rgba(0,0,0,.55)"; c.shadowBlur = 5; c.shadowOffsetY = 2;
+    c.fillStyle = "#f4f1ea";
+    c.beginPath(); c.arc(0, 0, 55, 0, 7); c.fill();
+    c.shadowColor = "transparent";
+    c.fillStyle = "#101113";
+    c.beginPath(); c.arc(0, 0, 50, 0, 7); c.fill();
+    c.save(); c.translate(0, -6); ghost(c, "#f4f1ea", "#101113"); c.restore();
+    c.fillStyle = "#a01d21";
+    c.font = "400 15px 'Anton', Impact, 'Arial Narrow', sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText("GOSKO", 0, 36);
+    c.restore();
+  }
+
+  function stickerTlakerz(c) {
+    c.save();
+    c.translate(192, 478);
+    c.scale(1.1, 1.1);
+    c.shadowColor = "rgba(0,0,0,.5)"; c.shadowBlur = 5; c.shadowOffsetY = 2;
+    c.fillStyle = "#f2c200";
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-84, -31, 168, 62, 9); else c.rect(-84, -31, 168, 62);
+    c.fill();
+    c.shadowColor = "transparent";
+    c.lineWidth = 3; c.strokeStyle = "#111";
+    c.stroke();
+    c.font = "italic 400 33px 'Anton', Impact, 'Arial Narrow', sans-serif";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.lineJoin = "round";
+    c.lineWidth = 7; c.strokeStyle = "#fff8d6";
+    c.strokeText("TLAKERZ", 0, 2);
+    c.fillStyle = "#111";
+    c.fillText("TLAKERZ", 0, 2);
+    c.restore();
+  }
+
+  function buildTextures() {
+    var c = topTex.getContext("2d");
+    c.clearRect(0, 0, TW, TH);
+    c.drawImage(deckImg, 0, 0, TW, TH);
+    // stickers removed: the deck shows only what is on the real board
+
+    // underside: plain graphic side
+    var b = botTex.getContext("2d");
+    var g = b.createLinearGradient(0, 0, 0, TH);
+    g.addColorStop(0, "#1d2c31"); g.addColorStop(1, "#0f1518");
+    b.fillStyle = g; b.fillRect(0, 0, TW, TH);
+    b.save(); b.translate(TW / 2, 560); b.scale(3.1, 3.1);
+    ghost(b, "#e9e5da", "#0f1518");
+    b.restore();
+    b.fillStyle = "#c9372f";
+    b.font = "400 92px 'Anton', Impact, 'Arial Narrow', sans-serif";
+    b.textAlign = "center"; b.textBaseline = "middle";
+    b.fillText("GOSKO", TW / 2, 980);
+    b.fillStyle = "rgba(233,229,218,.55)";
+    b.font = "700 26px 'Archivo', sans-serif";
+    b.fillText("GAME OF S.K.A.T.E.", TW / 2, 1060);
+    // trucks bolt marks
+    b.fillStyle = "rgba(255,255,255,.12)";
+    [[120,365],[264,365],[120,1155],[264,1155]].forEach(function (p) { b.beginPath(); b.arc(p[0], p[1], 9, 0, 7); b.fill(); });
+    texReady = true;
+  }
+
+  deckImg.onload = function () {
+    buildTextures();
+    if (document.fonts && document.fonts.load) {
+      Promise.all([
+        document.fonts.load("400 20px 'Anton'"),
+        document.fonts.load("italic 400 20px 'Anton'"),
+        document.fonts.load("700 20px 'Archivo'")
+      ]).then(buildTextures, function () {});
+    }
+  };
+  deckImg.src = DECK_SRC;
+
+  /* ---------- canvas ---------- */
+  var cv = $("cv"), ctx = cv.getContext("2d"), stage = $("stage");
+  var dpr = 1, cw = 300, ch = 300, ground = null;
+
+  function makeGround() {
+    var g = document.createElement("canvas");
+    g.width = Math.round(cw * dpr); g.height = Math.round(ch * dpr);
+    var c = g.getContext("2d");
+    c.scale(dpr, dpr);
+    c.fillStyle = "#24272b"; c.fillRect(0, 0, cw, ch);
+    var seed = 7;
+    function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    for (var i = 0; i < cw * ch / 38; i++) {
+      var v = Math.floor(rnd() * 40) + 30;
+      c.fillStyle = "rgba(" + v + "," + (v + 2) + "," + (v + 5) + "," + (0.35 + rnd() * 0.4) + ")";
+      c.fillRect(rnd() * cw, rnd() * ch, 1.5, 1.5);
+    }
+    // slab joints
+    c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(cw * 0.12, 0); c.lineTo(cw * 0.12, ch); c.moveTo(cw * 0.88, 0); c.lineTo(cw * 0.88, ch);
+    c.moveTo(0, ch * 0.5); c.lineTo(cw, ch * 0.5); c.stroke();
+    c.strokeStyle = "rgba(255,255,255,.05)"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(cw * 0.12 + 2, 0); c.lineTo(cw * 0.12 + 2, ch); c.moveTo(cw * 0.88 + 2, 0); c.lineTo(cw * 0.88 + 2, ch);
+    c.moveTo(0, ch * 0.5 + 2); c.lineTo(cw, ch * 0.5 + 2); c.stroke();
+    // a crack
+    c.strokeStyle = "rgba(0,0,0,.4)"; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(cw * 0.12, ch * 0.5); c.lineTo(cw * 0.2, ch * 0.56); c.lineTo(cw * 0.25, ch * 0.54); c.lineTo(cw * 0.31, ch * 0.62); c.stroke();
+    // painted curb line
+    c.fillStyle = "rgba(243,235,221,.45)"; c.fillRect(0, ch - 9, cw, 5);
+    ground = g;
+  }
+
+  function resize() {
+    var r = stage.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    cw = Math.max(200, r.width); ch = Math.max(200, r.height);
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    makeGround();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  window.addEventListener("resize", resize);
+  resize();
+
+  /* ---------- pose + animation ---------- */
+  var pose = { z: 0, rot: 0, flip: 0, x: 0, y: 0 };
+  var anim = null;
+
+  function trickPose(id, t) {
+    var e = smooth(clamp01((t - 0.12) / 0.76));
+    var z = Math.sin(Math.PI * clamp01((t - 0.08) / 0.84));
+    var rot = 0, flip = 0;
+    if (id === "shove") rot = 180 * e;
+    else if (id === "kickflip") flip = 360 * e;
+    else if (id === "heelflip") flip = -360 * e;
+    else if (id === "varial") { rot = 180 * e; flip = 360 * e; }
+    else if (id === "tre") { rot = 360 * e; flip = 360 * e; }
+    return { z: z, rot: rot, flip: flip };
+  }
+
+  function run(dur, fn) {
+    return new Promise(function (resolve) {
+      anim = { start: performance.now(), dur: dur, fn: fn, resolve: resolve };
+    });
+  }
+
+  function playTrick(trick, landed) {
+    var side = Math.random() < 0.5 ? -1 : 1;
+    var failRot = side * (95 + Math.random() * 70);
+    var failX = side * (22 + Math.random() * 26);
+    var failY = (Math.random() - 0.3) * 40;
+    var p0 = pose;
+    sfx("pop");
+    setTimeout(function () { sfx(landed ? "land" : "bail"); }, trick.dur * 0.86);
+    return run(trick.dur, function (t) {
+      var tp = trickPose(trick.id, t);
+      var b = landed ? 0 : smooth(clamp01((t - 0.7) / 0.3));
+      pose = {
+        z: tp.z,
+        rot: tp.rot + b * failRot,
+        flip: tp.flip + b * 180,
+        x: b * failX,
+        y: b * failY
+      };
+    }).then(function () { return sleep(landed ? 350 : 500); });
+  }
+
+  function settle() {
+    var from = pose;
+    var to = { rot: Math.round(from.rot / 360) * 360, flip: Math.round(from.flip / 360) * 360 };
+    return run(420, function (t) {
+      var e = smooth(t);
+      pose = {
+        z: Math.sin(Math.PI * t) * 0.35,
+        rot: from.rot + (to.rot - from.rot) * e,
+        flip: from.flip + (to.flip - from.flip) * e,
+        x: from.x * (1 - e),
+        y: from.y * (1 - e)
+      };
+    }).then(function () { pose = { z: 0, rot: 0, flip: 0, x: 0, y: 0 }; });
+  }
+
+  function drawBoard(now) {
+    var L = Math.min(ch * 0.74, cw * 0.84, 380);
+    var k = L / TH;
+    var bob = anim ? 0 : Math.sin(now / 900) * 0.05;
+    var tilt = anim ? 0 : Math.sin(now / 1300) * rad(1.4);
+    var z = pose.z + bob;
+    var cf = Math.cos(rad(pose.flip));
+    var sx = Math.max(0.03, Math.abs(cf));
+    var top = cf >= 0;
+    var s = 1 + z * 0.2;
+
+    ctx.save();
+    ctx.translate(cw / 2 + pose.x, ch / 2 + pose.y - z * 6);
+    ctx.rotate(rad(pose.rot) + tilt);
+    ctx.scale(sx * k * s, k * s);
+    ctx.translate(-TW / 2, -TH / 2);
+
+    ctx.beginPath(); deckPath(ctx);
+    ctx.shadowColor = "rgba(0,0,0,.55)";
+    ctx.shadowBlur = (10 + z * 22) * dpr;
+    ctx.shadowOffsetX = (4 + z * 16) * dpr;
+    ctx.shadowOffsetY = (7 + z * 26) * dpr;
+    ctx.fillStyle = "#000";
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+
+    ctx.save();
+    ctx.clip();
+    if (texReady) ctx.drawImage(top ? topTex : botTex, 0, 0);
+    else { ctx.fillStyle = "#3a3633"; ctx.fillRect(0, 0, TW, TH); }
+    ctx.fillStyle = "rgba(0,0,0," + (0.5 * (1 - sx)) + ")";
+    ctx.fillRect(0, 0, TW, TH);
+    ctx.restore();
+
+    ctx.beginPath(); deckPath(ctx);
+    ctx.lineWidth = 3 / (k * s);
+    ctx.strokeStyle = "rgba(222,190,140,.55)";
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function frame(now) {
+    if (anim) {
+      var t = clamp01((now - anim.start) / anim.dur);
+      anim.fn(t);
+      if (t >= 1) { var r = anim.resolve; anim = null; r(); }
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    if (ground) ctx.drawImage(ground, 0, 0, cw, ch);
+    drawBoard(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- sound ---------- */
+  var soundOn = true, ac = null;
+  function sfx(kind) {
+    if (!soundOn) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === "suspended") ac.resume();
+      var t0 = ac.currentTime;
+      function tone(type, f0, f1, dur, vol) {
+        var o = ac.createOscillator(), g = ac.createGain();
+        o.type = type; o.frequency.setValueAtTime(f0, t0);
+        o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+        g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+      }
+      if (kind === "pop") tone("square", 220, 70, 0.09, 0.12);
+      else if (kind === "land") tone("sine", 140, 55, 0.16, 0.35);
+      else if (kind === "bail") tone("sawtooth", 260, 50, 0.4, 0.14);
+      else if (kind === "ok") { tone("triangle", 520, 780, 0.14, 0.18); }
+      else if (kind === "letter") tone("square", 180, 90, 0.25, 0.14);
+    } catch (e) {}
+  }
+  $("snd").addEventListener("click", function () {
+    soundOn = !soundOn;
+    this.setAttribute("aria-label", soundOn ? "Zvuk zapnutý" : "Zvuk vypnutý");
+    $("sndIcon").style.opacity = soundOn ? 1 : 0.35;
+  });
+
+  /* ---------- UI ---------- */
+  var panels = { choose: $("pChoose"), timing: $("pTiming"), end: $("pEnd") };
+  function showPanel(n) { Object.keys(panels).forEach(function (k) { panels[k].hidden = (k !== n); }); }
+  function setMsg(text, tone) { var m = $("msg"); m.textContent = text; m.className = "msg" + (tone ? " " + tone : ""); }
+  function setRole(t) { $("role").textContent = t; }
+
+  var boxes = { you: [], cpu: [] };
+  ["you", "cpu"].forEach(function (who) {
+    var wrap = $(who === "you" ? "lyou" : "lcpu");
+    wrap.innerHTML = "";
+    LETTERS.split("").forEach(function (ch0) {
+      var d = document.createElement("div"); d.className = "l"; d.textContent = ch0; wrap.appendChild(d); boxes[who].push(d);
+    });
+  });
+
+  var trickWrap = $("tricks");
+  TRICKS.forEach(function (t, i) {
+    var b = document.createElement("button");
+    b.className = "trick"; b.type = "button"; b.dataset.i = i;
+    var dots = ""; for (var d = 1; d <= 5; d++) dots += "<i class='" + (d <= t.diff ? "f" : "") + "'></i>";
+    b.innerHTML = "<span class='k'>" + (i + 1) + "</span><span>" + t.name + "</span><span class='dots'>" + dots + "</span>";
+    trickWrap.appendChild(b);
+  });
+
+  var letters = { you: 0, cpu: 0 };
+  var over = false;
+  var pending = null;
+
+  function resetLetters() {
+    letters.you = letters.cpu = 0; over = false;
+    boxes.you.concat(boxes.cpu).forEach(function (b) { b.className = "l"; });
+  }
+  function giveLetter(who) {
+    var i = letters[who]++;
+    var b = boxes[who][i]; b.classList.add("on", "new");
+    sfx("letter");
+    if (letters[who] >= LETTERS.length) { over = true; }
+    return LETTERS[i];
+  }
+
+  function chooseTrick() {
+    showPanel("choose");
+    return new Promise(function (resolve) { pending = { type: "choose", resolve: resolve }; });
+  }
+  trickWrap.addEventListener("click", function (e) {
+    var b = e.target.closest(".trick");
+    if (b && pending && pending.type === "choose") { var r = pending.resolve; pending = null; r(TRICKS[+b.dataset.i]); }
+  });
+
+  /* timing meter */
+  var raf = 0;
+  function timing(trick, mode) {
+    $("tName").textContent = trick.name;
+    $("tMode").textContent = mode;
+    showPanel("timing");
+    var zc = 0.25 + Math.random() * 0.5, half = trick.half;
+    var zone = $("zone"), marker = $("marker");
+    zone.style.left = ((zc - half) * 100) + "%";
+    zone.style.width = (half * 200) + "%";
+    var start = performance.now(), ph = Math.random();
+    var pos = 0;
+    function tick() {
+      var u = ((performance.now() - start) / 1000) * trick.speed * 0.5 + ph;
+      var f = u - Math.floor(u);
+      pos = 1 - Math.abs(2 * f - 1);
+      marker.style.left = (pos * 100) + "%";
+      raf = requestAnimationFrame(tick);
+    }
+    tick();
+    return new Promise(function (resolve) {
+      pending = {
+        type: "timing",
+        resolve: function () {
+          cancelAnimationFrame(raf);
+          var d = Math.abs(pos - zc);
+          resolve({ landed: d <= half, clean: d <= half * 0.35, near: d <= half * 1.7 });
+        }
+      };
+    });
+  }
+  function pop() { if (pending && pending.type === "timing") { var r = pending.resolve; pending = null; r(); } }
+  $("pop").addEventListener("pointerdown", function (e) { e.preventDefault(); pop(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.code === "Space" || e.code === "Enter") {
+      if (pending && pending.type === "timing") { e.preventDefault(); pop(); }
+    } else if (/^[1-6]$/.test(e.key) && pending && pending.type === "choose") {
+      var r = pending.resolve; pending = null; r(TRICKS[+e.key - 1]);
+    }
+  });
+
+  /* ---------- game flow ---------- */
+  async function youSet() {
+    while (!over) {
+      setRole("Nastavuješ ty");
+      setMsg("Vyber trik. CPU ho musí skopírovať.");
+      var t = await chooseTrick();
+      setMsg(t.name + ": stlač POP v zelenej zóne.");
+      var r = await timing(t, "Tvoj trik");
+      showPanel("choose"); panels.choose.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+      await playTrick(t, r.landed);
+      panels.choose.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+      if (!r.landed) {
+        setMsg(r.near ? "Skoro! Spadol si. Nastavuje CPU." : "Spadol si. Nastavuje CPU.", "bad");
+        await sleep(900); await settle(); return "cpu";
+      }
+      sfx("ok");
+      setMsg(r.clean ? "Čistý " + t.name + "! CPU ho skúša skopírovať." : t.name + " pristál. CPU ho skúša skopírovať.", "good");
+      await sleep(500); await settle();
+      var ok = Math.random() < t.cpuCopy;
+      await playTrick(t, ok);
+      if (!ok) {
+        var L = giveLetter("cpu");
+        setMsg("CPU spadlo a dostáva písmeno " + L + ". Nastavuješ znova.", "good");
+      } else {
+        setMsg("CPU to skopírovalo. Nastavuješ znova.");
+      }
+      await sleep(1000); await settle();
+    }
+    return "end";
+  }
+
+  async function cpuSet() {
+    while (!over) {
+      setRole("Nastavuje CPU");
+      showPanel("choose"); panels.choose.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+      var pool = [];
+      TRICKS.forEach(function (tr) { for (var n = 0; n < 6 - tr.diff; n++) pool.push(tr); });
+      var t = pool[Math.floor(Math.random() * pool.length)];
+      setMsg("CPU nastavuje: " + t.name);
+      await sleep(700);
+      var ok = Math.random() < t.cpuSet;
+      await playTrick(t, ok);
+      if (!ok) {
+        setMsg("CPU spadlo. Nastavuješ ty.", "good");
+        await sleep(900); await settle();
+        panels.choose.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+        return "you";
+      }
+      await sleep(300); await settle();
+      setMsg("Skopíruj " + t.name + ".");
+      var r = await timing(t, "Kopíruješ CPU");
+      showPanel("choose");
+      await playTrick(t, r.landed);
+      if (!r.landed) {
+        var L = giveLetter("you");
+        setMsg((r.near ? "Skoro! " : "") + "Spadol si a dostávaš písmeno " + L + ".", "bad");
+      } else {
+        sfx("ok");
+        setMsg(r.clean ? "Čistá kópia!" : "Skopíroval si to.", "good");
+      }
+      await sleep(1000); await settle();
+    }
+    return "end";
+  }
+
+  async function game() {
+    resetLetters();
+    var turn = "you";
+    while (!over) {
+      turn = turn === "you" ? await youSet() : await cpuSet();
+    }
+    panels.choose.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+    var won = letters.cpu >= LETTERS.length;
+    $("endTitle").textContent = won ? "Vyhral si" : "Vyhralo CPU";
+    $("endSub").textContent = won ? "CPU zbierlo všetkých päť písmen S.K.A.T.E." : "Dostal si všetkých päť písmen S.K.A.T.E.";
+    setRole(won ? "Výhra" : "Prehra");
+    setMsg(won ? "Game of S.K.A.T.E. je tvoja." : "Skús to znova.", won ? "good" : "bad");
+    showPanel("end");
+  }
+  $("again").addEventListener("click", function () { game(); });
+  game();
+})();
+</script>
+</body>
+</html>
