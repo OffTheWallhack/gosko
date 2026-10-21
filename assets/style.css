@@ -3091,3 +3091,18 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 @media (prefers-reduced-motion:reduce){.kt-wrap{animation:none}}
 
 body:has(.kt-page) .er-top{display:none}
+
+/* v27: väčšia horná lišta na desktope (logo, odkazy, profil + Menu v jednom rade) */
+@media (min-width:980px){
+  :root{--tb-h:76px}
+  .tb-row{max-width:1320px;gap:18px}
+  .brand img{height:44px}
+  .nav{margin-left:34px;gap:36px}
+  .nav a{font-size:1.02rem;letter-spacing:.08em;padding:10px 2px;color:var(--bone)}
+  .nav a:not([aria-current]){color:rgba(239,233,222,.78)}
+  .nav a:hover{color:var(--cream)}
+  .acct,.acct.acct,.acct.in{height:52px}
+  .acct .acct-t{font-size:1.05rem}
+  .acct-arrow{width:34px}
+  .menu-btn{height:52px;padding:0 26px;font-size:1rem}
+}

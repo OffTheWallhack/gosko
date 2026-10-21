@@ -265,11 +265,11 @@ export const SKATEPARKS = [
    Príklad:
      'sebastian-kozmann': { instagram: 'sebo', city: 'Bratislava', look: { deck: 'black', wheels: 'red' } }, */
 export const RIDERS = {
-  'sebastian-kozmann': { photo: 'img/riders/sebastian-kozmann.webp' },
+  'sebastian-kozmann': { photo: 'img/riders/sebastian-kozmann.webp', look: { deck: '#B58A52', grip: 'black', wheels: 'cream', trucks: 'silver' } },
   'tomas-cekovsky': { photo: 'img/riders/tomas-cekovsky.webp', photoPos: '50% 20%', photoFlip: true },
   'dominik-hreus': { photo: 'img/riders/dominik-hreus.webp' },
   'marek-kupkovic': { photo: 'img/riders/marek-kupkovic.webp' },
-  'jakub-sluka': { photo: 'img/riders/jakub-sluka.webp' },
+  'jakub-sluka': { photo: 'img/riders/jakub-sluka.webp', look: { deck: '#C9A15C', grip: 'black', wheels: '#E8D6A8', trucks: 'silver' } },
   'marian-holik': { photo: 'img/riders/marian-holik.webp' },
 };
 
