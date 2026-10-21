@@ -211,7 +211,7 @@ Fotka ostáva len v telefóne toho človeka, nikam sa neposiela.
 
 ## Komunita
 
-- **Trik týždňa** (`/trik-tyzdna`): zadanie a fázy riadiš v admine (posielanie → výber 3 finalistov → hlasovanie → víťaz).
+- **Trik mesiaca** (`/trik-tyzdna`): zadanie a fázy riadiš v admine (posielanie → výber 3 finalistov → hlasovanie → víťaz).
 - **Profil jazdca:** jazdec klikne „Som to ja“, v admine ho schváliš, potom si sám doplní fotku a info. Fotku jazdca môžeš nahrať aj v admine.
 - **Crew:** zoznam v `data.js` (`CREWS`). **Spot mesiaca:** `SITE.spotOfMonth` v `data.js`. **WhatsApp skupina:** `SITE.whatsapp`.
 - **XP a odznaky:** počítajú sa automaticky z aktivity (check-in, triky, spoty, parky, hodnotenia).

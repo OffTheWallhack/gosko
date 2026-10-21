@@ -448,7 +448,7 @@ function daysUntil(dateStr) {
   const t0 = new Date();
   return Math.round((Date.UTC(p.y, p.m - 1, p.d) - Date.UTC(t0.getFullYear(), t0.getMonth(), t0.getDate())) / 864e5);
 }
-/* krátky dátum pre ďalší event bez presného dátumu: „14. alebo 21. 11.“ (z ev.when), inak „čoskoro“ */
+/* krátky dátum pre ďalší event bez presného dátumu: napr. „14. alebo 21. 11.“ (z ev.when), inak „čoskoro“ */
 const soonDate = ev => ev?.when ? String(ev.when).replace(/\s*20\d\d\s*$/, '') : 'čoskoro';
 const nextEvent = () => EVENTS.filter(e => e.status === 'next').sort((a, b) => (a.date || '9').localeCompare(b.date || '9'))[0];
 function countdownEl(ev) {
@@ -1022,7 +1022,7 @@ function onboarding() {
   const steps = [
     ['Čau, som GOSko duch.', 'Toto je domov slovenského Game of S.K.A.T.E. Ukážem ti, čo tu je, zaberie to 10 sekúnd.'],
     ['Odlep nálepku', 'Každý náš event má nálepku. Klikni na ňu a vojdeš do sveta eventu: fotky, výsledky, videá.'],
-    ['Pošli trik týždňa', 'Každý týždeň nové zadanie. Pošli klip, my vyberieme troch a ty hlasuješ.'],
+    ['Pošli trik mesiaca', 'Každý mesiac nové zadanie. Pošli klip, my vyberieme troch a ty hlasuješ.'],
     ['Zbieraj XP', 'Prihlás sa, prevezmi svoj profil jazdca a za aktivitu odomykaj odznaky. Hotovo, jazdi!'],
   ];
   let i = 0;
@@ -1076,7 +1076,7 @@ function siteFeed() {
           h('p', {}, 'Keď vyhlásime dátum a miesto, pošleme ti jeden e-mail. Žiadny spam.'), newsletterInline('feed'),
           h('div', { class: 'news-ghosts', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }))),
         h('a', { class: 'fb-card cm-mini', href: SITE.whatsapp || '#/komunita', target: SITE.whatsapp ? '_blank' : null, rel: SITE.whatsapp ? 'noopener' : null },
-          h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.whatsapp ? 'Pridaj sa do WhatsApp skupiny' : 'Trik týždňa, crew a WhatsApp'), h('span', {}, SITE.whatsapp ? 'Sessiony, novinky a info o GOSku skôr ako inde.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'))))));
+          h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.whatsapp ? 'Pridaj sa do WhatsApp skupiny' : 'Trik mesiaca, crew a WhatsApp'), h('span', {}, SITE.whatsapp ? 'Info, eventy, registrácie, otázky aj pravidlá na jednom mieste.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'))))));
 }
 
 /* podstránky: na konci už len krátky odber noviniek, nie celá úvodka dookola */
@@ -1271,7 +1271,7 @@ async function pageEvents(root) {
     const all = [...ours, ...community].filter(e => (when === 'upcoming' ? isUp(e) : !isUp(e)) && (tier === 'all' || e.tier === tier) && match(e));
     const rank = { gosko: 0, local: 1, world: 2 };
     // GOSko bez presného dátumu („14. alebo 21. 11. 2026“) radíme podľa prvého navrhovaného dňa, nie na začiatok zoznamu
-    const sortKey = e => { if (e.date) return e.date; const m = String(e.ev?.when || '').match(/(\d+)\.(?:\s*alebo\s*\d+\.)?\s*(\d+)\.\s*(20\d\d)/); return m ? `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}` : '9999'; };
+    const sortKey = e => { if (e.date) return e.date; const m = String(e.ev?.when || '').match(/(\d+)\.(?:\s*alebo\s*\d+\.)?\s*(\d+)\.\s*(20\d\d)/); return m ? `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}` : '0000'; };   // bez dátumu = hore, v skupine „Dátum čoskoro“
     all.sort(when === 'upcoming'
       ? (a, b) => sortKey(a).localeCompare(sortKey(b)) || rank[a.tier] - rank[b.tier]
       : (a, b) => sortKey(b).localeCompare(sortKey(a)) || rank[a.tier] - rank[b.tier]);
@@ -1829,7 +1829,7 @@ function pagePartners(root, sub) {
         h('span', { class: 'mono pt-k' }, 'Pre partnerov · sezóna 2026/27'),
         h('h1', { class: 'pt-h' }, 'Séria skate súťaží na Slovensku'),
         h('p', { class: 'lead' }, 'GOSko je nový organizátor skate eventov. Komunitná značka, ktorá robí pop-up súťaže Game of S.K.A.T.E., rebríček jazdcov a vlastný digitálny svet.'),
-        h('p', {}, 'Organizačne za projektom stojí občianske združenie Slovenská Federácia Skateboardingu.'),
+        h('p', {}, 'Organizačne za projektom stojí občianske združenie. Názov, sídlo a IČO doplníme čoskoro.'),
         h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#zavolaj', onclick: e => { e.preventDefault(); form.scrollIntoView({ behavior: 'smooth' }); } }, 'Chcem spolupracovať'), h('a', { class: 'btn', href: '#/partneri/mediakit' }, 'Media kit (PDF)')))),
 
     h('section', { class: 'sec' }, h('div', { class: 'wrap pt-three' },
@@ -2233,26 +2233,26 @@ async function pageAdmin(root) {
     claimsBox, h('div', { class: 'admin-row' }, h('b', {}, 'Fotka jazdca: '), riderSel, riderFile, riderSt)));
   renderClaims();
 
-  /* trik týždňa */
+  /* trik mesiaca */
   const trickBox = h('div');
   async function renderTrick() {
     const ch = await store.currentChallenge().catch(() => null);
-    const editCh = cur => formDialog({ title: cur ? 'Upraviť trik týždňa' : 'Nový trik týždňa', submit: 'Uložiť',
+    const editCh = cur => formDialog({ title: cur ? 'Upraviť trik mesiaca' : 'Nový trik mesiaca', submit: 'Uložiť',
       fields: [{ name: 'title', label: 'Zadanie', required: true, max: 80, value: cur?.title }, { name: 'description', label: 'Popis', type: 'textarea', max: 600, value: cur?.description },
         { name: 'status', label: 'Fáza', type: 'select', value: cur?.status || 'open', options: [{ value: 'open', label: 'Posielajú sa klipy' }, { value: 'voting', label: 'Hlasovanie (vyber 3 finalistov)' }, { value: 'closed', label: 'Uzavreté (ukáže víťaza)' }] },
         { name: 'ends_on', label: 'Koniec fázy (dátum)', type: 'date', value: cur?.ends_on || '' }],
       onSubmit: async v => { await store.saveChallenge({ id: cur?.id, title: v.title, description: v.description || null, status: v.status, ends_on: v.ends_on || null }); renderTrick(); return 'Uložené.'; } });
-    if (!ch) { trickBox.replaceChildren(h('button', { class: 'btn primary', type: 'button', onclick: () => editCh(null) }, '+ Nový trik týždňa')); return; }
+    if (!ch) { trickBox.replaceChildren(h('button', { class: 'btn primary', type: 'button', onclick: () => editCh(null) }, '+ Nový trik mesiaca')); return; }
     const entries = await store.adminTrickEntries(ch.id).catch(() => []);
     trickBox.replaceChildren(
       h('p', {}, h('b', {}, ch.title), ` · fáza: ${{ open: 'posielajú sa klipy', voting: 'hlasovanie', closed: 'uzavreté' }[ch.status]}`, ch.ends_on ? ` · do ${fmtDate(ch.ends_on)}` : ''),
-      h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => editCh(ch) }, 'Upraviť / zmeniť fázu'), h('button', { class: 'btn', type: 'button', onclick: () => editCh(null) }, '+ Nový trik týždňa')),
+      h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', onclick: () => editCh(ch) }, 'Upraviť / zmeniť fázu'), h('button', { class: 'btn', type: 'button', onclick: () => editCh(null) }, '+ Nový trik mesiaca')),
       entries.length ? h('ul', { class: 'admin-list' }, entries.map(e => h('li', {},
         h('span', {}, h('b', {}, e.name), e.instagram ? ` @${e.instagram.replace(/^@/, '')}` : '', e.finalist ? ' · FINALISTA' : ''),
         (e.video_url || e.clip_url) ? h('a', { href: e.video_url || e.clip_url, target: '_blank', rel: 'noopener' }, 'pozrieť klip') : null,
         h('button', { class: 'btn small' + (e.finalist ? '' : ' primary'), type: 'button', onclick: async () => { await store.setFinalist(e.id, !e.finalist); renderTrick(); } }, e.finalist ? 'Zrušiť finalistu' : 'Do finále')))) : h('p', { class: 'empty' }, 'Zatiaľ žiadne pokusy.'));
   }
-  put(body, section('Trik týždňa', h('p', { class: 'note' }, 'Postup: zadaj trik → ľudia posielajú klipy → vyber 3 do finále a prepni fázu na Hlasovanie → po hlasovaní prepni na Uzavreté a web ukáže víťaza.'), trickBox));
+  put(body, section('Trik mesiaca', h('p', { class: 'note' }, 'Postup: zadaj trik → ľudia posielajú klipy → vyber 3 do finále a prepni fázu na Hlasovanie → po hlasovaní prepni na Uzavreté a web ukáže víťaza.'), trickBox));
   renderTrick();
   const calEvents = (await store.listEvents().catch(() => [])).filter(e => !e.pending && (e.country === 'Slovensko' || e.country === 'Česko') && (!e.date || e.date >= todayStr()));
   put(body, section('Fotky k eventom v kalendári (SK a CZ)', h('p', { class: 'note' }, 'Bez fotky sa ukáže grafika s názvom mesta. Fotku zmenšíme pred nahratím.'),
@@ -2639,14 +2639,14 @@ function pageAbout(root) {
     h('div', { class: 'wrap page-body' },
       h('section', { class: 'about ab-grid' },
         h('div', { class: 'ab-copy' },
-          h('p', { class: 'lead' }, 'Robíme pop-up súťaže po mestách, vedieme rebríček jazdcov a staviame digitálny svet pre skejterov: mapu spotov, 3D dosky a trik týždňa.'),
+          h('p', { class: 'lead' }, 'Robíme pop-up súťaže po mestách, vedieme rebríček jazdcov a staviame digitálny svet pre skejterov: mapu spotov, 3D dosky a trik mesiaca.'),
           h('p', {}, 'Začali sme v máji 2026 v Bratislave, v júni nasledovala Žilina na Shred Feste. V novembri štartuje pilot novej sezóny a v roku 2027 chceme obísť krajské mestá na Slovensku.'),
-          h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí občianske združenie Slovenská Federácia Skateboardingu.'),
+          h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí občianske združenie. Údaje o ňom doplníme čoskoro.'),
           h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
         h('div', { class: 'ab-pillars' },
           pillar('#/eventy', '01', 'Eventy', 'Kde sme jazdili a kde budeme.'),
           pillar('#/rebricek', '02', 'Rebríček a jazdci', 'Kto vedie sezónu a kto vyhral ktorý stop.'),
-          pillar('#/komunita', '03', 'Komunita', 'Trik týždňa, crew a mapa spotov.'),
+          pillar('#/komunita', '03', 'Komunita', 'Trik mesiaca, crew a mapa spotov.'),
           pillar('#/partneri', '04', 'Pre partnerov', 'Ako sa pridať k sérii.'))),
       h('section', { class: 'ab-team' },
         h('h2', { class: 'wide sub' }, 'Ľudia za GOSkom'),
@@ -2877,7 +2877,7 @@ async function pageAdminResults(root, eventId) {
 
 
 /* =====================================================================
-   KOMUNITA: profil jazdca, XP, trik týždňa, crew, spoty, rodičia
+   KOMUNITA: profil jazdca, XP, trik mesiaca, crew, spoty, rodičia
    ===================================================================== */
 let RIDER_DB = new Map();
 async function loadRiderProfiles() {
@@ -2917,9 +2917,9 @@ function claimDialog(r) {
 
 /* XP a odznaky za aktivitu na webe */
 const BADGES = [
-  ['checkins', 1, 'Bol som tam', 'Check-in na GOSko evente'], ['tricks', 1, 'Natočené', 'Poslal si trik týždňa'], ['finalist', 1, 'Finalista', 'Tvoj trik išiel do finále'],
+  ['checkins', 1, 'Bol som tam', 'Check-in na GOSko evente'], ['tricks', 1, 'Natočené', 'Poslal si trik mesiaca'], ['finalist', 1, 'Finalista', 'Tvoj trik išiel do finále'],
   ['spots', 1, 'Lovec spotov', 'Pridal si spot na mapu'], ['ratings', 5, 'Kritik', 'Ohodnotil si 5 spotov'], ['parks', 1, 'Staviteľ', 'Postavil si skatepark'],
-  ['photos', 1, 'Fotograf', 'Poslal si fotku z eventu'], ['trick_votes', 3, 'Porotca', 'Hlasoval si 3× za trik týždňa'], ['rider', 1, 'Overený jazdec', 'Máš overený profil jazdca'],
+  ['photos', 1, 'Fotograf', 'Poslal si fotku z eventu'], ['trick_votes', 3, 'Porotca', 'Hlasoval si 3× za trik mesiaca'], ['rider', 1, 'Overený jazdec', 'Máš overený profil jazdca'],
 ];
 function xpBox(a) {
   const xp = xpOf(a), lv = levelOfXp(xp), name = LEVELS[lv - 1][1], cur = LEVEL_XP[lv - 1], nextXp = LEVEL_XP[lv], nextName = LEVELS[lv]?.[1];
@@ -2932,7 +2932,7 @@ function xpBox(a) {
     h('details', { class: 'xp-how' }, h('summary', {}, 'Ako získať XP'), h('ul', {}, XP_RULES.map(([, w, t]) => h('li', {}, h('b', {}, `+${w}`), ' ', t)))));
 }
 
-/* trik týždňa */
+/* trik mesiaca */
 function trickMedia(e) {
   if (e.video_url) return h('video', { class: 'tk-video', src: e.video_url, controls: true, playsinline: true, preload: 'metadata' });
   const y = ytId(e.clip_url); if (y) return videoEmbed(y, `Trik od ${e.name}`);
@@ -2963,11 +2963,11 @@ function trickDialog(ch, done) {
   });
 }
 async function pageTrick(root) {
-  root.append(pageHead('Trik týždňa', 'Pošli klip, my vyberieme troch finalistov a víťaza určíte vy hlasovaním. Víťaz dostane odznak a miesto v novinkách.'));
+  root.append(pageHead('Trik mesiaca', 'Pošli klip, my vyberieme troch finalistov a víťaza určíte vy hlasovaním. Víťaz dostane odznak a miesto v novinkách.'));
   const body = h('div', { class: 'wrap page-body tk' }); root.append(body);
   root.append(photoBand({ kicker: 'Z ihriska', title: 'Takto vyzerá dobrý trik', items: [['flip-fisheye', 'Flip nad rovinkou, širokouhlý záber', 'tall'], ['flip-lakers', 'Kickflip v dresovom tričku', 'tall'], ['flip-tank', 'Skejter v ľahkom predklone na ploche', 'tall']] }));
   let ch = null; try { ch = await store.currentChallenge(); } catch (err) { console.error(err); }
-  if (!ch) { put(body, h('p', { class: 'empty' }, 'Nový trik týždňa čoskoro.')); return; }
+  if (!ch) { put(body, h('p', { class: 'empty' }, 'Nový trik mesiaca čoskoro.')); return; }
   const STATUS = { open: ['Posielaj klipy', 'open'], voting: ['Hlasovanie', 'vote'], closed: ['Uzavreté', 'closed'] };
   const [stTxt, stCls] = STATUS[ch.status] || STATUS.open;
   const left = ch.ends_on ? dayDiff(todayStr(), ch.ends_on) : null;
@@ -3099,28 +3099,28 @@ function pageCommunity(root) {
   root.append(photoHead(pageHead('Komunita', 'GOSko nie je len súťaž. Je to partia ľudí, ktorí jazdia, točia, stavajú a chodia na spoty.'), 'carry-table', '50% 55%'),
     h('div', { class: 'wrap page-body' },
       h('div', { class: 'cm-grid' },
-        SITE.whatsapp ? card(SITE.whatsapp, 'WhatsApp', 'Pridaj sa do WhatsApp skupiny', 'Dohadovanie sessionov, novinky a info o GOSku skôr ako inde.', 'whatsapp')
+        SITE.whatsapp ? card(SITE.whatsapp, 'WhatsApp', 'Pridaj sa do WhatsApp skupiny', 'Info, eventy, registrácie, otázky aj pravidlá na jednom mieste.', 'whatsapp')
           : card(`https://www.instagram.com/${SITE.instagram}/`, 'Instagram', '@' + SITE.instagram, 'Novinky, výsledky a klipy z eventov tu dávame ako prvé.', 'insta'),
-        card('#/trik-tyzdna', 'Každý týždeň', 'Trik týždňa', 'Pošli klip, vyberieme troch finalistov a ty hlasuješ.', 'red'),
+        card('#/trik-tyzdna', 'Každý mesiac', 'Trik mesiaca', 'Pošli klip, vyberieme troch finalistov a ty hlasuješ.', 'red'),
         card('#/crew', 'Partie', 'Crew', CREWS.filter(c => !c.hidden).map(c => c.name).join(', ') + ' a ďalšie. Jazdci, eventy, spoty.'),
         park ? card('#/mapa', 'Spot mesiaca', park.name, SITE.spotOfMonthNote || park.about, 'cream') : null,
         card('#/mapa', 'Mapa', 'Spoty s hodnotením', 'Pridaj spot, ohodnoť povrch, svetlo aj to, či je kryté.'),
         card('#/profil', 'Profil', 'XP a odznaky', 'Za check-in, triky, spoty aj parky zbieraš XP a odomykáš odznaky.'),
         card('#/rodicia', 'U16', 'Pre rodičov', 'Bezpečnosť, súhlas, čo priniesť. Všetko na jednom mieste.'),
-        SITE.whatsapp ? null : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu na sessiony a novinky. Odkaz dáme aj na Instagram.')))));
+        SITE.whatsapp ? null : h('div', { class: 'cm-card whatsapp soon' }, h('span', { class: 'mono' }, 'WhatsApp'), h('b', {}, 'WhatsApp skupina čoskoro'), h('span', {}, 'Chystáme skupinu pre info, eventy, registrácie, otázky aj pravidlá. Odkaz dáme na Instagram, hneď ako bude hotová.')))));
   root.append(photoBand({ kicker: 'Partia', title: 'Ľudia, kvôli ktorým to robíme', items: [['hug', 'Dvaja skejteri sa objímajú po jazde', 'tall'], ['car-sitting', 'Partia oddychuje v tieni pri eventovom aute Red Bull', 'tall'], ['crowd-board', 'Skejteri v kruhu a doska v popredí', 'wide']] }));
 }
 
 /* ochrana osobných údajov (GDPR). Návrh: pred spustením ho nech skontroluje niekto, kto sa v tom vyzná. */
 function pagePrivacy(root) {
-  const O = SITE.org || {}, miss = 'doplníme';
+  const O = SITE.org || {}, miss = 'doplníme čoskoro';
   const contact = SITE.email ? h('a', { href: 'mailto:' + SITE.email }, SITE.email) : igLink(SITE.instagram);
   const sec = (t, ...kids) => h('section', { class: 'pv-sec' }, h('h2', {}, t), kids);
   const li = items => h('ul', {}, items.map(x => h('li', {}, x)));
   root.append(pageHead('Ochrana osobných údajov', 'Aké údaje o tebe máme, prečo, ako dlho a čo s nimi môžeš urobiť. Bez právnických kľučiek.'),
     h('div', { class: 'wrap page-body pv' },
       sec('Kto sa o údaje stará',
-        h('p', {}, h('b', {}, O.name || 'GOSko'), O.address ? `, ${O.address}` : `, sídlo ${miss}`, O.ico ? `, IČO ${O.ico}` : `, IČO ${miss}`, '.'),
+        h('p', {}, h('b', {}, O.name || 'Občianske združenie za GOSkom'), O.address ? `, ${O.address}` : `, sídlo ${miss}`, O.ico ? `, IČO ${O.ico}` : `, IČO ${miss}`, '.'),
         h('p', {}, 'Kontakt na otázky a žiadosti: ', contact, '.')),
       sec('Čo zbierame a prečo',
         li([
@@ -3128,7 +3128,7 @@ function pagePrivacy(root) {
           [h('b', {}, 'Výsledky a fotky z eventov: '), 'meno, kategória a umiestnenie sú verejne v rebríčku, na eventoch fotíme. Je to dokumentácia podujatia a história série (oprávnený záujem). Na požiadanie skrátime priezvisko alebo fotku odstránime.'],
           [h('b', {}, 'Odber noviniek: '), 'e-mail. Pošleme ti správu, keď vyhlásime ďalšie GOSko. Základ: tvoj súhlas, odhlásiť sa dá kedykoľvek.'],
           [h('b', {}, 'Účet: '), 'e-mail na prihlásenie a to, čo si sám doplníš do profilu jazdca (fotka, Instagram, mesto, spot, crew).'],
-          [h('b', {}, 'Čo pošleš ty: '), 'fotky a klipy z eventov, spoty na mapu, parky, triky týždňa, hodnotenia a hlasy. Zobrazujú sa po schválení, pri obsahu uvádzame autora, ktorého zadáš.'],
+          [h('b', {}, 'Čo pošleš ty: '), 'fotky a klipy z eventov, spoty na mapu, parky, triky mesiaca, hodnotenia a hlasy. Zobrazujú sa po schválení, pri obsahu uvádzame autora, ktorého zadáš.'],
           [h('b', {}, 'Formuláre: '), 'Zavolaj si GOSko, pridanie eventu a žiadosti o súkromie. Kontakt použijeme len na odpoveď.'],
         ])),
       sec('Jazdci do 16 rokov',

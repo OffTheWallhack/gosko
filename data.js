@@ -25,7 +25,7 @@ export const SITE = {
   spotOfMonth: 'Skatepark Liptovský Mikuláš',   // spot mesiaca = presný názov parku zo SKATEPARKS
   spotOfMonthNote: 'Nový betónový park pod Tatrami. Hladký povrch, poriadne lajny a pokoj od davov. Ak ste tam ešte neboli, je čas.',
   /* Kto prevádzkuje web a spracúva údaje (stránka Ochrana osobných údajov). Doplň sídlo a IČO občianskeho združenia. */
-  org: { name: 'Slovenská Federácia Skateboardingu, o. z.', address: '', ico: '' },
+  org: { name: '', address: '', ico: '' },   // názov, sídlo a IČO OZ doplníme čoskoro
 };
 
 /* Bodovanie do rebríčka podľa umiestnenia. Body sa rátajú len za Game of Skate. */
@@ -118,8 +118,8 @@ export const EVENTS = [
     sticker: 'next',
     stickerDate: '',
     lat: null, lng: null,
-    about: 'Pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027. Plánujeme 14. alebo 21. novembra 2026, presný dátum a miesto zverejníme na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
-    when: '14. alebo 21. 11. 2026',
+    about: 'Pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027. Plánujeme november 2026, presný dátum a miesto zverejníme čoskoro na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
+    when: '',
     registration: true,
     results: {},
     awards: [],
@@ -152,7 +152,7 @@ export const FACTS = [
 
 /* Plán sezóny (verejná verzia bez presných miest na rok 2027) */
 export const PLAN = [
-  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko 3, 14. alebo 21. 11.' },
+  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko 3, dátum čoskoro' },
   { when: '2027', title: 'Stop 1', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
