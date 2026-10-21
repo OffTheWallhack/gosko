@@ -3106,3 +3106,9 @@ body:has(.kt-page) .er-top{display:none}
   .acct-arrow{width:34px}
   .menu-btn{height:52px;padding:0 26px;font-size:1rem}
 }
+
+/* v28: pätička na mobile (dlhý e-mail sa neorezáva), jemnejšia hologramová fólia na kartách bez fotky */
+footer .foot-act a{overflow-wrap:anywhere;max-width:100%}
+@media (max-width:560px){ footer .foot-act a{font-size:.78rem;letter-spacing:-.01em} }
+.hcard:has(.hc-gen) .hc-foil{opacity:.2}
+.hcard.on:has(.hc-gen) .hc-foil,.hcard:hover:has(.hc-gen) .hc-foil{opacity:.45}

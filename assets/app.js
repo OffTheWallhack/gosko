@@ -1590,7 +1590,7 @@ function pageKarta(root, s) {
     h('span', { class: 'kt-foil', 'aria-hidden': 'true' }), h('span', { class: 'kt-glare', 'aria-hidden': 'true' }), h('span', { class: 'kt-edge', 'aria-hidden': 'true' }));
   const aura = h('div', { class: 'kt-aura', 'aria-hidden': 'true' }, info.photo ? h('img', { src: info.photo, alt: '' }) : null);
   const gyroBtn = h('button', { class: 'btn small kt-gyro', type: 'button', hidden: true }, 'Zapni 3D efekt: nakloň telefón');
-  const stage = h('div', { class: 'kt-stage' }, aura, h('div', { class: 'kt-wrap' }, card), h('p', { class: 'kt-hint mono' }, 'Nakloň telefón alebo prejdi prstom po karte'), gyroBtn);
+  const stage = h('div', { class: 'kt-stage' }, h('h1', { style: 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap' }, `${r.name}: GOSko karta`), aura, h('div', { class: 'kt-wrap' }, card), h('p', { class: 'kt-hint mono' }, 'Nakloň telefón alebo prejdi prstom po karte'), gyroBtn);
 
   /* pohyb: myš alebo prst, na telefóne gyroskop; keď nič nerobíš, karta sa jemne hojdá sama */
   const clamp = v => Math.max(-1, Math.min(1, v));

@@ -104,6 +104,7 @@ for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', 
   body: e.results ? list(Object.entries(e.results).flatMap(([c, n]) => n.map((x, i) => `${esc(c)} ${i + 1}. ${link(`jazdec/${slug(x)}`, x)}`))) : '' });
 for (const r of riders.values()) page(`jazdec/${r.slug}`, { title: r.name, type: 'profile', image: RIDERS[r.slug]?.photo,
   description: clip(`${r.name} na GOSko: ${r.res.join('; ')}.`), body: list(r.res.map(esc)) });
+page('profil', { title: 'Môj profil', description: 'Tvoj duch, doska a profil jazdca na GOSko.', noindex: true, listed: false });
 for (const r of riders.values()) page(`karta/${r.slug}`, { title: `${r.name}: GOSko karta`, type: 'profile', image: RIDERS[r.slug]?.photo, noindex: true, listed: false,
   description: clip(`${r.name} má GOSko kartu. Nakloň telefón a uvidíš efekty.`), body: `<p>${link(`jazdec/${r.slug}`, r.name)}</p>` });
 for (const x of postPages) page(`novinka/${x.id}`, { title: x.title, type: 'article', image: x.image, description: x.description, body: x.body });
