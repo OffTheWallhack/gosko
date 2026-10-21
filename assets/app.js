@@ -2354,7 +2354,7 @@ async function pageMap(root) {
   root.append(pageHead('Mapa spotov', 'Známe skateparky na Slovensku a street spoty od komunity. Poznáš dobrý spot? Pošli ho aj s fotkou.',
     h('button', { class: 'btn primary', type: 'button', onclick: () => requireLogin(() => spotDialog(load)).then(ok => ok && spotDialog(load)) }, 'Pridať spot')),
     h('div', { class: 'wrap page-body' }, somBox, mapEl,
-      h('p', { class: 'map-legend mono' }, h('span', { class: 'lg lg-park' }), 'Skatepark', h('span', { class: 'lg lg-spot' }), 'Spot od komunity', h('span', { class: 'lg lg-event' }), 'GOSko event'),
+      h('p', { class: 'map-legend mono' }, h('span', { class: 'lg lg-park' }), 'Skatepark', h('span', { class: 'lg lg-gosko' }), 'Tu bolo GOSko', h('span', { class: 'lg lg-spot' }), 'Spot od komunity', h('span', { class: 'map-hint' }, 'Ťukni na pin: detail a navigácia')),
       h('h2', { class: 'wide sub' }, 'Skateparky'), parksList, h('h2', { class: 'wide sub' }, 'Spoty od komunity'), list));
   let stopMap = null;
   async function load() {
@@ -2371,7 +2371,7 @@ async function pageMap(root) {
     const evPoints = EVENTS.filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lng)).map(e => ({ lat: e.lat, lng: e.lng, kind: 'event', title: e.name,
       popup: h('div', { class: 'pop' }, h('strong', {}, e.name), h('span', {}, [e.place, fmtDate(e.date)].filter(Boolean).join(', ')), h('a', { href: '#/event/' + e.id }, 'Detail eventu')) }));
     const parkLink = p => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.city)}`;
-    const parkPoints = SKATEPARKS.map(p => ({ lat: p.lat, lng: p.lng, kind: 'park', title: p.name,
+    const parkPoints = SKATEPARKS.map(p => ({ lat: p.lat, lng: p.lng, kind: p.tag === 'GOSko' ? 'gosko' : 'park', title: p.name, label: p.name.replace(/^Skatepark\s+/, '').replace(/\s*\(.*\)\s*$/, ''),
       popup: h('div', { class: 'pop' }, h('strong', {}, p.name), h('span', {}, [p.area, p.city].filter(Boolean).join(', ')), h('span', {}, p.about), h('a', { href: parkLink(p), target: '_blank', rel: 'noopener' }, 'Navigovať')) }));
     /* karty skateparkov: fotka (p.photo v data.js), kým nie je, grafika s názvom; „Na mape“ priblíži park */
     const showOnMap = p => { if (stopMap?.focus) { mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); stopMap.focus(p.lat, p.lng); } };
