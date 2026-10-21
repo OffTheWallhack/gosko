@@ -19,7 +19,7 @@ const clip = (s, n = 180) => { s = String(s || '').replace(/\s+/g, ' ').trim(); 
 
 const template = readFileSync(join(ROOT, 'index.html'), 'utf8');
 const pages = [];
-function page(path, { title, description, image, body = '', type = 'website' }) {
+function page(path, { title, description, image, body = '', type = 'website', noindex = false, listed = true }) {
   const url = SITE_URL + (path ? path + '/' : '');
   const full = title ? `${title} | GOSko` : 'GOSko | Game of S.K.A.T.E. na Slovensku';
   let html = template
@@ -34,8 +34,9 @@ function page(path, { title, description, image, body = '', type = 'website' }) 
       `<meta name="twitter:card" content="summary_large_image">`, '<meta name="theme-color"'].join('\n'));
   // obsah pre vyhľadávače a prehliadače bez JavaScriptu; aplikácia ho po načítaní nahradí
   html = html.replace(/<main id="main"([^>]*)>[\s\S]*?<\/main>/, `<main id="main"$1><div class="wrap seo-pre"><h1>${esc(title || 'GOSko')}</h1><p>${esc(description)}</p>${body}</div></main>`);
+  if (noindex) html = html.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"');
   if (path) { mkdirSync(join(ROOT, path), { recursive: true }); writeFileSync(join(ROOT, path, 'index.html'), html); }
-  pages.push(path);
+  if (listed) pages.push(path);
   return html;
 }
 const link = (href, text) => `<a href="${esc(href)}">${esc(text)}</a>`;
@@ -103,6 +104,8 @@ for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', 
   body: e.results ? list(Object.entries(e.results).flatMap(([c, n]) => n.map((x, i) => `${esc(c)} ${i + 1}. ${link(`jazdec/${slug(x)}`, x)}`))) : '' });
 for (const r of riders.values()) page(`jazdec/${r.slug}`, { title: r.name, type: 'profile', image: RIDERS[r.slug]?.photo,
   description: clip(`${r.name} na GOSko: ${r.res.join('; ')}.`), body: list(r.res.map(esc)) });
+for (const r of riders.values()) page(`karta/${r.slug}`, { title: `${r.name}: GOSko karta`, type: 'profile', image: RIDERS[r.slug]?.photo, noindex: true, listed: false,
+  description: clip(`${r.name} má GOSko kartu. Nakloň telefón a uvidíš efekty.`), body: `<p>${link(`jazdec/${r.slug}`, r.name)}</p>` });
 for (const x of postPages) page(`novinka/${x.id}`, { title: x.title, type: 'article', image: x.image, description: x.description, body: x.body });
 for (const c of CREWS.filter(c => !c.hidden)) page(`crew/${c.id}`, { title: c.name, description: clip(c.about || `${c.name}: skate crew na GOSko.`), image: c.image });
 

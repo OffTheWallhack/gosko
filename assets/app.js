@@ -1564,6 +1564,82 @@ async function pageEvent(root, id) {
 
 function pageRiders(root) { return pageStandings(root, 'jazdci'); }
 
+
+/* ---------- karta jazdca na telefón: samostatná stránka s 3D náklonom, paralaxou a holo fóliou; na poslanie jazdcovi ---------- */
+function pageKarta(root, s) {
+  const r = riders().find(x => x.slug === s);
+  if (!r) return pageNotFound(root);
+  const info = RIDERS[s] || {};
+  const cat = r.cats.includes('open') ? 'open' : (r.cats[0] || 'open');
+  const rows = standings(cat), idx = rows.findIndex(x => x.slug === s), row = rows[idx] || { points: r.points, events: r.events.length, wins: 0 };
+  const rank = idx >= 0 ? idx + 1 : null;
+  const first = r.name.split(/\s+/)[0];
+  const url = `${location.origin}${APP_BASE}karta/${s}`;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const photo = info.photo ? h('img', { class: 'kt-photo', src: info.photo, alt: '', width: 600, height: 600, style: [info.photoPos && `object-position:${info.photoPos}`, info.photoFlip && 'scale:-1 1'].filter(Boolean).join(';') || null })
+    : h('span', { class: 'kt-noph', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }));
+  const rd = riderMap().get(s);
+  const stat = (n, t) => h('span', {}, h('b', {}, String(n)), h('small', {}, t));
+  const card = h('div', { class: 'kt-card' + (info.photo ? '' : ' noph'), role: 'img', 'aria-label': `GOSko karta: ${r.name}` },
+    h('div', { class: 'kt-bg' }, photo, h('span', { class: 'kt-shade' })),
+    h('div', { class: 'kt-top' }, h('span', { class: 'kt-rank' }, rank ? `#${rank}` : 'GOSko'), h('span', { class: 'kt-cat mono' }, `${catName(cat)} · ${SITE.season}`)),
+    h('div', { class: 'kt-board' }, rd ? boardImg(rd, 'kt-bimg') : null),
+    h('div', { class: 'kt-txt' }, h('span', { class: 'kt-name' }, r.name),
+      h('span', { class: 'kt-stats' }, stat(row.points, 'bodov'), stat(row.events, plural(row.events, 'event', 'eventy', 'eventov')), stat(row.wins || 0, plural(row.wins || 0, 'výhra', 'výhry', 'výhier')))),
+    h('img', { class: 'kt-mark', src: 'img/gosko-wordmark-cream.svg', alt: 'GOSko' }),
+    h('span', { class: 'kt-foil', 'aria-hidden': 'true' }), h('span', { class: 'kt-glare', 'aria-hidden': 'true' }), h('span', { class: 'kt-edge', 'aria-hidden': 'true' }));
+  const aura = h('div', { class: 'kt-aura', 'aria-hidden': 'true' }, info.photo ? h('img', { src: info.photo, alt: '' }) : null);
+  const gyroBtn = h('button', { class: 'btn small kt-gyro', type: 'button', hidden: true }, 'Zapni 3D efekt: nakloň telefón');
+  const stage = h('div', { class: 'kt-stage' }, aura, h('div', { class: 'kt-wrap' }, card), h('p', { class: 'kt-hint mono' }, 'Nakloň telefón alebo prejdi prstom po karte'), gyroBtn);
+
+  /* pohyb: myš alebo prst, na telefóne gyroskop; keď nič nerobíš, karta sa jemne hojdá sama */
+  const clamp = v => Math.max(-1, Math.min(1, v));
+  const st = { tx: 0, ty: 0, x: 0, y: 0, last: -1e9 };
+  const aim = (nx, ny) => { st.tx = clamp(nx); st.ty = clamp(ny); st.last = performance.now(); };
+  const onPtr = e => { const b = card.getBoundingClientRect(); aim((e.clientX - (b.left + b.width / 2)) / (b.width * .6), (e.clientY - (b.top + b.height / 2)) / (b.height * .6)); };
+  stage.addEventListener('pointermove', onPtr); stage.addEventListener('pointerdown', onPtr);
+  stage.addEventListener('pointerleave', () => { st.last = -1e9; });
+  let base = null;
+  const onTilt = e => { if (e.gamma == null || e.beta == null) return; if (base === null) base = e.beta; aim(e.gamma / 22, (e.beta - base) / 22); };
+  const startTilt = () => { addEventListener('deviceorientation', onTilt); gyroBtn.hidden = true; };
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    gyroBtn.hidden = false;
+    gyroBtn.addEventListener('click', async () => { try { if ((await DeviceOrientationEvent.requestPermission()) === 'granted') startTilt(); } catch { /* bez gyroskopu ostáva dotyk */ } });
+  } else if ('DeviceOrientationEvent' in window) startTilt();
+  let raf = 0, alive = true;
+  const loop = now => {
+    if (!alive) return;
+    raf = requestAnimationFrame(loop);
+    if (!reduced && now - st.last > 2600) { st.tx = Math.sin(now / 1700) * .55; st.ty = Math.cos(now / 2300) * .38; }
+    st.x += (st.tx - st.x) * .09; st.y += (st.ty - st.y) * .09;
+    const q = v => v.toFixed(3);
+    stage.style.setProperty('--px', q(st.x)); stage.style.setProperty('--py', q(st.y));
+    stage.style.setProperty('--rx', q(-st.y * 13) + 'deg'); stage.style.setProperty('--ry', q(st.x * 15) + 'deg');
+    stage.style.setProperty('--mx', q(50 + st.x * 50) + '%'); stage.style.setProperty('--my', q(50 + st.y * 50) + '%');
+  };
+  raf = requestAnimationFrame(loop);
+
+  /* zdieľanie a schválenie */
+  const msgFor = () => `Ahoj ${first}, pozri, takto vyzerá tvoja GOSko karta: ${url}\nNakloň telefón a uvidíš efekty. Môžeme na nej nechať túto fotku? Ak máš lepšiu (na výšku, dobré svetlo), pošli mi ju.`;
+  const copy = async (text, btn, done) => { const old = btn.textContent; try { await navigator.clipboard.writeText(text); btn.textContent = done; } catch { btn.textContent = 'Označ a skopíruj ručne'; } setTimeout(() => { btn.textContent = old; }, 2200); };
+  const shareBtn = h('button', { class: 'btn primary', type: 'button', onclick: async e => {
+    const data = { title: `${r.name} | GOSko karta`, text: `${r.name} na GOSko`, url };
+    if (navigator.share) { try { await navigator.share(data); } catch { /* zrušené */ } } else copy(url, e.currentTarget, 'Odkaz skopírovaný');
+  } }, 'Zdieľať kartu');
+  const copyBtn = h('button', { class: 'btn', type: 'button', onclick: e => copy(url, e.currentTarget, 'Odkaz skopírovaný') }, 'Skopírovať odkaz');
+  const ask = h('section', { class: 'kt-ask' },
+    h('h2', { class: 'wide sub' }, info.photo ? `${first}, môže byť takto?` : `${first}, pošli nám fotku`),
+    h('p', {}, info.photo ? 'Toto je tvoja GOSko karta aj s fotkou. Stačí povedať, či ti vyhovuje, alebo pošli lepšiu.' : 'Kartu máš pripravenú, chýba len tvoja fotka. Pošli ju a hneď sa ukáže na karte aj v rebríčku.'),
+    h('p', { class: 'note' }, 'Fotku použijeme len na GOSko webe a profiloch. Kedykoľvek ju vieme odstrániť. U16: napíš cez rodiča.'),
+    h('div', { class: 'actions' },
+      info.photo ? h('a', { class: 'btn primary', href: `mailto:${SITE.email || 'rdurica1995@gmail.com'}?subject=${encodeURIComponent('Karta ' + r.name + ': súhlasím')}&body=${encodeURIComponent(`Súhlasím, aby GOSko použilo moju fotku na karte (${url}).`)}` }, 'Súhlasím s fotkou') : null,
+      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: 'https://ig.me/m/g.o.s.ko', target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
+  const adminBox = h('div', { class: 'kt-admin' });
+  store.isAdmin().then(ok => { if (!ok) return; const b = h('button', { class: 'btn small', type: 'button', onclick: e => copy(msgFor(), e.currentTarget, 'Správa skopírovaná') }, 'Skopírovať správu pre jazdca (admin)'); adminBox.append(b); }).catch(() => {});
+  root.append(h('div', { class: 'kt-page' }, stage, h('div', { class: 'wrap kt-below' }, h('div', { class: 'actions kt-actions' }, shareBtn, copyBtn, h('a', { class: 'btn', href: '#/jazdec/' + s }, 'Celý profil')), ask, adminBox)));
+  return () => { alive = false; cancelAnimationFrame(raf); removeEventListener('deviceorientation', onTilt); };
+}
+
 function pageRider(root, s) {
   const r = riders().find(x => x.slug === s);
   if (!r) return pageNotFound(root);
@@ -1585,7 +1661,7 @@ function pageRider(root, s) {
       h('h2', { class: 'sub' }, 'Odznaky'),
       h('ul', { class: 'badges' }, riderBadges(r).map(b => h('li', { class: 'badge' }, h('span', { class: 'b-ico', html: badgeSvg(b, 22) }),
         h('span', {}, h('strong', {}, b.name), h('small', {}, b.detail ? `${b.text}: ${b.detail}` : b.text))))),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => shareCardDialog(r, rankIn) }, 'Zdieľať kartu jazdca')),
+      h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/karta/' + r.slug }, 'Karta na telefón'), h('button', { class: 'btn', type: 'button', onclick: () => shareCardDialog(r, rankIn) }, 'Obrázok na stories')),
       RIDER_DB.has(r.slug) && RIDER_DB.get(r.slug).user_id ? null : h('div', { class: 'claim' }, h('b', {}, 'Si to ty?'), ' Prevezmi si profil a doplň fotku, Instagram a svoj spot. ',
         h('button', { class: 'btn small primary', type: 'button', onclick: () => requireLogin(() => claimDialog(r)).then(ok => ok && claimDialog(r)) }, 'Som to ja')),
       h('p', { class: 'note' },
@@ -3081,6 +3157,7 @@ const ROUTES = [
   [/^#\/kalendar\/([\w-]+)$/, pageCalEvent, 'eventy'],
   [/^#\/jazdci$/, pageRiders, 'rebricek'],
   [/^#\/jazdec\/([\w-]+)$/, pageRider, 'jazdci'],
+  [/^#\/karta\/([\w-]+)$/, pageKarta, 'jazdci'],
   [/^#\/parky$/, pageParks, 'parky'],
   [/^#\/doska$/, pageBoard, ''],
   [/^#\/shop$/, pageShop, 'shop'],
