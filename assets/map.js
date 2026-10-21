@@ -12,15 +12,16 @@ function pinIcon(L, kind = 'spot') {
   return L.divIcon({
     className: 'pin-wrap',
     html: `<span class="pin pin-${kind}" aria-hidden="true"></span>`,
-    iconSize: [30, 40], iconAnchor: [15, 38], popupAnchor: [0, -34],
+    iconSize: [34, 44], iconAnchor: [17, 42], popupAnchor: [0, -38],
   });
 }
 
 function baseMap(L, el, opts = {}) {
   const map = L.map(el, { scrollWheelZoom: false, tap: true, ...opts }).setView(SK_CENTER, 7);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+  // tmavá mapa v farbách webu, nech piny (červený park, zlaté GOSko, krémový spot) vyskočia
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
   }).addTo(map);
   return map;
 }
@@ -32,16 +33,39 @@ export async function mountMap(el, points) {
   const inner = document.createElement('div'); inner.className = 'map-inner'; el.replaceChildren(inner);
   // koliesko myši približuje (na mobile sa mapa približuje dvoma prstami ako doteraz)
   const map = baseMap(L, inner, { scrollWheelZoom: true });
-  const markers = points.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p =>
-    L.marker([p.lat, p.lng], { icon: pinIcon(L, p.kind), title: p.title || '' }).addTo(map).bindPopup(p.popup));
-  if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(.3), { maxZoom: 13 });
+  const markers = points.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => {
+    const m = L.marker([p.lat, p.lng], { icon: pinIcon(L, p.kind), title: p.title || '', riseOnHover: true }).bindPopup(p.popup);
+    if (p.label) m.bindTooltip(p.label, { permanent: true, direction: 'right', offset: [12, -22], className: 'pin-label' });
+    return m;
+  });
+  // názvy pri pinoch sa ukážu od priblíženia, aby sa v Bratislave neprekrývali
+  const labels = () => inner.classList.toggle('no-labels', map.getZoom() < 9);
+  /* blízke piny (napr. tri parky v Bratislave) sa pri odzoomovaní zlúčia do jedného s číslom; ťuk ho priblíži */
+  const layer = L.layerGroup().addTo(map);
+  const clusterIcon = n => L.divIcon({ className: 'pin-wrap', html: `<span class="pin-cluster">${n}</span>`, iconSize: [38, 38], iconAnchor: [19, 19] });
+  const render = () => {
+    layer.clearLayers(); labels();
+    const z = map.getZoom(), cells = [];
+    for (const m of markers) {
+      const pt = map.project(m.getLatLng(), z), c = cells.find(c => Math.hypot(c.x - pt.x, c.y - pt.y) < 34);
+      if (c) c.items.push(m); else cells.push({ x: pt.x, y: pt.y, items: [m] });
+    }
+    for (const c of cells) {
+      if (c.items.length === 1) { c.items[0].addTo(layer); continue; }
+      const ll = L.featureGroup(c.items).getBounds();
+      L.marker(ll.getCenter(), { icon: clusterIcon(c.items.length), title: `${c.items.length} spoty, priblíž` }).addTo(layer).on('click', () => map.fitBounds(ll.pad(.5), { maxZoom: 16 }));
+    }
+  };
+  map.on('zoomend', render);
+  if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(.12), { maxZoom: 13 });
+  render();
   setTimeout(() => map.invalidateSize(), 60);
   const stop = () => map.remove();
   /* karta skateparku: ukáž ho na mape (priblíž a otvor popup) */
   stop.focus = (lat, lng) => {
     map.flyTo([lat, lng], 15, { duration: .8 });
     const m = markers.find(x => { const ll = x.getLatLng(); return Math.abs(ll.lat - lat) < 1e-6 && Math.abs(ll.lng - lng) < 1e-6; });
-    if (m) setTimeout(() => m.openPopup(), 850);
+    if (m) map.once('moveend', () => setTimeout(() => { render(); m.openPopup(); }, 60));
   };
   return stop;
 }
