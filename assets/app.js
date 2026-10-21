@@ -716,16 +716,21 @@ function boardTeaser() {
   const stage = h('div', { class: 'bt-stage' }, canvas);
   const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
   let api = null, started = false;
-  const start = () => { if (started) return; started = true; mountBoard(canvas, { stickers: stickers(), look: myLook(), scene: 'ride' }).then(a => { api = a; a.setAuto(true); }).catch(err => console.error(err)); };
+  /* tvoj duch (farby z profilu) stojí na doske; obrázok z SVG sa nakreslí do plátna pre 3D scénu */
+  const ghostCanvas = () => ghostSvg(localGhost()).then(svg => new Promise(ok => {
+    const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = 320; c.height = 360; c.getContext('2d').drawImage(img, 0, 0, 320, 360); ok(c); };
+    img.onerror = () => ok(null); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg width="480" height="540" '));
+  })).catch(() => null);
+  const start = () => { if (started) return; started = true; ghostCanvas().then(gc => mountBoard(canvas, { stickers: stickers(), look: myLook(), ghostImg: gc, scene: 'ride' })).then(a => { api = a; a.setAuto(true); }).catch(err => console.error(err)); };
   if (!('IntersectionObserver' in window)) start();
   else { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: '500px 0px' }); requestAnimationFrame(() => io.observe(stage)); }
   const el = h('section', { class: 'hs bt-sec', id: 'doska' }, h('div', { class: 'wrap' },
-    h('a', { class: 'bt', href: '#/doska', 'aria-label': 'Navrhni si dosku' },
+    h('a', { class: 'bt', href: '#/profil', 'aria-label': 'Navrhni si ducha a dosku' },
       stage,
       h('span', { class: 'bt-copy' },
-        h('span', { class: 'mono hs-k' }, 'Tvoja 3D doska'),
-        h('span', { class: 'bt-h' }, 'Navrhni si dosku'),
-        h('span', { class: 'bt-p' }, 'Farby, grip, kolieska, podvozky aj vlastná fotka na spodku. Doska je tvoja skutočná, stojí na nej tvoj duch a ukáže sa aj na kartičke jazdca.'),
+        h('span', { class: 'mono hs-k' }, 'Tvoj duch a tvoja doska'),
+        h('span', { class: 'bt-h' }, 'Navrhni si ducha a dosku'),
+        h('span', { class: 'bt-p' }, 'Duch aj doska sú len tvoje: farby, tvár, veci, grip, kolieska aj vlastná fotka na spodku. Tak sa môžeš vyjadriť po svojom a ukážeš sa aj na kartičke jazdca.'),
         h('span', { class: 'btn primary cta' }, 'Otvoriť garáž', icon('arrow'))))));
   return { el, cleanup: () => { if (api) api(); } };
 }
@@ -1941,18 +1946,16 @@ async function pageProfile(root) {
   root.append(pageHead('Môj profil', 'Tvoj GOSko účet: duch, doska a XP na jednom mieste.'));
   const body = h('div', { class: 'wrap page-body profile' }); root.append(body);
   const avatarSlot = h('div', { class: 'pf-avatar' });
-  if (store.mode === 'live' && !(await store.signedIn())) {
-    put(body, h('div', { class: 'pf-grid' }, avatarSlot, h('div', { class: 'pf-card' },
-      h('h2', { class: 'wide sub' }, 'Nie si prihlásený'),
-      h('p', {}, 'Prihlásenie ti umožní posielať fotky z eventov, pridávať spoty na mapu a hlasovať za parky. Crew sa tu dostane aj do adminu.'),
-      h('button', { class: 'btn primary', type: 'button', onclick: () => loginDialog(() => route()) }, 'Prihlásiť sa'))));
-    mountAvatar(avatarSlot);
-    return;
-  }
-  const [email, admin] = await Promise.all([store.email(), store.isAdmin().catch(() => false)]);
+  // bez prihlásenia sa dá ducha aj dosku upraviť (pamätá sa v tomto prehliadači); prihlásenie ich uloží do účtu
+  const anon = store.mode === 'live' && !(await store.signedIn());
+  if (anon) put(body, h('div', { class: 'pf-grid pf-grid-acct' }, h('div', { class: 'pf-card' },
+    h('h2', { class: 'wide sub' }, 'Tvoj duch a doska'),
+    h('p', {}, 'Uprav si ich hneď nižšie. Kým nie si prihlásený, pamätajú sa len v tomto prehliadači. Po prihlásení ich uložíme do účtu, uvidíš ich na kartičke jazdca a môžeš posielať fotky z eventov, pridávať spoty na mapu a hlasovať za parky.'),
+    h('button', { class: 'btn primary', type: 'button', onclick: () => loginDialog(() => route()) }, 'Prihlásiť sa'))));
+  const [email, admin] = anon ? ['', false] : await Promise.all([store.email(), store.isAdmin().catch(() => false)]);
   const pw = h('input', { type: 'password', autocomplete: 'new-password', minlength: 8, placeholder: 'aspoň 8 znakov' });
   const msg = h('p', { class: 'form-msg', role: 'status' });
-  put(body, h('div', { class: 'pf-grid pf-grid-acct' }, h('div', { class: 'pf-card' },
+  if (!anon) put(body, h('div', { class: 'pf-grid pf-grid-acct' }, h('div', { class: 'pf-card' },
     h('p', { class: 'mono pf-k' }, 'Prihlásený ako'),
     h('p', { class: 'pf-email' }, email || 'ukážkový režim'),
     admin ? h('p', { class: 'pf-admin' }, h('span', { class: 'chip on' }, 'Admin / crew'), ' ', h('a', { class: 'btn primary', href: '#/admin' }, 'Otvoriť admin'), ' ', h('a', { class: 'btn small', href: '#/admin/vysledky' }, 'Výsledky'), ' ', h('a', { class: 'btn small', href: '#/admin/scan' }, 'Check-in')) : null,
