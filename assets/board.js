@@ -426,6 +426,7 @@ export const SCENES = {
   free: 'Voľný pohľad',
 };
 const LEGACY = { roll: 'ride', ramp: 'wall', ledge: 'wall' };
+const GHOST_Y = .035;
 const WHEEL_Y = .0805;   // výška stredu dosky nad zemou, keď stojí na kolieskach
 const rnd = (a, b) => a + Math.random() * (b - a);
 function concreteTex(seams = true, size = 512) {
@@ -549,7 +550,7 @@ function buildEnv(name, renderer, dispList) {
 }
 /* poloha dosky a kamery v scéne: pose = pozícia/otočenie dosky, cam = [yaw, pitch, dist], target */
 const POSES = {
-  ride: { pos: [0, WHEEL_Y, 0], rot: [0, 0, 0], cam: [.95, .16, 1.45], target: [0, .14, 0], sun: [-1.5, 3, 2] },
+  ride: { pos: [0, WHEEL_Y, 0], rot: [0, 0, 0], cam: [.95, .16, 1.75], target: [0, .2, 0], sun: [-1.5, 3, 2] },
   // opretá o stenu: dĺžka skoro zvislo, spodok s nálepkami k divákovi, grip k stene
   wall: { pos: [0, .39, -.25], lean: .3, cam: [.3, .08, 3], target: [.05, .44, -.3], sun: [2.4, 2.6, 2.2] },
   free: { pos: [0, .55, 0], rot: [0, 0, 0], cam: [.75, .32, 1.9], target: [0, .5, 0], sun: [1.5, 4, 1.5] },
@@ -558,10 +559,10 @@ const PITCH = { free: [-.35, 1.45], wall: [.02, 1.1], ride: [.02, 1.1] }, DIST =
 
 /* Pripojí dosku na plátno. Vráti funkciu na upratanie, na ktorej sú aj ovládacie metódy:
    flip(), trick(name), reset(), zoomBy(f), setAuto(bool), setLook(look), setStickers(list), setScene(name). */
-export async function mountBoard(canvas, { stickers = [], onSticker, look, deck, scene: startScene = 'studio' } = {}) {
+export async function mountBoard(canvas, { stickers = [], onSticker, look, deck, ghostImg = null, scene: startScene = 'studio' } = {}) {
   const logo = await loadLogo();
   const noop = () => {};
-  if (!canvas.isConnected) return Object.assign(() => {}, { flip: noop, trick: noop, reset: noop, zoomBy: noop, setAuto: noop, setLook: noop, setStickers: noop, setScene: noop });
+  if (!canvas.isConnected) return Object.assign(() => {}, { flip: noop, trick: noop, reset: noop, zoomBy: noop, setAuto: noop, setLook: noop, setStickers: noop, setScene: noop, setGhost: noop });
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -579,7 +580,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   world.add(sun, spot, spot.target, new THREE.HemisphereLight(0xd8e4ff, 0x3a2f28, .9));
   let nextRideTrick = 0;
   const rig = new THREE.Group(), rigTrick = new THREE.Group(); rig.add(rigTrick); world.add(rig);
-  let env = null, envDisp = [], sceneName = 'studio';
+  let env = null, envDisp = [], sceneName = 'studio', ghostSpr = null;
   const orbit = { yaw: 0, pitch: .2, dist: 1.6, target: new THREE.Vector3() };
   const shadowsOn = on => S.boardObj().traverse(o => { if (o.isMesh) { o.castShadow = on; o.receiveShadow = on; } });
 
@@ -587,6 +588,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     name = LEGACY[name] || name;
     if (!SCENES[name]) name = 'studio';
     sceneName = name;
+    if (ghostSpr) ghostSpr.visible = name === 'ride';
     if (env) { world.remove(env); envDisp.forEach(d => d.dispose()); envDisp = []; env = null; }
     if (name === 'studio') {
       mid.add(holder); holder.position.set(0, 0, 0); holder.rotation.set(0, 0, 0);
@@ -607,6 +609,15 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     lean.visible = false; world.visible = true; shadowsOn(true);
     scene.fog = name === 'free' ? new THREE.Fog(0x0e0d0c, 2.5, 9) : new THREE.Fog(0x0e0d0c, name === 'ride' ? 3.5 : 4, name === 'ride' ? 9 : 8.5);
     resize();
+  }
+  /* duch jazdca stojí na doske (plochý obrázok, vždy otočený ku kamere); len v scéne 'ride' */
+  function setGhost(src) {
+    if (ghostSpr) { rig.remove(ghostSpr); ghostSpr.material.map?.dispose(); ghostSpr.material.dispose(); ghostSpr = null; }
+    if (!src) return;
+    const tex = new THREE.CanvasTexture(src); tex.colorSpace = THREE.SRGBColorSpace;
+    ghostSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
+    const hgt = .3; ghostSpr.scale.set(hgt * src.width / src.height, hgt, 1); ghostSpr.center.set(.5, 0); ghostSpr.position.set(0, GHOST_Y, 0);
+    ghostSpr.visible = sceneName === 'ride'; rig.add(ghostSpr);
   }
   function placeOrbit() {
     const cp = Math.cos(orbit.pitch);
@@ -700,7 +711,8 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
       else if (anim.key === 'impossible') g.rotation.z = e * Math.PI * 2;
       else { g.rotation.x = e * Math.PI * 2; g.rotation.y = e * Math.PI * 2; }
       g.position.y = Math.sin(t * Math.PI) * (studio ? .12 : anim.key === 'ollie' ? .22 : .3);
-      if (t >= 1) { g.rotation.set(0, 0, 0); g.position.y = 0; anim = null; idleAt = now; }
+      if (ghostSpr) ghostSpr.position.y = GHOST_Y + g.position.y * .9;
+      if (t >= 1) { g.rotation.set(0, 0, 0); g.position.y = 0; if (ghostSpr) ghostSpr.position.y = GHOST_Y; anim = null; idleAt = now; }
     }
     if (studio) {
       if (!drag) {
@@ -749,10 +761,11 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     setAuto(on) { auto = !!on && !reduceMotion; if (!auto) vel = 0; },
     setLook(l) { curLook = lookOf(l); S.rebuild(curStickers, curLook); if (sceneName !== 'studio') shadowsOn(true); },
     setStickers(list) { curStickers = list; S.rebuild(curStickers, curLook); if (sceneName !== 'studio') shadowsOn(true); },
-    setScene,
+    setScene, setGhost,
     scene: () => sceneName,
     snapshot: () => renderBoardImage(curStickers, { width: 900, height: 1200, look: curLook }),
   });
   setScene(startScene);
+  if (ghostImg) setGhost(ghostImg);
   return api;
 }
