@@ -1265,9 +1265,11 @@ async function pageEvents(root) {
   function render() {
     const all = [...ours, ...community].filter(e => (when === 'upcoming' ? isUp(e) : !isUp(e)) && (tier === 'all' || e.tier === tier) && match(e));
     const rank = { gosko: 0, local: 1, world: 2 };
+    // GOSko bez presného dátumu („14. alebo 21. 11. 2026“) radíme podľa prvého navrhovaného dňa, nie na začiatok zoznamu
+    const sortKey = e => { if (e.date) return e.date; const m = String(e.ev?.when || '').match(/(\d+)\.(?:\s*alebo\s*\d+\.)?\s*(\d+)\.\s*(20\d\d)/); return m ? `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}` : '9999'; };
     all.sort(when === 'upcoming'
-      ? (a, b) => (a.date || '0').localeCompare(b.date || '0') || rank[a.tier] - rank[b.tier]
-      : (a, b) => (b.date || '').localeCompare(a.date || '') || rank[a.tier] - rank[b.tier]);
+      ? (a, b) => sortKey(a).localeCompare(sortKey(b)) || rank[a.tier] - rank[b.tier]
+      : (a, b) => sortKey(b).localeCompare(sortKey(a)) || rank[a.tier] - rank[b.tier]);
     count.textContent = `${all.length} ${plural(all.length, 'event', 'eventy', 'eventov')}`;
     if (!all.length) { listBox.replaceChildren(h('div', { class: 'empty-cta' }, h('div', {}, h('b', {}, q ? 'Nič sme nenašli.' : 'Zatiaľ tu nič nie je.'), h('p', {}, 'Poznáš skate event? Pridaj ho a po schválení sa ukáže.'), h('button', { class: 'btn primary small', type: 'button', onclick: addEventDialog }, 'Pridať event')))); return; }
     // po mesiacoch, ako na HLTV
