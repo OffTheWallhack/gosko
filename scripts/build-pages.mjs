@@ -81,18 +81,18 @@ const SECTIONS = [
   ['mapa', 'Mapa spotov', 'Skateparky a spoty na Slovensku. Pridaj aj svoj spot a ohodnoť ostatné.'],
   ['parky', 'Postav si skatepark', '3D stavebnica skateparku. Najlepšie parky podľa hlasov idú do top 10.'],
   ['doska', 'Navrhni si dosku', 'Tvoja 3D skateboard doska s nálepkami z GOSko eventov.'],
-  ['trik-tyzdna', 'Trik týždňa', 'Pošli klip, vyberieme troch finalistov a víťaza určíte hlasovaním.'],
+  ['trik-tyzdna', 'Trik mesiaca', 'Pošli klip, vyberieme troch finalistov a víťaza určíte hlasovaním.'],
   ['crew', 'Crew', 'Skate crew zo Slovenska: členovia, eventy a spoty.'],
-  ['komunita', 'Komunita', 'WhatsApp skupina, trik týždňa, crew a všetko okolo GOSko komunity.'],
+  ['komunita', 'Komunita', 'WhatsApp skupina, trik mesiaca, crew a všetko okolo GOSko komunity.'],
   ['rodicia', 'Pre rodičov', 'Ako funguje GOSko pre jazdcov do 16 rokov: bezpečnosť, súhlas rodiča, čo priniesť.'],
   ['partneri', 'Pre partnerov', 'Spolupráca s GOSko: čísla, plán a ako sa pridať.'],
-  ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku. Za projektom stojí občianske združenie Slovenská Federácia Skateboardingu.'],
+  ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku. Za projektom stojí občianske združenie (údaje doplníme čoskoro).'],
   ['pravidla', 'Pravidlá', 'Pravidlá Game of S.K.A.T.E. na GOSko eventoch.'],
   ['sukromie', 'Ochrana osobných údajov', 'Aké údaje GOSko zbiera, prečo, ako dlho a aké máš práva.'],
 ];
 
 /* úvodka (template = index.html, len doplníme náhľad) */
-const home = page('', { title: '', description: 'GOSko je séria Game of S.K.A.T.E. súťaží po Slovensku. Eventy, rebríček skejterov, trik týždňa, mapa spotov a 3D doska.',
+const home = page('', { title: '', description: 'GOSko je séria Game of S.K.A.T.E. súťaží po Slovensku. Eventy, rebríček skejterov, trik mesiaca, mapa spotov a 3D doska.',
   body: list(SECTIONS.map(([p, t]) => link(p, t))) });
 writeFileSync(join(ROOT, 'index.html'), home);
 writeFileSync(join(ROOT, '404.html'), home.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"'));
