@@ -8,7 +8,7 @@ const hex6 = n => '#' + n.toString(16).padStart(6, '0');
 /* nastavenie pre renderer: duch + farby dosky z loadoutu */
 function toS(g, look = {}) {
   const n = ghostOf(g);
-  const deck = isHex(look.deck) ? look.deck : (DECKS[look.deck]?.base || '#A01414');
+  const deck = isHex(look.deck) ? look.deck : look.deck === 'image' ? (isHex(look.deckTone) ? look.deckTone : '#6b6359') : (DECKS[look.deck]?.base || '#A01414');
   const wheels = isHex(look.wheels) ? look.wheels : hex6(WHEELS[look.wheels]?.color ?? 0xf3ebdd);
   const trucks = isHex(look.trucks) ? look.trucks : hex6(TRUCKS[look.trucks]?.color ?? 0xc9ccd0);
   return { ...n, wear: n.scuff, board: { show: true, deck, wheels, trucks, shoes: n.shoes, shoeColor: n.shoeColor, extra: n.boardExtra } };

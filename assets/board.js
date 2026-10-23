@@ -27,6 +27,18 @@ export function setDeckPhoto(canvasOrImg) {
   try { if (PHOTO) localStorage.setItem(PHOTO_KEY, (PHOTO.toDataURL ? PHOTO : toCanvas(PHOTO)).toDataURL('image/png')); else localStorage.removeItem(PHOTO_KEY); } catch { /* plné úložisko: fotka ostane len do zatvorenia */ }
 }
 export const hasDeckPhoto = () => !!PHOTO;
+
+/* hotový obrázok celého spodku dosky (fotka skutočnej dosky): načíta sa raz, deckGraphic ho potom len vykreslí.
+   Povolené sú len obrázky z webu (img/…), data: URL alebo https odkaz. */
+const DECK_IMGS = new Map();
+const okDeckSrc = u => typeof u === 'string' && /^(img\/[\w\-./]+\.(webp|png|jpe?g)|data:image\/(webp|png|jpeg);base64,[\w+/=]+|https:\/\/[^\s"'<>]+)$/i.test(u);
+export async function loadDeckImage(src) {
+  if (!okDeckSrc(src)) return null;
+  if (DECK_IMGS.has(src)) return DECK_IMGS.get(src);
+  try { const im = new Image(); im.crossOrigin = 'anonymous'; im.src = src; await im.decode(); DECK_IMGS.set(src, im); return im; }
+  catch { return null; }
+}
+const preloadLook = look => look?.deck === 'image' && look.deckImage ? loadDeckImage(look.deckImage) : Promise.resolve();
 export const deckPhoto = () => PHOTO;
 const toCanvas = img => { const c = document.createElement('canvas'); c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height; c.getContext('2d').drawImage(img, 0, 0); return c; };
 
@@ -275,7 +287,9 @@ export function stickerCanvas(spec, logo, size = 512) {
 /* ---------- vzhľad dosky (tabuľky a palety sú v looks.js) ---------- */
 export { DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, DECK_COLORS, GRIP_COLORS, WHEEL_COLORS, TRUCK_COLORS, isHex, lookName };
 const lookOf = l => ({
-  deck: DECKS[l?.deck] || isHex(l?.deck) || l?.deck === 'photo' ? l.deck : 'cream',
+  deck: DECKS[l?.deck] || isHex(l?.deck) || l?.deck === 'photo' || (l?.deck === 'image' && okDeckSrc(l.deckImage)) ? l.deck : 'cream',
+  deckImage: l?.deck === 'image' && okDeckSrc(l.deckImage) ? l.deckImage : undefined,
+  truckX: Array.isArray(l?.truckX) && l.truckX.length === 2 && l.truckX.every(v => Number.isFinite(v) && Math.abs(v) <= .3) ? l.truckX : undefined,   // poloha podvozkov, ak fotka dosky ukazuje iné rozloženie
   grip: GRIPS[l?.grip] || isHex(l?.grip) ? l.grip : 'black',
   wheels: WHEELS[l?.wheels] || isHex(l?.wheels) ? l.wheels : 'cream',
   trucks: TRUCKS[l?.trucks] || isHex(l?.trucks) ? l.trucks : 'silver',
@@ -291,9 +305,18 @@ function envFor(renderer) {
   return ENVS.get(renderer);
 }
 
-function deckGraphic(deck = 'cream') {
+function deckGraphic(deck = 'cream', imgSrc) {
   const c = document.createElement('canvas'); c.width = 2048; c.height = 540;
   const x = c.getContext('2d');
+  if (deck === 'image') {   // fotka skutočnej dosky zospodu, otočená na dĺžku
+    const im = DECK_IMGS.get(imgSrc);
+    if (im) {
+      x.fillStyle = '#d9b27a'; x.fillRect(0, 0, c.width, c.height);
+      x.save(); x.translate(1024, 270); x.rotate(Math.PI / 2); x.drawImage(im, -270, -1024, 540, 2048); x.restore();
+      return c;
+    }
+    deck = 'cream';
+  }
   if (deck === 'photo') {   // vlastná fotka ako pixel art medzi pásmi
     x.fillStyle = '#0e0d0c'; x.fillRect(0, 0, c.width, c.height);
     if (PHOTO) { x.save(); x.imageSmoothingEnabled = false; x.translate(1024, 270); x.rotate(Math.PI / 2); x.drawImage(PHOTO, -270, -690, 540, 1380); x.restore(); }
@@ -414,9 +437,9 @@ function buildBoard(stickers, logo, renderer, look) {
   const board = new THREE.Group();
   const grip = tex(gripTexture(look.grip)); grip.wrapS = grip.wrapT = THREE.RepeatWrapping; grip.repeat.set(1.5, 1);
   board.add(new THREE.Mesh(surface(1), mat({ map: grip, roughness: .95 })));
-  board.add(new THREE.Mesh(surface(-1), mat({ map: tex(deckGraphic(look.deck)), roughness: .55 })));
+  board.add(new THREE.Mesh(surface(-1), mat({ map: tex(deckGraphic(look.deck, look.deckImage)), roughness: .55 })));
   board.add(new THREE.Mesh(sides(), mat({ color: 0xd9b27a, roughness: .7 })));
-  for (const tx of [-.235, .235]) {
+  for (const tx of look.truckX || [-.235, .235]) {
     const t = new THREE.Group();
     t.add(bx(.07, .008, .056, steel, 0, -T / 2 - .004, 0), bx(.028, .03, .04, steel, 0, -T / 2 - .023, 0));
     const hanger = cy(.013, .019, .13, steel, 14); hanger.rotation.x = Math.PI / 2; hanger.position.set(0, -T / 2 - .043, 0); t.add(hanger);
@@ -427,7 +450,8 @@ function buildBoard(stickers, logo, renderer, look) {
     }
     t.position.x = tx; board.add(t);
   }
-  stickers.slice(0, SLOTS.length).forEach((spec, i) => {
+  // doska z fotky už má vlastné nálepky, eventové sa naň nelepia
+  (look.deck === 'image' ? [] : stickers).slice(0, SLOTS.length).forEach((spec, i) => {
     const s = SLOTS[i];
     const m = new THREE.Mesh(new THREE.PlaneGeometry(.098, .098), mat({ map: tex(stickerCanvas(spec, logo)), transparent: true, alphaTest: .08, roughness: .4 }));
     m.position.set(s.x, -T / 2 - .0011 - i * .0004, s.z);
@@ -442,6 +466,7 @@ function buildBoard(stickers, logo, renderer, look) {
 /* Samotný model dosky (pre maskota a iné scény). */
 export async function makeBoardModel(renderer, { look, stickers = [] } = {}) {
   const logo = await loadLogo();
+  await preloadLook(lookOf(look));
   return buildBoard(stickers, logo, renderer, look);
 }
 
@@ -477,6 +502,7 @@ function makeBoardScene(stickers, logo, renderer, look) {
 let imgRenderer = null;
 export async function renderBoardImage(stickers, { width = 800, height = 1100, tilt = -.42, turn = -.5, look } = {}) {
   const logo = await loadLogo();
+  await preloadLook(lookOf(look));
   if (!imgRenderer) {
     const canvas = document.createElement('canvas');
     imgRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -649,6 +675,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   let curLook = lookOf(look || (deck ? { deck } : DEFAULT_LOOK)), curStickers = stickers;
+  await preloadLook(curLook);
   const S = makeBoardScene(stickers, logo, renderer, curLook);
   const { scene, camera, spin, pitch, trick, lean, mid, holder } = S;
   canvas.tabIndex = 0;
@@ -840,7 +867,11 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
     reset() { vel = 0; pvel = 0; flipTo = null; if (sceneName === 'studio') { spin.rotation.y = -.45; pitch.rotation.x = 0; S.setZoom(1); } else { S._z = 1; setScene(sceneName); } idleAt = performance.now(); },
     zoomBy(f) { zoomTo(getZoom() * f); },
     setAuto(on) { auto = !!on && !reduceMotion; if (!auto) vel = 0; },
-    setLook(l) { curLook = lookOf(l); S.rebuild(curStickers, curLook); if (sceneName !== 'studio') shadowsOn(true); },
+    setLook(l) {
+      curLook = lookOf(l);
+      const go = () => { S.rebuild(curStickers, curLook); if (sceneName !== 'studio') shadowsOn(true); };
+      if (curLook.deckImage && !DECK_IMGS.has(curLook.deckImage)) preloadLook(curLook).then(go); else go();
+    },
     setStickers(list) { curStickers = list; S.rebuild(curStickers, curLook); if (sceneName !== 'studio') shadowsOn(true); },
     setScene, setGhost,
     scene: () => sceneName,

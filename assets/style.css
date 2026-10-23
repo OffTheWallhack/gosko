@@ -3084,6 +3084,11 @@ footer .foot-cols a{display:inline-flex;align-items:center;min-height:40px}
 .kt-gyro{justify-self:center}
 .kt-below{padding-top:8px;padding-bottom:36px;display:grid;gap:18px;justify-items:center}
 .kt-actions{justify-content:center}
+.kt-share{max-width:440px;width:100%;text-align:center}
+.kt-share h2{margin:0 0 6px}
+.kt-share p{margin:0 0 12px}
+.kt-share .actions{justify-content:center}
+.card-preview[src]{max-height:70vh;object-fit:contain;background:#0b0a0c}
 .kt-ask{max-width:440px;padding:18px;border:1px solid var(--line-dark);border-radius:var(--r-l,14px);background:var(--grain-light),var(--ink-2);text-align:left}
 .kt-ask h2{margin:0 0 6px}
 .kt-ask p{margin:0 0 10px}
