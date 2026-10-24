@@ -2,7 +2,7 @@
 
 Stránky: úvod s 3D doskou, rebríček, eventy a kalendár, stránky eventov s videom,
 jazdci s vlastnou doskou, odznakmi a zdieľateľnou kartou, mapa spotov od komunity,
-stavebnica skateparku s top 10, shop (zatiaľ zber záujmu), pre partnerov s media
+stavebnica skateparku s top 10, pre partnerov s media
 kitom a „Zavolaj si GOSko“, odber noviniek, vstupné QR passy a skrytý admin
 na adrese `#/admin` so skenerom na check-in (`#/admin/scan`).
 
@@ -13,7 +13,7 @@ Web sa dá pridať na plochu telefónu ako appka a funguje aj bez signálu
 
 ```
 index.html            kostra stránky
-data.js               VŠETOK OBSAH: eventy, výsledky, partneri, produkty
+data.js               VŠETOK OBSAH: eventy, výsledky, partneri
 assets/app.js         stránky a logika
 assets/board.js       3D doska s nálepkami
 assets/park.js        stavebnica skateparku
@@ -85,7 +85,7 @@ to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
    ```
 
 V admine potom schvaľuješ parky, eventy a spoty od komunity a vidíš registrácie,
-odber noviniek, objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
+odber noviniek a objednávky pop-upov. Všetko sa dá stiahnuť ako CSV.
 
 ## Stavebnica parku
 

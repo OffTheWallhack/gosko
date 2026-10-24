@@ -19,7 +19,6 @@ export const INBOX = {
   registrations: 'Registrácie na eventy',
   newsletter_subscribers: 'Odber noviniek',
   bookings: 'Objednávky pop-upov',
-  shop_interest: 'Záujem o shop',
   privacy_requests: 'Žiadosti o súkromie',
   profiles: 'Skejteri (spoločný profil GOSko a Ghoskate)',
 };

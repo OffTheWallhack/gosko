@@ -100,7 +100,7 @@ writeFileSync(join(ROOT, '404.html'), home.replace('<meta name="theme-color"', '
 for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d,
   body: p === 'eventy' ? list(EVENTS.map(e => link(`event/${e.id}`, e.name))) : p === 'jazdci' || p === 'rebricek' ? list([...riders.values()].map(r => link(`jazdec/${r.slug}`, r.name))) : p === 'novinky' ? list(postPages.map(x => link(`novinka/${x.id}`, x.title))) : '' });
 for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', image: e.photos?.[0]?.src,
-  description: clip([e.status === 'next' ? 'Ďalší stop GOSko' : 'GOSko', e.place, e.date ? fmt(e.date) : e.when || 'coming soon', e.about].filter(Boolean).join(' · ')),
+  description: clip([e.status === 'next' ? (e.planned ? 'Ďalší stop GOSko (plánované)' : 'Ďalší stop GOSko') : 'GOSko', e.place || (e.planned ? 'miesto zatiaľ nepotvrdené' : ''), e.date ? fmt(e.date) : e.when || 'coming soon', e.about].filter(Boolean).join(' · ')),
   body: e.results ? list(Object.entries(e.results).flatMap(([c, n]) => n.map((x, i) => `${esc(c)} ${i + 1}. ${link(`jazdec/${slug(x)}`, x)}`))) : '' });
 for (const r of riders.values()) page(`jazdec/${r.slug}`, { title: r.name, type: 'profile', image: RIDERS[r.slug]?.photo,
   description: clip(`${r.name} na GOSko: ${r.res.join('; ')}.`), body: list(r.res.map(esc)) });

@@ -2727,16 +2727,6 @@ a.evl-name:hover{text-decoration:underline;text-underline-offset:3px}
 .sh-small .sh-social{color:var(--cream)}
 @media (min-width:761px){ .sh-big{grid-template-columns:repeat(2,minmax(0,1fr))} }
 
-/* v14.1: shop – na mobile 2 produkty vedľa seba, kompaktné karty */
-@media (max-width:620px){
-  .page-body .cards:has(.product){grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .card.product .card-body{padding:10px 10px 12px;gap:4px}
-  .card.product .card-title{font-size:.95rem}
-  .card.product .card-body p{font-size:.8rem;margin:0}
-  .card.product .price{font-size:.75rem}
-  .card.product .btn{width:100%;min-height:42px;padding:0 10px;font-size:.85rem}
-}
-
 /* =====================================================================
    v14.2: Pre partnerov – rovnaký obsah, zhustené (menej medzier, viac vedľa seba)
    ===================================================================== */

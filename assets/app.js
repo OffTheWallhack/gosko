@@ -1,4 +1,4 @@
-import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS, EVENT_MEDIA } from '../data.js';
+import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS, EVENT_MEDIA } from '../data.js';
 import { tvScene } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
 import { mountBoard, MAX_STICKERS, DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, SCENES, stickerCanvas, loadLogo, renderBoardImage,
@@ -450,6 +450,9 @@ function daysUntil(dateStr) {
 }
 /* krátky dátum pre ďalší event bez presného dátumu: napr. „14. alebo 21. 11.“ (z ev.when), inak „čoskoro“ */
 const soonDate = ev => ev?.when ? String(ev.when).replace(/\s*20\d\d\s*$/, '') : 'čoskoro';
+/* plánovaný event: dátum je daný, miesto ešte nie */
+const regLabel = ev => ev?.planned ? 'Predregistrovať sa' : 'Chcem jazdiť';
+const placeText = ev => ev.place || (ev.planned ? 'miesto zatiaľ nepotvrdené' : '');
 const nextEvent = () => EVENTS.filter(e => e.status === 'next').sort((a, b) => (a.date || '9').localeCompare(b.date || '9'))[0];
 function countdownEl(ev) {
   if (!ev) return null;
@@ -457,7 +460,7 @@ function countdownEl(ev) {
   const when = p ? `${WEEKDAYS[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()]} ${fmtDate(ev.date)}` : '';
   let num, unit, meta;
   if (d === null) { num = 'Čoskoro'; unit = 'ďalšie GOSko'; meta = `${ev.city}: dátum a miesto zverejníme na Instagrame.`; }
-  else if (d > 0) { num = String(d); unit = `${plural(d, 'deň', 'dni', 'dní')} do ďalšieho GOSka`; meta = [ev.city, when, ev.place].filter(Boolean).join(', '); }
+  else if (d > 0) { num = String(d); unit = `${plural(d, 'deň', 'dni', 'dní')} do ďalšieho GOSka`; meta = [ev.city, when, placeText(ev), ev.planned ? 'plánované' : ''].filter(Boolean).join(', '); }
   else if (d === 0) { num = 'Dnes'; unit = 'je GOSko'; meta = [ev.city, ev.place].filter(Boolean).join(', '); }
   else { num = 'Výsledky'; unit = 'čoskoro'; meta = `${ev.name} sa už odohral.`; }
   const open = d === null || d >= 0;
@@ -465,8 +468,8 @@ function countdownEl(ev) {
     h('div', { class: 'cd-main' }, h('span', { class: 'cd-num wide' }, num), h('span', { class: 'cd-unit wide' }, unit)),
     h('p', { class: 'cd-meta cond' }, meta),
     h('div', { class: 'actions' },
-      open && ev.registration ? h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, 'Chcem jazdiť') : null,
-      p && open ? h('button', { class: 'btn', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Do kalendára') : null,
+      open && ev.registration ? h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, regLabel(ev)) : null,
+      p && open && !ev.planned ? h('button', { class: 'btn', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Do kalendára') : null,
       d === null ? h('button', { class: 'btn', type: 'button', onclick: () => newsletterDialog('countdown') }, 'Daj mi vedieť e-mailom') : null,
       h('a', { class: 'btn', href: '#/event/' + ev.id }, 'Detail eventu'))));
 }
@@ -589,7 +592,7 @@ function heroSticker(next) {
   loadLogo().then(logo => { img.src = stickerCanvas(eventSticker(next), logo, 480).toDataURL(); }).catch(err => console.error(err));
   return h('div', { class: 'vh-stk' },
     h('a', { class: 'vh-stk-img', href: '#/event/' + next.id, 'aria-label': next.name + ': info o evente' }, img),
-    h('button', { class: 'vh-stk-btn', type: 'button', onclick: () => registerDialog(next) }, 'Registruj sa'));
+    h('button', { class: 'vh-stk-btn', type: 'button', onclick: () => registerDialog(next) }, next.planned ? 'Predregistruj sa' : 'Registruj sa'));
 }
 
 function newsRotator(next) {
@@ -623,7 +626,7 @@ function newsRotator(next) {
         h('button', { type: 'button', 'aria-label': 'Ďalšia novinka', onclick: () => show(i + 1, 1) }, '→'))),
     stage, bar);
   if (next) { const n = next.date ? dayDiff(todayStr(), next.date) : null;
-    slides.push({ kicker: n !== null && n >= 0 ? `Ďalší stop · ${n === 0 ? 'dnes!' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`}` : `Ďalší stop · ${soonDate(next)}`, title: next.name, sub: next.date ? `${fmtDate(next.date)}${next.place ? ', ' + next.place : ''}. Zaregistruj sa.` : 'Zaregistruj sa a dáme ti vedieť medzi prvými.', href: '#/event/' + next.id, img: null }); }
+    slides.push({ kicker: n !== null && n >= 0 ? `Ďalší stop · ${n === 0 ? 'dnes!' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`}` : `Ďalší stop · ${soonDate(next)}`, title: next.name, sub: next.date ? `${fmtDate(next.date)}${next.place ? ', ' + next.place : ''}. ${next.planned ? 'Plánované, miesto zatiaľ nepotvrdené. Predregistruj sa.' : 'Zaregistruj sa.'}` : 'Zaregistruj sa a dáme ti vedieť medzi prvými.', href: '#/event/' + next.id, img: null }); }
   show(0);
   if (next) loadLogo().then(logo => { slides[0].img = stickerCanvas(eventSticker(next), logo, 256).toDataURL(); if (i === 0) { const im = stage.lastChild?.querySelector('.nr-img'); if (im) { im.classList.remove('ghost'); im.firstChild.src = slides[0].img; } } }).catch(() => {});
   loadPosts().then(posts => { slides.push(...posts.slice(0, 5).map(p => ({ kicker: 'Novinka · ' + fmtDateTime(p.created_at), title: p.title, sub: p.summary, href: '#/novinka/' + p.id, img: p.image_url }))); show(i); });
@@ -674,7 +677,7 @@ function stickerWall({ bare = false } = {}) {
         h('span', { class: 'sw-st' }, img, h('span', { class: 'sw-corner', 'aria-hidden': 'true' }))),
       h('span', { class: 'sw-cap' },
         h('b', { class: 'sw-date' }, e.date ? fmtDate(e.date) : soonDate(e)),
-        isNext && e.registration ? h('button', { class: 'sw-reg', type: 'button', onclick: () => registerDialog(e) }, 'Registruj sa')
+        isNext && e.registration ? h('button', { class: 'sw-reg', type: 'button', onclick: () => registerDialog(e) }, e.planned ? 'Predregistruj sa' : 'Registruj sa')
           : h('a', { class: 'sw-more', href: '#/event/' + e.id }, isNext ? 'Info' : 'Fotky a výsledky', h('span', { 'aria-hidden': 'true' }, ' →'))));
   }));
   loadLogo().then(logo => evs.forEach(e => { imgs.get(e.id).src = stickerCanvas(eventSticker(e), logo, 720).toDataURL(); })).catch(err => console.error(err));
@@ -1082,7 +1085,7 @@ function siteFeed() {
 /* podstránky: na konci už len krátky odber noviniek, nie celá úvodka dookola */
 function newsStrip() {
   return h('section', { class: 'news-strip' }, h('div', { class: 'wrap ns-in' },
-    h('div', { class: 'ns-copy' }, h('h2', { class: 'letterg' }, 'Nezmeškaj ďalšie GOSko'), h('p', {}, 'Jeden e-mail, keď vyhlásime dátum a miesto. Nič viac.')),
+    h('div', { class: 'ns-copy' }, h('h2', { class: 'letterg' }, 'Nezmeškaj ďalšie GOSko'), h('p', {}, 'Jeden e-mail, keď potvrdíme miesto a detaily. Nič viac.')),
     newsletterInline('strip')));
 }
 
@@ -1097,9 +1100,9 @@ function countdownCard(ev) {
   return h('div', { class: 'cd-card' },
     h('span', { class: 'mono' }, 'Ďalší stop'),
     h('div', { class: 'cd-row' }, h('span', { class: 'cd-big' }, big), h('span', { class: 'cd-u letterg' }, unit)),
-    h('p', { class: 'cd-where' }, h('b', {}, ev.city), ev.date ? `, ${fmtDate(ev.date)}` : '', ev.place ? `, ${ev.place}` : ', miesto zverejníme na Instagrame'),
+    h('p', { class: 'cd-where' }, h('b', {}, ev.city), ev.date ? `, ${fmtDate(ev.date)}` : '', ev.place ? `, ${ev.place}` : ev.planned ? ', miesto zatiaľ nepotvrdené' : ', miesto zverejníme na Instagrame'),
     h('div', { class: 'actions' },
-      open && ev.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: () => registerDialog(ev) }, 'Chcem jazdiť') : null,
+      open && ev.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: () => registerDialog(ev) }, regLabel(ev)) : null,
       d === null ? h('button', { class: 'btn small', type: 'button', onclick: () => newsletterDialog('countdown') }, 'Daj mi vedieť') : null,
       h('a', { class: 'btn small', href: '#/event/' + ev.id }, 'Detail')));
 }
@@ -1216,8 +1219,8 @@ async function pageEvents(root) {
   const today = todayStr();
   const lastDay = e => e.end_date && e.end_date > e.date ? e.end_date : e.date;
   const home = c => c === 'Slovensko' || c === 'Česko';
-  const ours = EVENTS.map(e => ({ id: e.id, tier: 'gosko', title: e.name, date: e.date || null, end_date: e.endDate || null, city: e.city, place: e.place, country: 'Slovensko',
-    desc: e.status === 'next' ? 'Game of S.K.A.T.E. · Open, U16, Babská kategória + Best Trick' : 'Game of S.K.A.T.E. · výsledky, fotky a videá', ev: e }));
+  const ours = EVENTS.map(e => ({ id: e.id, tier: 'gosko', title: e.name, date: e.date || null, end_date: e.endDate || null, city: e.city, place: e.place || (e.planned ? 'miesto zatiaľ nepotvrdené' : ''), country: 'Slovensko',
+    desc: e.status === 'next' ? (e.planned ? 'Plánované · ' : '') + 'Game of S.K.A.T.E. · Open, U16, Babská kategória + Best Trick' : 'Game of S.K.A.T.E. · výsledky, fotky a videá', ev: e }));
   let community = [];
   const load = async () => { try { community = (await store.listEvents()).map(e => ({ ...e, title: e.name, tier: home(e.country) ? 'local' : 'world' })); } catch (err) { console.error(err); } };
   const listBox = h('div', { class: 'evl', 'aria-live': 'polite' }, h('p', { class: 'empty' }, 'Načítavam eventy…'));
@@ -1243,7 +1246,7 @@ async function pageEvents(root) {
   function actions(e) {
     if (e.tier === 'gosko') {
       const ev = e.ev, isNext = ev.status === 'next';
-      return [isNext && ev.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: x => { x.preventDefault(); registerDialog(ev); } }, 'Chcem jazdiť') : null,
+      return [isNext && ev.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: x => { x.preventDefault(); registerDialog(ev); } }, regLabel(ev)) : null,
         h('a', { class: 'btn small', href: '#/event/' + ev.id }, isNext ? 'Info' : 'Výsledky')];
     }
     const ig = e.instagram ? (/^https?:/.test(e.instagram) ? e.instagram : `https://www.instagram.com/${String(e.instagram).replace(/^@/, '')}/`) : (/instagram\.com/.test(e.link || '') ? e.link : null);
@@ -1336,8 +1339,8 @@ async function pageEvents(root) {
 
 function registerDialog(ev) {
   formDialog({
-    title: 'Chcem jazdiť', submit: 'Zaregistrovať sa',
-    intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Keď zverejníme dátum a miesto, ozveme sa ti.`,
+    title: ev.planned ? 'Predregistrácia' : 'Chcem jazdiť', submit: ev.planned ? 'Predregistrovať sa' : 'Zaregistrovať sa',
+    intro: ev.planned ? `${ev.name}, ${fmtDate(ev.date)}, ${ev.city}. Event je zatiaľ plánovaný a miesto nie je potvrdené. Keď ho oznámime, ozveme sa ti.` : `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Keď zverejníme dátum a miesto, ozveme sa ti.`,
     fields: [
       { name: 'name', label: 'Meno alebo prezývka', required: true, max: 40, autocomplete: 'name', value: LSx.get('gosko:reg-me', {}).name },
       { name: 'instagram', label: 'Instagram', max: 40, placeholder: '@tvojmeno', value: LSx.get('gosko:reg-me', {}).instagram },
@@ -1360,9 +1363,9 @@ function registerDialog(ev) {
         h('p', {}, 'Si zaregistrovaný. Toto je tvoj vstupný QR kód. Na evente ho ukážeš crew pri príchode.'),
         passCard(pass),
         h('div', { class: 'actions' },
-          ev.date ? h('button', { class: 'btn primary', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Pridať do kalendára') : null,
+          ev.date && !ev.planned ? h('button', { class: 'btn primary', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Pridať do kalendára') : null,
           h('a', { class: 'btn', href: '#/pass' }, 'Môj pass')),
-        h('p', { class: 'note dark' }, ev.date ? 'Pass nájdeš v menu pod „Môj pass“. Pre istotu si sprav screenshot.' : 'Keď zverejníme dátum, pošleme ti ho a pridáš si ho do kalendára. Pass nájdeš v menu pod „Môj pass“.'));
+        h('p', { class: 'note dark' }, ev.planned ? 'Si predregistrovaný/á. Keď potvrdíme miesto, pošleme ti ho. Pass nájdeš v menu pod „Môj pass“.' : ev.date ? 'Pass nájdeš v menu pod „Môj pass“. Pre istotu si sprav screenshot.' : 'Keď zverejníme dátum, pošleme ti ho a pridáš si ho do kalendára. Pass nájdeš v menu pod „Môj pass“.'));
     },
   });
 }
@@ -1502,7 +1505,7 @@ async function pageEvent(root, id) {
   const jumpBtn = ([k, t, el]) => h('button', { type: 'button', class: 'chip', 'data-k': k, onclick: () => el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, t);
   const jump = h('nav', { class: 'evw-jump', 'aria-label': 'Časti eventu' }, sections.map(jumpBtn));
   const facts = [
-    ev.place && ['Kde', ev.place],
+    (ev.place || ev.planned) && ['Kde', ev.place || `${ev.city}, miesto zatiaľ nepotvrdené`],
     ['Kedy', ev.date ? fmtDate(ev.date) : (ev.when || 'čoskoro')],
     ev.status === 'done' && cats.length && ['Kategórie', cats.map(c => c.name).join(', ')],
   ].filter(Boolean);
@@ -1510,13 +1513,13 @@ async function pageEvent(root, id) {
     h('div', { class: 'wrap evw-grid' },
       h('div', { class: 'evw-st' }, stk),
       h('div', { class: 'evw-copy' },
-        h('p', { class: 'mono evw-k' }, isNext ? `Ďalší stop · ${ev.date ? fmtDate(ev.date) : soonDate(ev)}` : `Odjazdené · ${ev.city}`),
+        h('p', { class: 'mono evw-k' }, isNext ? `Ďalší stop · ${ev.date ? fmtDate(ev.date) : soonDate(ev)}${ev.planned ? ' · plánované' : ''}` : `Odjazdené · ${ev.city}`),
         h('h1', {}, ev.name),
         h('dl', { class: 'evw-facts' }, facts.map(([k, v]) => h('div', {}, h('dt', { class: 'mono' }, k), h('dd', {}, v)))),
         ev.about ? h('p', { class: 'lead' }, ev.about) : null,
         h('div', { class: 'actions' },
-          isNext && ev.registration ? h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, 'Chcem jazdiť') : null,
-          isNext && ev.date ? h('button', { class: 'btn', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Do kalendára') : null,
+          isNext && ev.registration ? h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, regLabel(ev)) : null,
+          isNext && ev.date && !ev.planned ? h('button', { class: 'btn', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Do kalendára') : null,
           isNext && !ev.date ? h('button', { class: 'btn', type: 'button', onclick: () => newsletterDialog('event') }, 'Daj mi vedieť dátum') : null,
           !isNext && cats.length ? h('button', { class: 'btn primary', type: 'button', onclick: () => sections.find(s => s[0] === 'vysledky')?.[2].scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 'Výsledky', icon('arrow')) : null,
           h('a', { class: 'btn', href: ig, target: '_blank', rel: 'noopener' }, icon('insta'), '@' + SITE.instagram))))),
@@ -1648,7 +1651,7 @@ function pageKarta(root, s) {
     h('p', { class: 'note' }, 'Fotku použijeme len na GOSko webe a profiloch. Kedykoľvek ju vieme odstrániť. U16: napíš cez rodiča.'),
     h('div', { class: 'actions' },
       info.photo ? h('a', { class: 'btn primary', href: `mailto:${SITE.email || 'rdurica1995@gmail.com'}?subject=${encodeURIComponent('Karta ' + r.name + ': súhlasím')}&body=${encodeURIComponent(`Súhlasím, aby GOSko použilo moju fotku na karte (${url}).`)}` }, 'Súhlasím s fotkou') : null,
-      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: 'https://ig.me/m/g.o.s.ko', target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
+      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: 'https://ig.me/m/gosko.sk', target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
   const adminBox = h('div', { class: 'kt-admin' });
   store.isAdmin().then(ok => { if (!ok) return; const b = h('button', { class: 'btn small', type: 'button', onclick: e => copy(msgFor(), e.currentTarget, 'Správa skopírovaná') }, 'Skopírovať správu pre jazdca (admin)'); adminBox.append(b); }).catch(() => {});
   root.append(h('div', { class: 'kt-page' }, stage, h('div', { class: 'wrap kt-below' }, share, h('div', { class: 'actions kt-actions' }, h('a', { class: 'btn', href: '#/jazdec/' + s }, 'Celý profil')), ask, adminBox)));
@@ -1807,31 +1810,6 @@ async function pageParks(root) {
   return () => { builder?.destroy(); onAuthChange = null; };
 }
 
-function mockSvg(kind) {
-  const logo = '<image href="img/logo.webp" x="{x}" y="{y}" width="{w}" height="{h}"/>';
-  const L = (x, y, w) => logo.replace('{x}', x).replace('{y}', y).replace('{w}', w).replace('{h}', w * 1.07);
-  if (kind === 'deck') return `<svg viewBox="0 0 200 200" aria-hidden="true"><rect x="70" y="8" width="60" height="184" rx="30" fill="#A01D21"/><rect x="70" y="40" width="60" height="10" fill="#F3EBDD"/><rect x="70" y="150" width="60" height="10" fill="#F3EBDD"/>${L(76, 68, 48)}</svg>`;
-  const tee = 'M60 30 L85 20 Q100 32 115 20 L140 30 L170 60 L150 78 L140 70 L140 185 L60 185 L60 70 L50 78 L30 60 Z';
-  const hood = 'M60 38 Q70 12 100 10 Q130 12 140 38 L172 70 L160 175 L145 175 L142 90 L142 188 L58 188 L58 90 L55 175 L40 175 L28 70 Z';
-  return `<svg viewBox="0 0 200 200" aria-hidden="true"><path d="${kind === 'hoodie' ? hood : tee}" fill="#111" stroke="#2E2B28" stroke-width="2"/>${L(72, 62, 56)}</svg>`;
-}
-function pageShop(root) {
-  root.append(pageHead('Shop', 'Coming soon. Merch GOSka pripravujeme.'),
-    h('div', { class: 'wrap page-body' }, h('p', { class: 'lead' }, 'Zatiaľ tu nič nepredávame. Novinky dávame na Instagram.'),
-      h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/' }, 'Späť na úvod'), h('a', { class: 'btn', href: `https://www.instagram.com/${SITE.instagram}/`, target: '_blank', rel: 'noopener' }, '@' + SITE.instagram))));
-}
-function interestDialog(p) {
-  formDialog({
-    title: p.name, submit: 'Mám záujem',
-    intro: 'Keď to bude v predaji, ozveme sa ti ako prvému.',
-    fields: [
-      p.sizes.length ? { name: 'size', label: 'Veľkosť', type: 'select', options: p.sizes } : { name: 'size', label: 'Počet kusov', type: 'number', value: '1', max: 3 },
-      { name: 'contact', label: 'E-mail alebo Instagram', required: true, max: 120 },
-    ],
-    onSubmit: async v => { await store.send('shop_interest', { product: p.id, size: v.size, contact: v.contact }); return 'Zapísané. Ozveme sa, keď to bude v predaji.'; },
-  });
-}
-
 function pagePartners(root, sub) {
   if (sub === 'mediakit') return pageMediaKit(root);
   const form = h('div', { class: 'book', id: 'zavolaj' });
@@ -1935,9 +1913,9 @@ function goskoEventCard(e) {
     h('div', { class: 'gk-body' },
       h('span', { class: 'mono gk-date' }, e.date ? fmtDate(e.date) : (e.when || 'Dátum čoskoro')),
       h('h3', {}, h('a', { href: '#/event/' + e.id }, e.name)),
-      h('p', {}, e.place || (isNext ? 'Miesto zverejníme na Instagrame' : e.city)),
+      h('p', {}, e.place || (isNext ? (e.planned ? 'Miesto zatiaľ nepotvrdené, plánované' : 'Miesto zverejníme na Instagrame') : e.city)),
       h('div', { class: 'actions' },
-        isNext && e.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: () => registerDialog(e) }, 'Chcem jazdiť') : null,
+        isNext && e.registration ? h('button', { class: 'btn primary small', type: 'button', onclick: () => registerDialog(e) }, regLabel(e)) : null,
         h('a', { class: 'btn small', href: '#/event/' + e.id }, isNext ? 'Detail' : 'Výsledky a fotky'))));
 }
 
@@ -2370,7 +2348,7 @@ function shareMediaDialog(file, kind, r) {
     h('div', { class: 'dlg-head' }, h('h3', { class: 'wide' }, isVideo ? 'Video karty' : 'Karta na stories'), h('button', { class: 'x', type: 'button', 'aria-label': 'Zavrieť', onclick: () => dlg.close() }, '✕')),
     h('div', { class: 'dlg-body card-body-dlg' }, media,
       h('div', { class: 'form-actions' },
-        canShare && h('button', { class: 'btn primary', type: 'button', onclick: () => navigator.share({ files: [file], title: `${r.name} na GOSko`, text: `${r.name} na GOSko @g.o.s.ko` }).catch(() => {}) }, 'Zdieľať'),
+        canShare && h('button', { class: 'btn primary', type: 'button', onclick: () => navigator.share({ files: [file], title: `${r.name} na GOSko`, text: `${r.name} na GOSko @gosko.sk` }).catch(() => {}) }, 'Zdieľať'),
         h('a', { class: 'btn' + (canShare ? '' : ' primary'), href: url, download: file.name }, isVideo ? 'Stiahnuť video' : 'Stiahnuť obrázok')),
       h('p', { class: 'note dark' }, isVideo ? 'Video je na výšku, 6 sekúnd. Na mobile ho po stiahnutí nájdeš v galérii.' : 'Formát sedí na Instagram Story. Na mobile môžeš obrázok aj podržať a uložiť.')));
   dlg.addEventListener('close', () => { URL.revokeObjectURL(url); dlg.remove(); });
@@ -2509,7 +2487,7 @@ function updateMenu() {
   const nx = nextEvent(), a = document.getElementById('sh-next');
   if (a) {
     if (nx) { a.setAttribute('href', 'event/' + nx.id); document.getElementById('sh-next-t').textContent = nx.name;
-      document.getElementById('sh-next-d').textContent = nx.date ? [fmtDate(nx.date), nx.place || nx.city].filter(Boolean).join(' · ') : `${soonDate(nx)} · ${nx.city} · registrácia otvorená`; }
+      document.getElementById('sh-next-d').textContent = nx.date ? [fmtDate(nx.date), nx.place || nx.city, nx.planned && !nx.place ? 'plánované' : ''].filter(Boolean).join(' · ') : `${soonDate(nx)} · ${nx.city} · registrácia otvorená`; }
     else { document.getElementById('sh-next-t').textContent = 'Eventy'; document.getElementById('sh-next-d').textContent = 'Kalendár GOSko aj ďalších'; }
   }
   const wa = document.getElementById('sh-wa'); if (wa && SITE.whatsapp) { wa.href = SITE.whatsapp; wa.hidden = false; }
@@ -3168,7 +3146,6 @@ const ROUTES = [
   [/^#\/karta\/([\w-]+)$/, pageKarta, 'jazdci'],
   [/^#\/parky$/, pageParks, 'parky'],
   [/^#\/doska$/, pageBoard, ''],
-  [/^#\/shop$/, pageShop, 'shop'],
   [/^#\/partneri(?:\/(\w+))?$/, pagePartners, 'partneri'],
   [/^#\/mapa$/, pageMap, 'mapa'],
   [/^#\/pass$/, pagePasses, ''],

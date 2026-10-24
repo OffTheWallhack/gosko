@@ -12,7 +12,7 @@ export const CONFIG = {
 };
 
 export const SITE = {
-  instagram: 'g.o.s.ko',
+  instagram: 'gosko.sk',
   email: 'rdurica1995@gmail.com',   // kontaktný e-mail (neskôr info@gosko.sk)
   season: 2026,
   photoCredit: '',      // autor fotiek, zobrazí sa pod galériou
@@ -111,14 +111,15 @@ export const EVENTS = [
     id: 'bratislava-2',
     name: 'GOSko 3 Bratislava',
     city: 'Bratislava',
-    date: '',
+    date: '2026-11-14',
     place: '',
+    planned: true,   // plánované: dátum a mesto sú dané, miesto zatiaľ nie je potvrdené (po potvrdení daj do place a planned zmaž)
     status: 'next',
     season: 2026,
     sticker: 'next',
-    stickerDate: '',
+    stickerDate: '14.11.2026',
     lat: null, lng: null,
-    about: 'Pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027. Plánujeme november 2026, presný dátum a miesto zverejníme čoskoro na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
+    about: 'Pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027. Plánované na 14. 11. 2026 v Bratislave. Miesto ešte nie je potvrdené, oznámime ho čoskoro. Predregistruj sa a dáme ti vedieť medzi prvými.',
     when: '',
     registration: true,
     results: {},
@@ -144,7 +145,7 @@ export const PARTNERS = {
 /* Stránka pre partnerov */
 export const FACTS = [
   { num: '2', label: 'odjazdené eventy: Bratislava 31. 5. a Žilina 27. 6. 2026' },
-  { num: '19 000+', label: 'zobrazení na Instagrame (5 príspevkov @g.o.s.ko)' },
+  { num: '19 000+', label: 'zobrazení na Instagrame (5 príspevkov @gosko.sk)' },
   { num: '6 826', label: 'zobrazení plagátu GOSko Bratislava' },
   { num: '5', label: 'partnerov a spolupracovníkov, od Red Bullu po 3Style Academy' },
   { num: '1 811', label: 'účtov oslovil jeden spoločný post s výsledkami' },
@@ -152,7 +153,7 @@ export const FACTS = [
 
 /* Plán sezóny (verejná verzia bez presných miest na rok 2027) */
 export const PLAN = [
-  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko 3, dátum čoskoro' },
+  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko 3, 14. 11. (plánované, miesto čoskoro)' },
   { when: '2027', title: 'Stop 1', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
@@ -168,14 +169,6 @@ export const PACKAGES = [
     gets: ['Partner novembrového eventu', 'Uvedenie na webe a sieťach', 'Priestor na stánok'] },
   { name: 'Lokálny partner', text: 'Jedna zastávka v tvojom meste alebo priestore.',
     gets: ['Partner konkrétneho eventu', 'Priestor, povolenia alebo vecné plnenie', 'Uvedenie na webe a v komunikácii eventu'] },
-];
-
-/* Shop: zatiaľ len ukážka, zbiera záujem. */
-export const PRODUCTS = [
-  { id: 'sticker', name: 'Nálepka GOSko', img: 'img/sticker.webp', note: 'Presne tá, čo visí po meste.', sizes: [] },
-  { id: 'tee', name: 'Tričko GOSko', mock: 'tee', note: 'Tričko s logom GOSko.', sizes: ['S', 'M', 'L', 'XL'] },
-  { id: 'hoodie', name: 'Mikina GOSko', mock: 'hoodie', note: 'Mikina s logom GOSko.', sizes: ['S', 'M', 'L', 'XL'] },
-  { id: 'deck', name: 'Doska GOSko', mock: 'deck', note: 'Doska s logom GOSko.', sizes: ['8.0"', '8.25"', '8.5"'] },
 ];
 
 /* =====================================================================
@@ -212,13 +205,13 @@ export const RULES = [
 ];
 export const FAQ = [
   { q: 'Koľko stojí štartovné?', a: 'Nič. GOSko je bez vstupného aj bez štartovného, ceny dodávajú partneri.' },
-  { q: 'Ako sa prihlásim?', a: 'Na stránke eventu klikni na „Chcem jazdiť“ a vyplň krátky formulár. Dostaneš QR pass, ktorý na mieste ukážeš pri check-ine. Prihlásiť sa dá aj priamo na mieste, kým je voľná kapacita.' },
+  { q: 'Ako sa prihlásim?', a: 'Na stránke eventu klikni na tlačidlo registrácie (kým je event len plánovaný, je to „Predregistrovať sa“) a vyplň krátky formulár. Dostaneš QR pass, ktorý na mieste ukážeš pri check-ine. Prihlásiť sa dá aj priamo na mieste, kým je voľná kapacita.' },
   { q: 'Môžem jazdiť, ak mám menej ako 16 rokov?', a: 'Áno, v kategórii U16. Pri registrácii treba súhlas rodiča alebo zákonného zástupcu. Viac na stránke Pre rodičov.' },
   { q: 'Aké triky sú povolené?', a: 'Jazdí sa na rovnej ploche (flatground). Bez dotyku zeme rukami či nohou, bez manuálov a bez chytania dosky. Presné pravidlá sú vyššie.' },
   { q: 'Čo si mám priniesť?', a: 'Dosku, prilbu (pri U16 povinná) a dobrú náladu. Pitie a hudbu zabezpečíme.' },
   { q: 'Ako fungujú body a rebríček?', a: 'Za každé umiestnenie dostaneš body do sezónneho rebríčka. Najlepší jazdci sezóny postupujú do finále v Bratislave.' },
   { q: 'Môžem prísť len pozerať?', a: 'Jasné. Vstup je voľný pre všetkých, diváci hlasujú v bonusovej kategórii a na konci je afterparty.' },
-  { q: 'Kde nájdem fotky a výsledky?', a: 'Na stránke každého eventu a v rebríčku. Novinky dávame aj na Instagram @g.o.s.ko.' },
+  { q: 'Kde nájdem fotky a výsledky?', a: 'Na stránke každého eventu a v rebríčku. Novinky dávame aj na Instagram @gosko.sk.' },
   { q: 'Chcem GOSko u nás alebo byť partner. Komu napíšem?', a: 'Na stránke Pre partnerov je formulár „Zavolaj si GOSko“, alebo napíš na rdurica1995@gmail.com.' },
 ];
 
@@ -282,7 +275,7 @@ export const RIDER_PRIVACY = {};
 /* Skate crew. Členov priradíš v profile jazdca (políčko crew = id crew) alebo tu v members (mená ako v rebríčku).
    instagram doplň bez @. organizer = ako sa crew píše pri eventoch v kalendári (spojí ich eventy). */
 export const CREWS = [
-  { id: 'gosko', name: 'GOSko crew', city: 'Bratislava', instagram: 'g.o.s.ko', organizer: 'GOSko', about: 'Partia, ktorá robí Game of S.K.A.T.E. po Slovensku. Eventy, rebríček a tento web.', members: [] },
+  { id: 'gosko', name: 'GOSko crew', city: 'Bratislava', instagram: 'gosko.sk', organizer: 'GOSko', about: 'Partia, ktorá robí Game of S.K.A.T.E. po Slovensku. Eventy, rebríček a tento web.', members: [] },
   { id: '3style', name: '3Style Academy', city: 'Bratislava', instagram: '3styleacademy.eu', organizer: '3Style', about: 'Akadémia akčných športov, tréningy a tábory pre mladých jazdcov.', members: [] },
   { id: 'tlakerz', hidden: true, name: 'Tlakerz', city: '', instagram: '', organizer: 'Tlakerz', about: 'Skate crew. Popis doplníme.', members: [] },
   { id: 'cube', hidden: true, name: 'Cube Skateshop', city: 'Sládkovičovo', instagram: '', organizer: 'CubeSkateshop.sk', about: 'Skateshop a organizátor Cube Skate Day.', members: [] },

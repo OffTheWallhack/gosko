@@ -492,7 +492,7 @@ async function downloadCard() {
   x.fillStyle = holo; x.fillRect(W / 2 - 300, 1480, 600, 96);
   x.fillStyle = '#16122B'; x.font = 'italic 900 58px Archivo'; x.fillText(t('create.cardFounder'), W / 2, 1548);
   x.fillStyle = '#ADA5CB'; x.font = '700 40px Archivo';
-  x.fillText(location.hostname.endsWith('gosko.sk') ? 'gosko.sk/ghoskate' : 'Instagram @g.o.s.ko', W / 2, 1720);
+  x.fillText(location.hostname.endsWith('gosko.sk') ? 'gosko.sk/ghoskate' : 'Instagram @gosko.sk', W / 2, 1720);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   const fileObj = new File([blob], 'ghoskate-founder.png', { type: 'image/png' });
   try {
