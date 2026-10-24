@@ -172,8 +172,8 @@ Ak máš Supabase už nastavený zo staršej verzie, spusti v SQL Editore len č
 Aby odkaz v prihlasovacom e-maile viedol späť na web (a nie na `localhost:3000`):
 
 1. Supabase → **Authentication → URL Configuration**
-   - **Site URL:** `https://offthewallhack.github.io/gosko/`
-   - **Redirect URLs:** pridaj `https://offthewallhack.github.io/gosko/**`
+   - **Site URL:** `https://gosko.sk/`
+   - **Redirect URLs:** pridaj `https://gosko.sk/**`
 2. (Voliteľné) **Authentication → Emails → Magic Link** a **Confirm signup**: do textu pridaj `{{ .Token }}`, potom príde v e-maile aj 6-miestny kód.
 
 Po prvom prihlásení si v **Môj profil** (`#/profil`) nastav heslo, ďalej sa prihlasuješ e-mailom a heslom bez čakania na e-mail.
@@ -185,7 +185,7 @@ Pri prvom prihlásení dostane admin práva automaticky. Ak už účet má, prid
 
 ## Event hub (`hub/`)
 
-Samostatná stránka so skate a board eventmi doma aj vo svete: `https://offthewallhack.github.io/gosko/hub/`.
+Samostatná stránka so skate a board eventmi doma aj vo svete: `https://gosko.sk/hub/`.
 Číta rovnaké dáta ako kalendár na webe (tabuľka `community_events`) plus GOSko eventy z `data.js`.
 Názov je pracovný: zmeníš ho v `hub/hub.js` (`BRAND.name`) a v `hub/index.html` (`<title>`).
 
@@ -218,7 +218,7 @@ Fotka ostáva len v telefóne toho človeka, nikam sa neposiela.
 
 ## Ghoskate (`ghoskate/`)
 
-Prezentačný web skate appky Ghoskate: `https://offthewallhack.github.io/gosko/ghoskate/` (neskôr `gosko.sk/ghoskate`).
+Prezentačný web skate appky Ghoskate: `https://gosko.sk/ghoskate/` (neskôr `gosko.sk/ghoskate`).
 Po slovensky, česky a anglicky (prepínač hore, alebo `?lang=sk|cs|en`). Texty sú v `ghoskate/i18n.js`.
 
 - **Jeden účet pre GOSko web aj Ghoskate.** Prihlásenie je to isté (Supabase Auth, e-mail s kódom, heslo z profilu).
