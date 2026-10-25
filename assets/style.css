@@ -1904,7 +1904,11 @@ html.boot-go .bi-bar{opacity:0}
 @keyframes biGhostIn{from{opacity:0;transform:translateY(-34px) scale(.55) rotate(-14deg)}to{opacity:1;transform:none}}
 @keyframes biWordIn{from{clip-path:inset(0 100% 0 0);opacity:.2}to{clip-path:inset(0);opacity:1}}
 @keyframes biBar{to{transform:scaleX(1)}}
-html[data-intro]:not(.intro-done) .vh-bigghost,html[data-intro]:not(.intro-done) .vh-word{visibility:hidden}
+/* koniec úvodu bez prelietavania: duch a nápis v strede zmiznú, v titulke sa objavia znova */
+@keyframes biOut{to{opacity:0}}
+html.boot-go .bi-ghost,html.boot-go .bi-word{animation:biOut .3s ease forwards}
+html[data-intro]:not(.intro-done) .vh-bigghost,html[data-intro]:not(.intro-done) .vh-logo{opacity:0;transition:opacity .45s ease .25s}
+html[data-intro].boot-go:not(.intro-done) .vh-bigghost,html[data-intro].boot-go:not(.intro-done) .vh-logo{opacity:1}
 .js:not(.ready) footer{display:none}
 
 /* odber noviniek na konci podstránok */

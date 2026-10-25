@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, DECK_COLORS, GRIP_COLORS, WHEEL_COLORS, TRUCK_COLORS, isHex, lookName, hexNum, hexRgb, luma, findHex } from './looks.js';
+import { ART_LOGO, ART_GHOST, ART_FIT } from './sticker-art.js';
 
 const FONT = '"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -9,7 +10,7 @@ let logoPromise = null;
 export function loadLogo() {
   if (!logoPromise) {
     logoPromise = (async () => {
-      await Promise.race([Promise.all([document.fonts.load(`900 60px ${FONT}`), document.fonts.load('400 60px Anton')]), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
+      await Promise.race([Promise.all([document.fonts.load(`900 60px ${FONT}`), document.fonts.load('400 60px Anton'), document.fonts.load('400 60px Anton', 'ŽŠČŇŤĎĽĹŔÄÔÚÝÁÉÍÓ')]), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
       const img = new Image(); img.src = 'img/logo.webp'; await img.decode();
       try { const g = new Image(); g.src = 'img/ghost.svg'; await g.decode(); GHOST = g; } catch { /* duch je len ozdoba */ }
       try { const w = new Image(); w.src = 'img/gosko-wordmark.svg'; await w.decode(); WORD = w; } catch { /* nápis je len ozdoba */ }
@@ -149,9 +150,38 @@ function hashNum(x, num, left, base, big, small, rise, hashColor, numColor, shad
   draw(0, 0, hashColor, numColor);
 }
 const SHIELD = new Path2D('M 36 44 Q 118 36 200 8 Q 282 36 364 44 L 364 232 C 364 332 292 402 200 452 C 108 402 36 332 36 232 Z');
+
+/* GOSko 1 (Bratislava) a GOSko 2 (Žilina): čierny kruh s kresbou z tlačovej nálepky (nápis GOSKO a duch na doske),
+   hore GAME OF S.K.A.T.E., dole mesto a číslo. Bratislava červená a biela, Žilina zelená a žltá. */
+const ROUND_PAL = {
+  1: { rim: CREAM, band: RED, text: CREAM, logo: '#9E1B20', ghost: '#FFFFFF', line: 'rgba(243,235,221,.35)' },
+  2: { rim: '#FFD21F', band: '#17863A', text: '#FFD21F', logo: '#2DBE56', ghost: '#FFD21F', line: 'rgba(255,210,31,.4)' },
+};
+let ART = null;
+function roundEvent(x, num, title) {
+  const p = ROUND_PAL[num];
+  if (!ART) ART = { logo: new Path2D(ART_LOGO), ghost: new Path2D(ART_GHOST) };
+  x.save(); x.scale(1.28, 1.28);
+  x.fillStyle = p.rim; x.beginPath(); x.arc(200, 200, 199, 0, 7); x.fill();
+  x.fillStyle = INK; x.beginPath(); x.arc(200, 200, 187, 0, 7); x.fill();
+  x.strokeStyle = p.band; x.lineWidth = 42; x.beginPath(); x.arc(200, 200, 158, 0, 7); x.stroke();
+  x.strokeStyle = p.line; x.lineWidth = 1.5;
+  for (const r of [136, 180]) { x.beginPath(); x.arc(200, 200, r, 0, 7); x.stroke(); }
+  x.fillStyle = p.text; for (const px of [38, 362]) { x.beginPath(); x.arc(px, 200, 5, 0, 7); x.fill(); }
+  arcText(x, 'GAME OF S.K.A.T.E.', 200, 200, 148, 26, 5, true, 1.8);
+  arcText(x, `${title} #${num}`, 200, 200, 170, 28, 5, false, 1.8);
+  // kresba z PDF, vložená do vnútorného kruhu
+  const k = 126 / ART_FIT.r;
+  x.translate(200, 200); x.scale(k, k); x.translate(-ART_FIT.cx, -ART_FIT.cy);
+  x.fillStyle = p.logo; x.fill(ART.logo);
+  x.fillStyle = p.ghost; x.fill(ART.ghost, 'evenodd');
+  x.restore();
+}
+
 function eventSticker(x, spec, title) {
   const shape = ((parseInt(spec.num, 10) || 1) - 1) % 3, num = String(spec.num || '');
   const ghost = (gx, gy, gw, gh) => { if (GHOST) x.drawImage(GHOST, gx, gy, gw, gh); };
+  if (num === '1' || num === '2') { roundEvent(x, num, title); x.textAlign = 'center'; x.textBaseline = 'middle'; return; }
   x.save();
   if (shape === 0) {           // kruh
     x.scale(1.28, 1.28);
