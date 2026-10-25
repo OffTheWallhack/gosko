@@ -19,13 +19,17 @@ Cieľ: dokončiť a vyčistiť web gosko.sk tak, aby sa dal spustiť naostro. Gh
 - Eventy: jedna stránka `/eventy` – GOSko (nálepky), Slovensko a Česko (iní organizátori + Pridať event), Veľké eventy vo svete (prehľad). Event hub zrušený, `hub/` presmeruje.
 - Názvy: GOSko Bratislava, GOSko 2 Žilina, GOSko 3 Bratislava.
 - Rebríček: z GOSka 1 a 2 sú len top 3, od GOSka 3 celý pavúk. Žiadne vymyslené čísla.
+- Titulka (hero) nemá blok noviniek: bol príliš široký a prázdny. Novinky sú v menu a na `/novinky`. Keď bude nový dôležitý článok, pridá sa na titulku nálepka (ako nálepka ďalšieho eventu vpravo hore).
+- Úvodná animácia bez prelietavania: duch a nápis v strede zmiznú, pozadie odroluje a v titulke sa objavia znova.
+- Nálepky eventov 1 a 2 sú čierny kruh s kresbou z tlačovej nálepky (`assets/sticker-art.js`: nápis GOSKO a duch na doske), hore GAME OF S.K.A.T.E., dole mesto a číslo. Bratislava červená a biela, Žilina zelená a žltá (`ROUND_PAL` v `assets/board.js`). GOSko 3 má zatiaľ starý štít.
+- Hero video: slabší počítač a malá obrazovka dostanú 540p (`video/hero-720.*`), plné video len silný počítač. Pri zapnutom „znížené animácie“ v systéme sa video zámerne nespustí (zobrazí sa obrázok).
 - Stránka sa nepribližuje (zoom vypnutý okrem mapy a 3D).
 - Ochrana osobných údajov `/sukromie` – návrh, právnikovi pôjde až po dokončení webu.
 
 ## Kroky (v tomto poradí, každý zvlášť)
 
 1. **Menu (panel)** – menej položiek: hore 3 veľké karty (Ďalšie GOSko, Rebríček, Navrhni dosku), pod tým zoznam v riadkoch (Novinky, Trik týždňa, Crew, Mapa, Skatepark, Shop), dole drobne Kto sme, Pre rodičov, Partneri, Súkromie, Instagram. Nič, čo je v spodnom doku.
-2. **Úvodka** – video → novinky → ďalšie GOSko → nálepky eventov → top 3 jazdci → doska → newsletter. Preč: kalendár widget (nahradiť 3 najbližšie eventy + odkaz), GOSko TV, feed „Fresh zo scény“, Kto sme karta, opakovania. Nové video od Roba (1920×1080, 10–20 s) – keď príde, zmenši na ~3–5 MB, MP4 + WebM, poster.
+2. **Úvodka** – video → ďalšie GOSko → nálepky eventov → top 3 jazdci → doska → newsletter. Preč: kalendár widget (nahradiť 3 najbližšie eventy + odkaz), GOSko TV, feed „Fresh zo scény“, Kto sme karta, opakovania. Nové video od Roba (1920×1080, 10–20 s) – keď príde, zmenši na ~3–5 MB, MP4 + WebM, poster.
 3. **Eventy a stránka eventu** – doladiť karty, prázdne stavy, nálepky, „Chcem jazdiť“ pri GOSko 3.
 4. **Rebríček, jazdci, Sieň slávy** – zjednotiť, skrátiť, profil jazdca upratať.
 5. **Komunita** – Trik týždňa, Crew, Mapa, Pre rodičov: skryť prázdne veci (Discord „čoskoro“, crew bez popisu), texty bez opakovania.

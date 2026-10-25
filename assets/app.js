@@ -579,7 +579,6 @@ const upcomingCommunity = async () => {
 const shuffled = list => { const a = [...list]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const allPhotos = () => EVENTS.flatMap(e => e.photos || []);
 
-/* rotátor noviniek v hero: každých 6 sekúnd ďalšia */
 /* nálepka ďalšieho eventu vpravo hore v titulke + tlačidlo na registráciu */
 function heroSticker(next) {
   if (!next || !next.registration) return null;
@@ -590,44 +589,6 @@ function heroSticker(next) {
   return h('div', { class: 'vh-stk' },
     h('a', { class: 'vh-stk-img', href: '#/event/' + next.id, 'aria-label': next.name + ': info o evente' }, img),
     h('button', { class: 'vh-stk-btn', type: 'button', onclick: () => registerDialog(next) }, 'Registruj sa'));
-}
-
-function newsRotator(next) {
-  const stage = h('div', { class: 'nr-stage', 'aria-live': 'polite' });
-  const count = h('span', { class: 'nr-count mono' });
-  const bar = h('span', { class: 'nr-bar', 'aria-hidden': 'true' }, h('i'));
-  let slides = [], i = 0, timer = null, paused = false;
-  const slideEl = sl => h('a', { class: 'nr-slide', href: sl.href },
-    h('span', { class: 'nr-img' + (sl.img ? '' : ' ghost') }, h('img', { src: sl.img || 'img/ghost-cream.svg', alt: '' })),
-    h('span', { class: 'nr-txt' }, h('span', { class: 'nr-k' }, sl.kicker), h('span', { class: 'nr-t' }, sl.title), h('span', { class: 'nr-s' }, sl.sub || '')),
-    h('span', { class: 'nr-go', 'aria-hidden': 'true' }, '→'));
-  const restart = () => { clearTimeout(timer); if (!paused && slides.length > 1) timer = setTimeout(() => show(i + 1, 1), 6000); };
-  function show(k, dir = 1) {
-    if (!slides.length) return;
-    i = (k + slides.length) % slides.length;
-    const el = slideEl(slides[i]);
-    const old = [...stage.children];
-    if (old.length && !REDUCED()) { el.classList.add(dir > 0 ? 'from-r' : 'from-l'); old.forEach(o => { o.classList.add(dir > 0 ? 'to-l' : 'to-r'); setTimeout(() => o.remove(), 520); }); }
-    else old.forEach(o => o.remove());
-    stage.append(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('from-r', 'from-l')));
-    count.textContent = `${i + 1} / ${slides.length}`;
-    const b = bar.firstChild; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
-    box.classList.toggle('single', slides.length < 2);
-    restart();
-  }
-  const box = h('div', { class: 'nr', role: 'region', 'aria-label': 'Novinky', onmouseenter: () => { paused = true; box.classList.add('paused'); clearTimeout(timer); }, onmouseleave: () => { paused = false; box.classList.remove('paused'); show(i); } },
-    h('div', { class: 'nr-head' }, h('span', { class: 'nr-live' }, h('i', { 'aria-hidden': 'true' }), 'Novinky'), count,
-      h('span', { class: 'nr-nav' },
-        h('button', { type: 'button', 'aria-label': 'Predošlá novinka', onclick: () => show(i - 1, -1) }, '←'),
-        h('button', { type: 'button', 'aria-label': 'Ďalšia novinka', onclick: () => show(i + 1, 1) }, '→'))),
-    stage, bar);
-  if (next) { const n = next.date ? dayDiff(todayStr(), next.date) : null;
-    slides.push({ kicker: n !== null && n >= 0 ? `Ďalší stop · ${n === 0 ? 'dnes!' : `o ${n} ${plural(n, 'deň', 'dni', 'dní')}`}` : `Ďalší stop · ${soonDate(next)}`, title: next.name, sub: next.date ? `${fmtDate(next.date)}${next.place ? ', ' + next.place : ''}. Zaregistruj sa.` : 'Zaregistruj sa a dáme ti vedieť medzi prvými.', href: '#/event/' + next.id, img: null }); }
-  show(0);
-  if (next) loadLogo().then(logo => { slides[0].img = stickerCanvas(eventSticker(next), logo, 256).toDataURL(); if (i === 0) { const im = stage.lastChild?.querySelector('.nr-img'); if (im) { im.classList.remove('ghost'); im.firstChild.src = slides[0].img; } } }).catch(() => {});
-  loadPosts().then(posts => { slides.push(...posts.slice(0, 5).map(p => ({ kicker: 'Novinka · ' + fmtDateTime(p.created_at), title: p.title, sub: p.summary, href: '#/novinka/' + p.id, img: p.image_url }))); show(i); });
-  return { el: box, stop: () => clearTimeout(timer) };
 }
 
 /* skate kalendár: pás eventov s vlajkami, pripnutý v hlavičke pod logom (vytvorí sa raz, nie pri každej stránke) */
@@ -930,22 +891,27 @@ function eventWidget() {
 
 function pageHome(root) {
   const next = nextEvent(), reduced = REDUCED();
-  /* ---------- 1. hero: video, logo, novinky, maskot, pás eventov ---------- */
+  /* ---------- 1. hero: video, logo, maskot, pás eventov (novinky na titulke nie sú, nájdeš ich v menu) ---------- */
   let media;
-  if (SITE.heroVideo && !reduced) media = h('video', { class: 'vh-video', poster: SITE.heroPoster, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
-    // mobil dostane menšie video (720p), počítač plnú kvalitu
-    h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '-720.webm'), type: 'video/webm', media: '(max-width: 900px)' }), h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '-720.mp4'), type: 'video/mp4', media: '(max-width: 900px)' }),
-    h('source', { src: SITE.heroVideo.replace(/\.mp4$/, '.webm'), type: 'video/webm' }), h('source', { src: SITE.heroVideo, type: 'video/mp4' }));
-  else media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
+  if (SITE.heroVideo && !reduced) {
+    /* Menšie video (540p) dostane telefón, malá obrazovka aj slabší počítač (starý iMac, málo jadier), plné len silný počítač.
+       Zdroje majú uvedený kodek, takže prehliadač hneď vie, ktorý zvládne, a nesťahuje zbytočne ten, ktorý nespustí.
+       Atribút media pri zdrojoch videa viaceré prehliadače ignorujú, preto výber robíme tu. */
+    const base = SITE.heroVideo.replace(/\.mp4$/, '');
+    const src = (url, type) => h('source', { src: url, type });
+    const small = [src(base + '-720.webm', 'video/webm; codecs="vp9"'), src(base + '-720.mp4', 'video/mp4; codecs="avc1.64001f"')];
+    const full = [src(base + '.webm', 'video/webm; codecs="vp9"'), src(SITE.heroVideo, 'video/mp4; codecs="avc1.640032"')];
+    const lowPower = innerWidth <= 900 || (navigator.hardwareConcurrency || 4) < 6 || (navigator.deviceMemory || 8) < 4;
+    media = h('video', { class: 'vh-video', poster: SITE.heroPoster, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
+      ...(lowPower ? small : [...full, ...small]));
+  } else media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
   if (media.tagName === 'VIDEO') media.muted = true;
-  const rot = newsRotator(next);
   // veľký duch za nápisom GOSko: trochu rozmazaný (je vzadu), jemný paralax na myš aj scroll
   const bigGhost = h('img', { class: 'vh-bigghost', src: 'img/ghost.svg', alt: '', 'aria-hidden': 'true', width: 480, height: 540 });
   const heroIn = h('div', { class: 'wrap vh-in' },
     bigGhost,
     h('h1', { class: 'vh-logo' }, h('img', { class: 'vh-word', src: 'img/gosko-wordmark-plain.svg', alt: 'GOSko', width: 426, height: 178 })),
-    h('p', { class: 'vh-tag2' }, 'Game of S.K.A.T.E. po Slovensku'),
-    rot.el);
+    h('p', { class: 'vh-tag2' }, 'Game of S.K.A.T.E. po Slovensku'));
   /* video je pevné pozadie: pri scrollovaní stmavne do čiernej, cez nálepky eventov ešte presvitá,
      od rebríčka ďalej je plné čierne pozadie a video sa zastaví */
   const dim = h('div', { class: 'vbg-dim', 'aria-hidden': 'true' });
@@ -1006,7 +972,7 @@ function pageHome(root) {
   addEventListener('resize', onScroll, { passive: true });
   root.append(vbg, hero, after);
   onScroll(); tryPlay();
-  return () => { wantPlay = false; removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); rot.stop(); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
+  return () => { wantPlay = false; removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
 }
 
 function pageBoard(root) {
@@ -3225,7 +3191,7 @@ async function route() {
   runIntro();
 }
 
-/* úvodná animácia na domovskej stránke (raz za reláciu): duch + GOSko ~2 s, potom doletia na miesto v hero a pozadie odroluje */
+/* úvodná animácia na domovskej stránke (raz za reláciu): duch + GOSko ~2 s, potom zmiznú, pozadie odroluje a v titulke sa objavia znova */
 function runIntro() {
   const d = document.documentElement;
   if (!d.hasAttribute('data-intro') || d.classList.contains('intro-done') || d.dataset.introRun) return;
@@ -3235,29 +3201,12 @@ function runIntro() {
 function introSequence(d) {
   const finish = () => { d.classList.add('intro-done'); try { sessionStorage.setItem('gosko:intro', '1'); } catch { /* bez úložiska */ } };
   const boot = document.querySelector('.boot'), g = boot?.querySelector('.bi-ghost'), w = boot?.querySelector('.bi-word');
-  const tg = document.querySelector('.vh-bigghost'), tw = document.querySelector('.vh-word');
-  if (!g || !w || !tg || !tw) return finish();
-  /* Duch a nápis letia na miesto v titulke. Cieľ sa meria znova v každom okamihu pohybu, takže
-     dopadnú presne, aj keď sa rozloženie titulky medzitým posunie (novinky, písma, posuvník). */
+  if (!g || !w) return finish();
+  /* Bez prelietavania: duch a nápis v strede zmiznú (CSS pri boot-go), pozadie odroluje hore
+     a duch s nápisom sa objavia na svojom mieste v titulke. */
   const go = () => {
-    const DUR = REDUCED() ? 1 : 950;
-    const box = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: el.offsetWidth }; };
-    const items = [[g, tg, -8], [w, tw, 0]].map(([el, to, rot]) => {
-      el.style.animation = 'none'; el.style.transition = 'none'; el.style.transform = 'none';
-      void el.offsetWidth;
-      return { el, to, rot, a: box(el) };
-    });
     d.classList.add('boot-go');
-    const t0 = performance.now(), ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    const frame = now => {
-      const t = Math.min(1, (now - t0) / DUR), p = ease(t);
-      for (const { el, to, rot, a } of items) {
-        const b = box(to);
-        el.style.transform = `translate(${((b.x - a.x) * p).toFixed(2)}px, ${((b.y - a.y) * p).toFixed(2)}px) scale(${(1 + (b.w / a.w - 1) * p).toFixed(4)}) rotate(${(rot * p).toFixed(2)}deg)`;
-      }
-      if (t < 1) requestAnimationFrame(frame); else finish();
-    };
-    requestAnimationFrame(frame);
+    setTimeout(finish, REDUCED() ? 1 : 950);
   };
   const poster = new Image(); poster.src = SITE.heroPoster || 'img/hero-poster.jpg';
   const posterReady = new Promise(r => { poster.onload = poster.onerror = r; setTimeout(r, 3500); });
