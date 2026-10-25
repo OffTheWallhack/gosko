@@ -154,7 +154,11 @@ const LSX = {
   get(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const eventSticker = ev => ({ kind: 'event', num: (String(ev.name || '').match(/\d+/) || [''])[0], title: ev.city, link: '#/event/' + ev.id });
+const eventSticker = ev => {
+  const p = parseDate(ev.date);
+  return { kind: 'event', num: (String(ev.name || '').match(/\d+/) || [''])[0], title: ev.city, link: '#/event/' + ev.id,
+    status: ev.status, reg: !!ev.registration, date: p ? `${p.d}. ${p.m}. ${p.y}` : '' };   // nálepka ukáže dátum a stav (skončené / registrácia beží)
+};
 function riderStickers(r) {
   const out = [];
   for (const ev of [...r.events].sort((a, b) => (b.date || '').localeCompare(a.date || ''))) {
@@ -627,6 +631,14 @@ function stickerWall({ bare = false } = {}) {
       { transform: `translate(${cx}px,${cy}px) rotate(6deg) scale(3.2)`, opacity: 0 },
     ], { duration: 820, easing: 'cubic-bezier(.55,0,.25,1)' }).onfinish = () => { fly.remove(); go('#/event/' + e.id); };
   };
+  /* štvrtá nálepka: pozvánka „chceš GOSko vo svojom meste?“, otvorí jednoduchý formulár */
+  const inviteImg = h('img', { alt: '', width: 260, height: 260 });
+  const inviteItem = h('div', { class: 'sw-item invite', style: '--r:3deg' },
+    h('button', { class: 'sw-link', type: 'button', onclick: cityDialog, 'aria-label': 'Chceš GOSko vo svojom meste? Napíš nám' },
+      h('span', { class: 'sw-st' }, inviteImg)),
+    h('span', { class: 'sw-cap' },
+      h('b', { class: 'sw-date' }, 'Chceš GOSko u vás?'),
+      h('button', { class: 'sw-reg', type: 'button', onclick: cityDialog }, 'Napíš nám')));
   const wall = h('div', { class: 'sw' }, evs.map((e, k) => {
     const img = h('img', { alt: '', width: 260, height: 260 }); imgs.set(e.id, img);
     const isNext = e.status === 'next';
@@ -637,8 +649,8 @@ function stickerWall({ bare = false } = {}) {
         h('b', { class: 'sw-date' }, e.date ? fmtDate(e.date) : soonDate(e)),
         isNext && e.registration ? h('button', { class: 'sw-reg', type: 'button', onclick: () => registerDialog(e) }, 'Registruj sa')
           : h('a', { class: 'sw-more', href: '#/event/' + e.id }, isNext ? 'Info' : 'Fotky a výsledky', h('span', { 'aria-hidden': 'true' }, ' →'))));
-  }));
-  loadLogo().then(logo => evs.forEach(e => { imgs.get(e.id).src = stickerCanvas(eventSticker(e), logo, 720).toDataURL(); })).catch(err => console.error(err));
+  }), inviteItem);
+  loadLogo().then(logo => { evs.forEach(e => { imgs.get(e.id).src = stickerCanvas(eventSticker(e), logo, 720).toDataURL(); }); inviteImg.src = stickerCanvas({ kind: 'invite' }, logo, 720).toDataURL(); }).catch(err => console.error(err));
   if (bare) return wall;
   return h('section', { class: 'hs sw-sec', id: 'eventy' }, h('div', { class: 'wrap' },
     h('div', { class: 'sec-head' }, h('div', {},
@@ -1889,6 +1901,21 @@ function bookDialog() {
       { name: 'message', label: 'Správa', max: 600, placeholder: 'nepovinné' },
     ],
     onSubmit: async v => { await store.send('bookings', v); return 'Ďakujeme! Ozveme sa čo najskôr.'; },
+  });
+}
+
+/* jednoduchý formulár z nálepky „Chceš GOSko vo svojom meste?“; ide do tej istej schránky ako „Zavolaj si GOSko“ (admin: Objednávky pop-upov) */
+function cityDialog() {
+  formDialog({
+    title: 'GOSko vo tvojom meste?', submit: 'Odoslať',
+    intro: 'Napíš nám, kde by si chcel Game of S.K.A.T.E., a dohodneme event u teba.',
+    fields: [
+      { name: 'org_name', label: 'Tvoje meno', required: true, max: 80, autocomplete: 'name' },
+      { name: 'city', label: 'Mesto', required: true, max: 40 },
+      { name: 'contact', label: 'E-mail alebo telefón', required: true, max: 120 },
+      { name: 'message', label: 'Kde by to mohlo byť?', type: 'textarea', max: 600, placeholder: 'skatepark, približný termín… (nepovinné)' },
+    ],
+    onSubmit: async v => { await store.send('bookings', { org_type: 'Nálepka: GOSko u vás', org_name: v.org_name, city: v.city, what: 'Celý GOSko event', contact: v.contact, message: v.message }); return 'Ďakujeme! Ozveme sa ti čo najskôr.'; },
   });
 }
 

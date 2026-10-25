@@ -136,101 +136,82 @@ function arcText(x, text, cx, cy, r, size, sp, top, maxArc = 2.1) {
     x.fillText(ch, 0, 0); x.restore();
   });
 }
-/* „#“ + číslo; číslo veľké, mriežka malá nad základnou čiarou */
-function hashNum(x, num, left, base, big, small, rise, hashColor, numColor, shadow = null) {
-  x.textAlign = 'left'; x.textBaseline = 'alphabetic';
-  x.font = `400 ${small}px ${ANTON}`; const wh = x.measureText('#').width;
-  x.font = `400 ${big}px ${ANTON}`; const wn = x.measureText(num).width;
-  const x0 = left === null ? 200 - (wh + wn) / 2 : left;
-  const draw = (dx, dy, hc, nc) => {
-    x.fillStyle = hc; x.font = `400 ${small}px ${ANTON}`; x.fillText('#', x0 + dx, base - rise + dy);
-    x.fillStyle = nc; x.font = `400 ${big}px ${ANTON}`; x.fillText(num, x0 + wh + dx, base + dy);
-  };
-  if (shadow) draw(7, 7, shadow, shadow);
-  draw(0, 0, hashColor, numColor);
-}
-const SHIELD = new Path2D('M 36 44 Q 118 36 200 8 Q 282 36 364 44 L 364 232 C 364 332 292 402 200 452 C 108 402 36 332 36 232 Z');
-
-/* GOSko 1 (Bratislava) a GOSko 2 (Žilina): čierny kruh s kresbou z tlačovej nálepky (nápis GOSKO a duch na doske),
-   hore GAME OF S.K.A.T.E., dole mesto a číslo. Bratislava červená a biela, Žilina zelená a žltá. */
-const ROUND_PAL = {
-  1: { rim: CREAM, band: RED, text: CREAM, logo: '#9E1B20', ghost: '#FFFFFF', line: 'rgba(243,235,221,.35)' },
-  2: { rim: '#FFD21F', band: '#17863A', text: '#FFD21F', logo: '#9E1B20', ghost: '#FFFFFF', line: 'rgba(255,210,31,.4)' },
-};
+/* ---------- nálepky eventov: kruh s kresbou GOSko, stuha s mestom, dátum a pečať stavu ----------
+   Rozloženie (súradnice 512): hore kruh s kresbou z tlačovej nálepky, cez jeho spodok stuha „#číslo mesto“,
+   pod ňou štítok s dátumom, v pravom hornom rohu pečať: žltý výbuch „REGISTRÁCIA BEŽÍ!“ (otvorená registrácia),
+   „ČOSKORO“ (bez registrácie) alebo čierna „ZAKONČENÉ“ (event je za nami). Posledná nálepka „Tvoje mesto?“ je pozvánka. */
+const YELLOW = '#FFD21F', LOGO_RED = '#9E1B20';
+const EVENT_PALS = [
+  { rim: CREAM, ring: RED, ringText: CREAM, ribbon: CREAM, line: 'rgba(243,235,221,.35)' },        // 1: červená a krémová
+  { rim: YELLOW, ring: '#17863A', ringText: YELLOW, ribbon: YELLOW, line: 'rgba(255,210,31,.4)' },  // 2: zelená a žltá
+  { rim: CREAM, ring: '#FF6A1A', ringText: INK, ribbon: CREAM, line: 'rgba(243,235,221,.35)' },     // 3: oranžová
+];
+const INVITE_PAL = { rim: CREAM, ring: '#3a3631', ringText: CREAM, ribbon: YELLOW, line: 'rgba(243,235,221,.25)' };
 let ART = null;
-function roundEvent(x, num, title) {
-  const p = ROUND_PAL[num];
-  if (!ART) ART = { logo: new Path2D(ART_LOGO), ghost: new Path2D(ART_GHOST) };
-  x.save(); x.scale(1.28, 1.28);
-  x.fillStyle = p.rim; x.beginPath(); x.arc(200, 200, 199, 0, 7); x.fill();
-  x.fillStyle = INK; x.beginPath(); x.arc(200, 200, 187, 0, 7); x.fill();
-  x.strokeStyle = p.band; x.lineWidth = 42; x.beginPath(); x.arc(200, 200, 158, 0, 7); x.stroke();
-  x.strokeStyle = p.line; x.lineWidth = 1.5;
-  for (const r of [136, 180]) { x.beginPath(); x.arc(200, 200, r, 0, 7); x.stroke(); }
-  x.fillStyle = p.text; for (const px of [38, 362]) { x.beginPath(); x.arc(px, 200, 5, 0, 7); x.fill(); }
-  arcText(x, 'GAME OF S.K.A.T.E.', 200, 200, 148, 26, 5, true, 1.8);
-  arcText(x, `#${num} ${title}`, 200, 200, 170, 28, 5, false, 1.8);
-  // kresba z PDF, vložená do vnútorného kruhu
-  const k = 126 / ART_FIT.r;
-  x.translate(200, 200); x.scale(k, k); x.translate(-ART_FIT.cx, -ART_FIT.cy);
-  x.fillStyle = p.logo; x.fill(ART.logo);
-  x.fillStyle = p.ghost; x.fill(ART.ghost, 'evenodd');
-  x.restore();
+function burstShape(x, cx, cy, R, r, n) {
+  x.beginPath();
+  for (let i = 0; i < n * 2; i++) { const a = i * Math.PI / n, rad = i % 2 ? r : R; x.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); }
+  x.closePath();
 }
-
 function eventSticker(x, spec, title) {
-  const shape = ((parseInt(spec.num, 10) || 1) - 1) % 3, num = String(spec.num || '');
-  const ghost = (gx, gy, gw, gh) => { if (GHOST) x.drawImage(GHOST, gx, gy, gw, gh); };
-  if (num === '1' || num === '2') { roundEvent(x, num, title); x.textAlign = 'center'; x.textBaseline = 'middle'; return; }
+  const invite = spec.kind === 'invite';
+  const num = String(spec.num || '');
+  const p = invite ? INVITE_PAL : EVENT_PALS[((parseInt(num, 10) || 1) - 1) % EVENT_PALS.length];
+  if (!ART) ART = { logo: new Path2D(ART_LOGO), ghost: new Path2D(ART_GHOST) };
+  const CX = 244, CY = 236;
   x.save();
-  if (shape === 0) {           // kruh
-    x.scale(1.28, 1.28);
-    x.fillStyle = CREAM; x.beginPath(); x.arc(200, 200, 199, 0, 7); x.fill();
-    x.fillStyle = INK; x.beginPath(); x.arc(200, 200, 187, 0, 7); x.fill();
-    x.strokeStyle = RED; x.lineWidth = 42; x.beginPath(); x.arc(200, 200, 158, 0, 7); x.stroke();
-    x.strokeStyle = 'rgba(243,235,221,.35)'; x.lineWidth = 1.5;
-    for (const r of [136, 180]) { x.beginPath(); x.arc(200, 200, r, 0, 7); x.stroke(); }
-    x.fillStyle = CREAM; for (const px of [38, 362]) { x.beginPath(); x.arc(px, 200, 5, 0, 7); x.fill(); }
-    arcText(x, 'SKATE EVENT', 200, 200, 148, 25, 5, true, 1.7);
-    arcText(x, title, 200, 200, 170, 30, 5, false, 1.9);
-    ghost(159, 72, 82, 92);
-    if (num) hashNum(x, num, null, 308, 128, 52, 34, RED, CREAM);
-  } else if (shape === 1) {    // štvorec
-    x.scale(1.28, 1.28);
-    x.fillStyle = CREAM; rr(x, 0, 0, 400, 400, 38); x.fill();
-    x.save(); rr(x, 13, 13, 374, 374, 26); x.clip();
-    x.fillStyle = INK; x.fillRect(13, 13, 374, 374);
-    x.fillStyle = 'rgba(243,235,221,.10)';
-    for (let gy = 7; gy < 400; gy += 14) for (let gx = 7; gx < 400; gx += 14) { x.beginPath(); x.arc(gx, gy, 1.6, 0, 7); x.fill(); }
-    x.fillStyle = RED; x.fillRect(13, 318, 374, 70);
-    if (num) hashNum(x, num, 30, 272, 200, 80, 110, CREAM, CREAM, RED);
-    ghost(212, 138, 162, 182);
-    x.fillStyle = CREAM; spaced(x, title, 32, 370, 44, 2, 'left', 330);
-    x.globalAlpha = .75; x.font = `600 15px "IBM Plex Mono", monospace`; x.textAlign = 'right'; x.textBaseline = 'alphabetic'; x.fillText('SKATE EVENT', 368, 52); x.globalAlpha = 1;
+  // kruh: krémový okraj, čierne pole, farebný prstenec
+  x.fillStyle = p.rim; x.beginPath(); x.arc(CX, CY, 214, 0, 7); x.fill();
+  x.fillStyle = INK; x.beginPath(); x.arc(CX, CY, 205, 0, 7); x.fill();
+  x.strokeStyle = p.ring; x.lineWidth = 36; x.beginPath(); x.arc(CX, CY, 177, 0, 7); x.stroke();
+  x.strokeStyle = p.line; x.lineWidth = 1.5;
+  for (const r of [155, 196]) { x.beginPath(); x.arc(CX, CY, r, 0, 7); x.stroke(); }
+  x.fillStyle = p.ringText; for (const dx of [-177, 177]) { x.beginPath(); x.arc(CX + dx, CY, 5, 0, 7); x.fill(); }
+  arcText(x, invite ? 'CHCEŠ GOSKO VO SVOJOM MESTE?' : 'GAME OF S.K.A.T.E.', CX, CY, 166, invite ? 24 : 30, 4, true, invite ? 2.3 : 1.75);
+  // kresba z PDF (nápis GOSKO a duch na doske)
+  x.save();
+  const k = 148 / ART_FIT.r;
+  x.translate(CX, CY); x.scale(k, k); x.translate(-ART_FIT.cx, -ART_FIT.cy);
+  x.fillStyle = LOGO_RED; x.fill(ART.logo);
+  x.fillStyle = '#FFFFFF'; x.fill(ART.ghost, 'evenodd');
+  x.restore();
+  // stuha s mestom a číslom
+  x.save(); x.translate(250, 421); x.rotate(-.05);
+  const W = 452, H = 66, N = 20;
+  x.beginPath(); x.moveTo(-W / 2, -H / 2); x.lineTo(W / 2, -H / 2); x.lineTo(W / 2 - N, 0); x.lineTo(W / 2, H / 2); x.lineTo(-W / 2, H / 2); x.lineTo(-W / 2 + N, 0); x.closePath();
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.save(); x.translate(4, 6); x.fill(); x.restore();
+  x.fillStyle = p.ribbon; x.fill(); x.lineJoin = 'round'; x.lineWidth = 5; x.strokeStyle = INK; x.stroke();
+  x.fillStyle = INK; spaced(x, invite ? 'NAPÍŠ NÁM' : `#${num} ${title}`, 0, 17, 50, 4, 'center', W - 90);
+  x.restore();
+  // štítok s dátumom (alebo výzva pri pozvánke)
+  const pill = invite ? 'DOHODNIME EVENT' : (spec.date || (spec.status === 'next' ? 'DÁTUM ČOSKORO' : ''));
+  if (pill) {
+    x.save(); x.translate(250, 480); x.rotate(.03);
+    x.font = `400 28px ${ANTON}`; const pw = Math.min(380, x.measureText(pill).width + pill.length * 2.6 + 48);
+    rr(x, -pw / 2, -22, pw, 44, 22); x.fillStyle = INK; x.fill(); x.lineWidth = 3; x.strokeStyle = invite ? YELLOW : CREAM; x.stroke();
+    x.fillStyle = invite ? YELLOW : CREAM; spaced(x, pill, 0, 10, 28, 2.6, 'center', pw - 36);
     x.restore();
-    x.strokeStyle = 'rgba(243,235,221,.3)'; x.lineWidth = 1.5; rr(x, 13, 13, 374, 374, 26); x.stroke();
-  } else {                     // štít so stuhou
-    x.translate(36, 3); x.scale(1.1, 1.1);
-    x.fillStyle = CREAM; x.strokeStyle = CREAM; x.lineWidth = 6; x.lineJoin = 'round'; x.fill(SHIELD); x.stroke(SHIELD);
-    x.save(); x.translate(200, 230); x.scale(.93, .93); x.translate(-200, -230);
-    x.fillStyle = RED; x.fill(SHIELD); x.clip(SHIELD);
-    x.strokeStyle = 'rgba(14,13,12,.16)'; x.lineWidth = 22;
-    for (const [a, b, c, d] of [[60, 40, 340, 460], [130, 20, 410, 440], [-10, 60, 270, 480]]) { x.beginPath(); x.moveTo(a, b); x.lineTo(c, d); x.stroke(); }
-    x.strokeStyle = 'rgba(243,235,221,.5)'; x.lineWidth = 2.5; x.save(); x.translate(200, 230); x.scale(.88, .88); x.translate(-200, -230); x.stroke(SHIELD); x.restore();   // tenký vnútorný rám
-    x.restore();
-    {                            // duch a číslo v jednom riadku, vycentrované, duch mierne nakloný
-      const gw = 116, gh = GHOST ? gw * GHOST.height / GHOST.width : gw * 1.13, gap = 12, cy = 168;
-      x.font = `400 46px ${ANTON}`; const wh = x.measureText('#').width;
-      x.font = `400 128px ${ANTON}`; const wn = x.measureText(num).width;
-      const x0 = 200 - (gw + gap + wh + wn) / 2;
-      x.save(); x.translate(x0 + gw / 2, cy); x.rotate(-.1); ghost(-gw / 2, -gh / 2, gw, gh); x.restore();
-      if (num) hashNum(x, num, x0 + gw + gap, cy + 55, 128, 46, 42, INK, CREAM, 'rgba(14,13,12,.4)');
-    }
-    x.beginPath(); x.moveTo(8, 288); x.lineTo(392, 288); x.lineTo(376, 318); x.lineTo(392, 348); x.lineTo(8, 348); x.lineTo(24, 318); x.closePath();
-    x.fillStyle = INK; x.fill(); x.strokeStyle = CREAM; x.lineWidth = 4; x.lineJoin = 'round'; x.stroke();
-    x.fillStyle = CREAM; spaced(x, title, 200, 332, 38, 4, 'center', 300);
-    x.font = `600 15px "IBM Plex Mono", monospace`; x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.fillText('SKATE EVENT', 200, 394);
   }
+  // pečať stavu v rohu
+  x.save(); x.translate(441, 71);
+  if (invite || (spec.status === 'next' && spec.reg) || spec.status === 'next') {
+    const l1 = invite ? 'TVOJE' : spec.reg ? 'REGISTRÁCIA' : 'ĎALŠÍ STOP', l2 = invite ? 'MESTO?' : spec.reg ? 'BEŽÍ!' : 'ČOSKORO';
+    x.rotate(.17);
+    burstShape(x, 0, 0, 70, 61, 16);
+    x.fillStyle = 'rgba(0,0,0,.4)'; x.save(); x.translate(4, 6); x.fill(); x.restore();
+    x.fillStyle = YELLOW; x.fill(); x.lineJoin = 'round'; x.lineWidth = 4; x.strokeStyle = INK; x.stroke();
+    x.rotate(-.34);
+    x.fillStyle = INK; spaced(x, l1, 0, -8, l1.length > 7 ? 18 : 25, 1, 'center', 104); spaced(x, l2, 0, 34, l2.length > 6 ? 29 : 42, 1, 'center', 100);
+  } else {
+    x.rotate(.14);
+    x.fillStyle = 'rgba(0,0,0,.4)'; x.beginPath(); x.arc(4, 6, 60, 0, 7); x.fill();
+    x.fillStyle = INK; x.beginPath(); x.arc(0, 0, 60, 0, 7); x.fill();
+    x.strokeStyle = CREAM; x.lineWidth = 4; x.beginPath(); x.arc(0, 0, 60, 0, 7); x.stroke();
+    x.strokeStyle = 'rgba(243,235,221,.35)'; x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 51, 0, 7); x.stroke();
+    x.strokeStyle = YELLOW; x.lineWidth = 10; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); x.moveTo(-22, -16); x.lineTo(-7, -1); x.lineTo(23, -32); x.stroke();
+    x.fillStyle = CREAM; spaced(x, 'ZAKONČENÉ', 0, 32, 20, 1, 'center', 92);
+  }
+  x.restore();
   x.restore(); x.textAlign = 'center'; x.textBaseline = 'middle';
 }
 
@@ -263,7 +244,7 @@ export function stickerCanvas(spec, logo, size = 512) {
       stretch(x, 'condensed'); x.fillStyle = '#F3EBDD'; const s2 = sub || 'COMING SOON'; fit(x, s2, 700, 300, 30); x.fillText(s2, 256, 420);
       break;
     }
-    case 'event': eventSticker(x, spec, title); break;   // kruh / štvorec / štít podľa čísla eventu, v strede vždy duch GOSko
+    case 'event': case 'invite': eventSticker(x, spec, title); break;   // kruh s kresbou GOSko, stuha s mestom, dátum a pečať stavu
     case 'medal': {
       x.fillStyle = '#fff'; x.beginPath(); x.arc(256, 256, 236, 0, 7); x.fill();
       x.fillStyle = '#A01D21'; x.beginPath(); x.arc(256, 256, 222, 0, 7); x.fill();
