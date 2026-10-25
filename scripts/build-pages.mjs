@@ -86,7 +86,7 @@ const SECTIONS = [
   ['komunita', 'Komunita', 'WhatsApp skupina, trik mesiaca, crew a všetko okolo GOSko komunity.'],
   ['rodicia', 'Pre rodičov', 'Ako funguje GOSko pre jazdcov do 16 rokov: bezpečnosť, súhlas rodiča, čo priniesť.'],
   ['partneri', 'Pre partnerov', 'Spolupráca s GOSko: čísla, plán a ako sa pridať.'],
-  ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku. Za projektom stojí občianske združenie (údaje doplníme čoskoro).'],
+  ['o-nas', 'Kto sme', 'GOSko je komunitná značka, ktorá robí skate eventy na Slovensku.'],
   ['pravidla', 'Pravidlá', 'Pravidlá Game of S.K.A.T.E. na GOSko eventoch.'],
   ['sukromie', 'Ochrana osobných údajov', 'Aké údaje GOSko zbiera, prečo, ako dlho a aké máš práva.'],
 ];

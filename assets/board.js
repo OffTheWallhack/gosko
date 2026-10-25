@@ -155,7 +155,7 @@ const SHIELD = new Path2D('M 36 44 Q 118 36 200 8 Q 282 36 364 44 L 364 232 C 36
    hore GAME OF S.K.A.T.E., dole mesto a číslo. Bratislava červená a biela, Žilina zelená a žltá. */
 const ROUND_PAL = {
   1: { rim: CREAM, band: RED, text: CREAM, logo: '#9E1B20', ghost: '#FFFFFF', line: 'rgba(243,235,221,.35)' },
-  2: { rim: '#FFD21F', band: '#17863A', text: '#FFD21F', logo: '#2DBE56', ghost: '#FFD21F', line: 'rgba(255,210,31,.4)' },
+  2: { rim: '#FFD21F', band: '#17863A', text: '#FFD21F', logo: '#9E1B20', ghost: '#FFFFFF', line: 'rgba(255,210,31,.4)' },
 };
 let ART = null;
 function roundEvent(x, num, title) {
@@ -216,9 +216,16 @@ function eventSticker(x, spec, title) {
     x.fillStyle = RED; x.fill(SHIELD); x.clip(SHIELD);
     x.strokeStyle = 'rgba(14,13,12,.16)'; x.lineWidth = 22;
     for (const [a, b, c, d] of [[60, 40, 340, 460], [130, 20, 410, 440], [-10, 60, 270, 480]]) { x.beginPath(); x.moveTo(a, b); x.lineTo(c, d); x.stroke(); }
+    x.strokeStyle = 'rgba(243,235,221,.5)'; x.lineWidth = 2.5; x.save(); x.translate(200, 230); x.scale(.88, .88); x.translate(-200, -230); x.stroke(SHIELD); x.restore();   // tenký vnútorný rám
     x.restore();
-    ghost(144, 34, 112, 126);
-    if (num) hashNum(x, num, null, 262, 112, 46, 30, INK, CREAM);
+    {                            // duch a číslo v jednom riadku, vycentrované, duch mierne nakloný
+      const gw = 116, gh = GHOST ? gw * GHOST.height / GHOST.width : gw * 1.13, gap = 12, cy = 168;
+      x.font = `400 46px ${ANTON}`; const wh = x.measureText('#').width;
+      x.font = `400 128px ${ANTON}`; const wn = x.measureText(num).width;
+      const x0 = 200 - (gw + gap + wh + wn) / 2;
+      x.save(); x.translate(x0 + gw / 2, cy); x.rotate(-.1); ghost(-gw / 2, -gh / 2, gw, gh); x.restore();
+      if (num) hashNum(x, num, x0 + gw + gap, cy + 55, 128, 46, 42, INK, CREAM, 'rgba(14,13,12,.4)');
+    }
     x.beginPath(); x.moveTo(8, 288); x.lineTo(392, 288); x.lineTo(376, 318); x.lineTo(392, 348); x.lineTo(8, 348); x.lineTo(24, 318); x.closePath();
     x.fillStyle = INK; x.fill(); x.strokeStyle = CREAM; x.lineWidth = 4; x.lineJoin = 'round'; x.stroke();
     x.fillStyle = CREAM; spaced(x, title, 200, 332, 38, 4, 'center', 300);

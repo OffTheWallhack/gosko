@@ -21,7 +21,8 @@ Cieľ: dokončiť a vyčistiť web gosko.sk tak, aby sa dal spustiť naostro. Gh
 - Rebríček: z GOSka 1 a 2 sú len top 3, od GOSka 3 celý pavúk. Žiadne vymyslené čísla.
 - Titulka (hero) nemá blok noviniek: bol príliš široký a prázdny. Novinky sú v menu a na `/novinky`. Keď bude nový dôležitý článok, pridá sa na titulku nálepka (ako nálepka ďalšieho eventu vpravo hore).
 - Úvodná animácia bez prelietavania: duch a nápis v strede zmiznú, pozadie odroluje a v titulke sa objavia znova.
-- Nálepky eventov 1 a 2 sú čierny kruh s kresbou z tlačovej nálepky (`assets/sticker-art.js`: nápis GOSKO a duch na doske), hore GAME OF S.K.A.T.E., dole mesto a číslo. Bratislava červená a biela, Žilina zelená a žltá (`ROUND_PAL` v `assets/board.js`). GOSko 3 má zatiaľ starý štít.
+- Nálepky eventov 1 a 2 sú čierny kruh s kresbou z tlačovej nálepky (`assets/sticker-art.js`: nápis GOSKO a duch na doske), hore GAME OF S.K.A.T.E., dole `#číslo mesto` (#1 BRATISLAVA, #2 ŽILINA). Bratislava červená a biela, Žilina zelená a žltá, ale s bielym duchom a červeným GOSKO ako pri Bratislave (`ROUND_PAL` v `assets/board.js`). GOSko 3 ostáva štít, duch a číslo sú v jednom riadku.
+- O občianskom združení (OZ) zatiaľ na webe nepíšeme nič: žiadny názov, sídlo, IČO ani „doplníme čoskoro“. Text zmizol z päty, Kto sme, Pre partnerov aj zo Súkromia. Keď budú údaje hotové, doplnia sa a pridá sa `SITE.org`.
 - Hero video: slabší počítač a malá obrazovka dostanú 540p (`video/hero-720.*`), plné video len silný počítač. Pri zapnutom „znížené animácie“ v systéme sa video zámerne nespustí (zobrazí sa obrázok).
 - Stránka sa nepribližuje (zoom vypnutý okrem mapy a 3D).
 - Ochrana osobných údajov `/sukromie` – návrh, právnikovi pôjde až po dokončení webu.
@@ -35,14 +36,14 @@ Cieľ: dokončiť a vyčistiť web gosko.sk tak, aby sa dal spustiť naostro. Gh
 5. **Komunita** – Trik týždňa, Crew, Mapa, Pre rodičov: skryť prázdne veci (Discord „čoskoro“, crew bez popisu), texty bez opakovania.
 6. **Hry** – 3D doska (palety + pixel-art fotka hotové), stavebnica parku: mobilné ovládanie, texty.
 7. **Shop** – ukážka so záujmom, bez vymyslených cien.
-8. **Pre partnerov, Kto sme, Media kit** – skrátiť, overiť čísla (FACTS v data.js), OZ bez „v príprave“.
+8. **Pre partnerov, Kto sme, Media kit** – skrátiť, overiť čísla (FACTS v data.js). O OZ nepísať žiadne detaily.
 9. **Profil a admin** – prihlásenie, XP, Ghoskate odkaz len ak dáva zmysel.
 10. **Doména gosko.sk + maily** – až keď Robo nastaví DNS: A záznamy 185.199.108.153 / .109 / .110 / .111, CNAME www → offthewallhack.github.io, súbor `CNAME` s `gosko.sk`, `<base href="/">` v index.html, `SITE_URL` v build-pages.mjs, Supabase Site URL + Redirect URLs, vlastné SMTP (Resend) pre prihlasovacie maily, `SITE.email` = info@gosko.sk.
 11. **Záverečná kontrola** – prehľadať všetky podstránky (odkazy, chyby v konzole, pretečenie na mobile), sitemap, náhľady pri zdieľaní, offline režim.
 
 ## Placeholdery na doplnenie (od Roba)
 
-- `SITE.email`, `SITE.photoCredit`, `SITE.discord`, `SITE.org` (sídlo, IČO OZ, overiť názov).
+- `SITE.email`, `SITE.photoCredit`, `SITE.discord`. Údaje OZ (názov, sídlo, IČO) zatiaľ nie, až keď to Robo povie.
 - GOSko 3: dátum, miesto, `stickerDate`, súradnice.
 - GOSko 2 Žilina: fotky, Best Trick, partneri, video.
 - Súradnice (lat/lng) všetkých eventov.
