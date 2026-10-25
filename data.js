@@ -24,8 +24,6 @@ export const SITE = {
   whatsapp: '',         // odkaz na WhatsApp skupinu (komunitu), napr. 'https://chat.whatsapp.com/xxxx' (kým je prázdne, ukáže sa „čoskoro“)
   spotOfMonth: 'Skatepark Liptovský Mikuláš',   // spot mesiaca = presný názov parku zo SKATEPARKS
   spotOfMonthNote: 'Nový betónový park pod Tatrami. Hladký povrch, poriadne lajny a pokoj od davov. Ak ste tam ešte neboli, je čas.',
-  /* Kto prevádzkuje web a spracúva údaje (stránka Ochrana osobných údajov). Doplň sídlo a IČO občianskeho združenia. */
-  org: { name: '', address: '', ico: '' },   // názov, sídlo a IČO OZ doplníme čoskoro
 };
 
 /* Bodovanie do rebríčka podľa umiestnenia. Body sa rátajú len za Game of Skate. */

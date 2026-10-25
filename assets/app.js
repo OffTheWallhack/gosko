@@ -1809,7 +1809,6 @@ function pagePartners(root, sub) {
         h('span', { class: 'mono pt-k' }, 'Pre partnerov · sezóna 2026/27'),
         h('h1', { class: 'pt-h' }, 'Séria skate súťaží na Slovensku'),
         h('p', { class: 'lead' }, 'GOSko je nový organizátor skate eventov. Komunitná značka, ktorá robí pop-up súťaže Game of S.K.A.T.E., rebríček jazdcov a vlastný digitálny svet.'),
-        h('p', {}, 'Organizačne za projektom stojí občianske združenie. Názov, sídlo a IČO doplníme čoskoro.'),
         h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#zavolaj', onclick: e => { e.preventDefault(); form.scrollIntoView({ behavior: 'smooth' }); } }, 'Chcem spolupracovať'), h('a', { class: 'btn', href: '#/partneri/mediakit' }, 'Media kit (PDF)')))),
 
     h('section', { class: 'sec' }, h('div', { class: 'wrap pt-three' },
@@ -2614,7 +2613,6 @@ function pageAbout(root) {
         h('div', { class: 'ab-copy' },
           h('p', { class: 'lead' }, 'Robíme pop-up súťaže po mestách, vedieme rebríček jazdcov a staviame digitálny svet pre skejterov: mapu spotov, 3D dosky a trik mesiaca.'),
           h('p', {}, 'Začali sme v máji 2026 v Bratislave, v júni nasledovala Žilina na Shred Feste. V novembri štartuje pilot novej sezóny a v roku 2027 chceme obísť krajské mestá na Slovensku.'),
-          h('p', { class: 'ab-oz mono' }, 'Za GOSkom stojí občianske združenie. Údaje o ňom doplníme čoskoro.'),
           h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
         h('div', { class: 'ab-pillars' },
           pillar('#/eventy', '01', 'Eventy', 'Kde sme jazdili a kde budeme.'),
@@ -3086,14 +3084,13 @@ function pageCommunity(root) {
 
 /* ochrana osobných údajov (GDPR). Návrh: pred spustením ho nech skontroluje niekto, kto sa v tom vyzná. */
 function pagePrivacy(root) {
-  const O = SITE.org || {}, miss = 'doplníme čoskoro';
   const contact = SITE.email ? h('a', { href: 'mailto:' + SITE.email }, SITE.email) : igLink(SITE.instagram);
   const sec = (t, ...kids) => h('section', { class: 'pv-sec' }, h('h2', {}, t), kids);
   const li = items => h('ul', {}, items.map(x => h('li', {}, x)));
   root.append(pageHead('Ochrana osobných údajov', 'Aké údaje o tebe máme, prečo, ako dlho a čo s nimi môžeš urobiť. Bez právnických kľučiek.'),
     h('div', { class: 'wrap page-body pv' },
       sec('Kto sa o údaje stará',
-        h('p', {}, h('b', {}, O.name || 'Občianske združenie za GOSkom'), O.address ? `, ${O.address}` : `, sídlo ${miss}`, O.ico ? `, IČO ${O.ico}` : `, IČO ${miss}`, '.'),
+        h('p', {}, h('b', {}, 'GOSko'), ', komunitná značka, ktorá robí skate eventy na Slovensku.'),
         h('p', {}, 'Kontakt na otázky a žiadosti: ', contact, '.')),
       sec('Čo zbierame a prečo',
         li([
