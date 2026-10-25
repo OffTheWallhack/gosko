@@ -1315,6 +1315,16 @@ footer p{font-family:var(--f-letter);font-size:1.25rem;color:var(--cream)}
 .vh-in{width:100%;box-sizing:border-box}
 @media (max-width:480px){ .gar-tabs button{padding:10px 9px;font-size:.72rem} }
 
+/* registrácia v2, pass, dokumenty (pravidlá, rebríčkový poriadok, súkromie) */
+.pass-status{margin:6px 14px 0;font-weight:700;font-size:.875rem}
+.pass-status.warn{color:var(--red)}
+.nft-link{font-size:.75rem;font-weight:800;letter-spacing:.06em;text-decoration:underline}
+.captcha{min-height:66px}
+.doc-list{margin:8px 0 0;padding-left:1.2em;max-width:70ch}
+.doc-list li{margin:6px 0}
+.points-table{min-width:0;max-width:420px}
+.points-table td:last-child,.points-table th:last-child{text-align:right}
+
 /* ===== v5: účet, profil, maskot ===== */
 .top-right{display:flex;align-items:center;gap:10px}
 .acct{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--line-dark);color:var(--cream);text-decoration:none;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;transition:border-color .2s,background .2s}
@@ -1608,6 +1618,15 @@ img.flag{object-fit:cover;font-size:0;overflow:hidden;background:rgba(243,235,22
 
 /* spodné menu ako v appke (štýl je vo v9 nižšie) */
 .tabbar{display:none}
+
+/* vstup do hry Ghoskate (demo) z hornej lišty webu */
+.nav a.nav-game{position:relative}
+.nav-demo,.demo-tag{display:inline-block;width:auto;font-style:normal;margin-left:6px;padding:2px 5px 1px;border-radius:4px;background:#FF3DA5;color:#14111C;font-size:.58rem;font-weight:900;letter-spacing:.06em;vertical-align:middle;line-height:1.2}
+/* appka Ghoskate (/hra): bez hlavičky, spodného menu a pätičky webu; hra má vlastnú lištu a menu (assets/game/ui.js).
+   Trieda sa nastaví v app.js ešte pred načítaním hry, aby hlavička webu neblikla. */
+body.game-app .topbar,body.game-app .tabbar,body.game-app footer{display:none!important}
+body.game-app{padding-bottom:0!important;background:#14111C}
+body.game-app .install{bottom:calc(76px + env(safe-area-inset-bottom,0px))}   /* nad herným menu */
 
 /* pätička v stĺpcoch */
 footer .foot-cols{display:grid;gap:18px 28px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));width:100%;margin-top:10px}

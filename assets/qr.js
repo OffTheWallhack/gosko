@@ -15,8 +15,9 @@ export function loadCss(href) {
   return loaded.get(href);
 }
 
-const QR_LIB = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
-const SCAN_LIB = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+/* knižnice sú uložené na webe (assets/vendor/SOURCES.txt), QR pass funguje aj bez CDN */
+const QR_LIB = 'assets/vendor/qrcode-generator-1.4.4.js';
+const SCAN_LIB = 'assets/vendor/jsqr-1.4.0.js';
 
 export async function qrCanvas(text, size = 560) {
   await loadScript(QR_LIB);

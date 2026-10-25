@@ -7,12 +7,18 @@ import { mountBuilder, renderThumb, cleanLayout, slimLayout } from './park.js';
 import { getStore, INBOX, newToken, isEmail } from './store.js';
 import { badgesFor, badgeSvg } from './badges.js';
 import { riderStoryPng, riderVideo, videoSupported, canvasToFile } from './card.js';
-import { qrCanvas, startScanner } from './qr.js';
+import { qrCanvas, startScanner, loadScript } from './qr.js';
 import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
 import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg, cacheGhost, ghostOf, unlockedGhost } from './profile.js';
 import { ghostLevel, LEVELS, LEVEL_XP, XP_RULES, xpOf, levelOfXp, STYLES } from './ghost.js';
+/* rozšírenia z master-gosko (docs/CO-PRIDAL-PIRY.md): registrácia v2, pass zo servera, prihlásenie heslom, hra Ghoskate */
+import { UserError } from './util.js';
+import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPayload, completeRegistration, fetchPass, upsertPass } from './register.js';
+import { apiRequest, browserFetch } from './api.js';
+import { consumeReturn, isGameRoute, appHead } from './game/return.js';
+import { loginMode, credentialsError, loginErrorMessage, signUpOutcome, MIN_PASSWORD } from './login.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -56,12 +62,18 @@ const pointsFor = place => POINTS.find(p => place <= p.upTo).points;
 const igLink = handle => h('a', { href: `https://www.instagram.com/${handle}/`, target: '_blank', rel: 'noopener' }, '@' + handle);
 
 /* ---------- súkromie a výsledky (data.js + databáza) ---------- */
-class UserError extends Error {}
 function displayName(name) {
   if (RIDER_PRIVACY[slug(name)] !== 'initial') return name;
   const parts = String(name).trim().split(/\s+/);
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toLocaleUpperCase('sk')}.` : parts[0];
 }
+/* Prepínače rozšírení (data.js CONFIG). Bez nich web beží presne ako doteraz.
+   BACKEND_V2: registrácia v2 so súhlasom rodiča, pass zo servera, check-in a výsledky cez API (treba migrácie a API, docs/CO-PRIDAL-PIRY.md).
+   GAME: hra Ghoskate na /hra: 'demo' = stránka „Pripravujeme“, 'live' = plná hra (migrácie 010–019), 'off' = bez hry. */
+const V2 = !!CONFIG.BACKEND_V2;
+const API = CONFIG.API_BASE || '';
+const GAME = ['live', 'demo', 'off'].includes(CONFIG.GAME) ? CONFIG.GAME : 'demo';
+const eventDate = id => EVENTS.find(e => e.id === id)?.date || '';
 const BASE = new Map(EVENTS.map(ev => [ev.id, { status: ev.status, sticker: ev.sticker, results: ev.results || {}, awards: ev.awards || [] }]));
 let REMOTE = { results: [], awards: [], brackets: [] };
 const byPlace = (a, b) => a.place - b.place || a.name.localeCompare(b.name, 'sk');
@@ -242,7 +254,59 @@ const authErr = err => {
   if (/expired|not found|invalid/i.test(m)) return 'Kód alebo odkaz už vypršal. Pošli si nový e-mail.';
   return 'Nepodarilo sa prihlásiť. Skús to znova.';
 };
+/* Prihlásenie podľa CONFIG.LOGIN_MODE: 'magic' = odkaz alebo kód z e-mailu, voliteľne heslo; 'password' = e-mail a heslo aj s novým účtom (assets/login.js). */
+const LOGIN_MODE = loginMode(CONFIG);
 function loginDialog(after) {
+  return LOGIN_MODE === 'password' ? passwordLoginDialog(after) : magicLoginDialog(after);
+}
+function passwordLoginDialog(after, { signUp = false, email = '' } = {}) {
+  const fail = err => { if (!err?.code && !err?.status) console.error(err); throw new UserError(loginErrorMessage(err)); };
+  const done = () => { updateAccount(); if (typeof after === 'function') after(); return 'Si prihlásený.'; };
+  const dlg = formDialog({
+    title: signUp ? 'Nový účet' : 'Prihlásenie', submit: signUp ? 'Založiť účet' : 'Prihlásiť sa',
+    intro: signUp
+      ? 'Založ si účet e-mailom a heslom. Potom ti pošleme e-mail s odkazom, ktorým e-mail potvrdíš.'
+      : h('span', {}, 'Prihlás sa e-mailom a heslom. Prihlásený ostaneš aj nabudúce. Nemáš účet? ',
+        h('button', { class: 'linklike', type: 'button', onclick: () => { dlg.close(); passwordLoginDialog(after, { signUp: true }); } }, 'Založ si ho'), '.'),
+    fields: [
+      { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email', value: email },
+      { name: 'password', label: 'Heslo', type: 'password', required: true, autocomplete: signUp ? 'new-password' : 'current-password',
+        hint: signUp ? `Aspoň ${MIN_PASSWORD} znakov.` : null },
+      signUp ? { name: 'password2', label: 'Heslo ešte raz', type: 'password', required: true, autocomplete: 'new-password' } : null,
+    ].filter(Boolean),
+    onSubmit: async v => {
+      const email = v.email.toLowerCase(), problem = credentialsError({ ...v, email }, { signUp });
+      if (problem) throw new UserError(problem);
+      if (!signUp) {
+        try { await store.signInPassword(email, v.password); } catch (err) {
+          if (err?.code === 'email_not_confirmed') return unconfirmed(email);
+          fail(err);
+        }
+        return done();
+      }
+      let data;
+      try { data = await store.signUp(email, v.password); } catch (err) { fail(err); }
+      const outcome = signUpOutcome(data);
+      if (outcome === 'signed_in') return done();
+      if (outcome === 'exists') throw new UserError(loginErrorMessage({ code: 'user_already_exists' }));
+      return unconfirmed(email, true);
+    },
+  });
+  /* nepotvrdený e-mail: jasná hláška a možnosť poslať potvrdzovací e-mail znova */
+  function unconfirmed(email, fresh = false) {
+    const msg = h('p', { class: 'form-msg', role: 'status' });
+    return h('div', {},
+      h('p', {}, fresh ? `Účet je založený. Poslali sme e-mail na ${email}. Klikni na odkaz v ňom, tým e-mail potvrdíš, a potom sa prihlás heslom.`
+        : loginErrorMessage({ code: 'email_not_confirmed' })),
+      h('button', { class: 'btn small', type: 'button', onclick: async e => {
+        const btn = e.currentTarget; btn.disabled = true; msg.textContent = '';
+        try { await store.resendConfirmation(email); msg.textContent = 'Poslali sme ho znova. Pozri aj spam.'; }
+        catch (err) { msg.textContent = loginErrorMessage(err); btn.disabled = false; }
+      } }, 'Poslať potvrdzovací e-mail znova'), msg);
+  }
+  return dlg;
+}
+function magicLoginDialog(after) {
   const done = () => { toast('Si prihlásený. Vitaj na GOSku!'); updateAccount(); after && after(); };
   formDialog({
     title: 'Prihlásenie', submit: 'Pokračovať',
@@ -1312,7 +1376,80 @@ async function pageEvents(root) {
   }
 }
 
+/* Registrácia na event v2 (assets/register.js, POST /api/register). Volá sa z countdownEl, pageEvent a #/registracia/:eventId.
+   Pass vzniká LEN z odpovede servera; pri chybe API formulár ukáže hlášku a žiadny pass sa neuloží.
+   Vek (U16) sa ráta z dátumu narodenia k dátumu eventu, polia rodiča sa ukážu samé. */
+const TURNSTILE_JS = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+function captchaField() {
+  let token = '', id = null;
+  const el = h('div', { class: 'captcha' }, h('span', { class: 'empty' }, 'Načítavam overenie…'));
+  loadScript(TURNSTILE_JS).then(() => {
+    el.replaceChildren();
+    id = window.turnstile.render(el, { sitekey: CONFIG.TURNSTILE_SITE_KEY, language: 'sk', callback: t => { token = t; }, 'expired-callback': () => { token = ''; }, 'error-callback': () => { token = ''; } });
+  }).catch(() => el.replaceChildren(h('p', { class: 'form-msg' }, 'Overenie sa nenačítalo. Obnov stránku.')));
+  return { el, value: () => token, reset: () => { token = ''; if (id != null) window.turnstile?.reset(id); }, destroy: () => { if (id != null) window.turnstile?.remove(id); } };
+}
+const linkTo = (href, text) => h('a', { href, target: '_blank', rel: 'noopener' }, text);
+function registerDialogV2(ev) {
+  const minor = v => isMinor(v.birth_date, ev.date, todayIn());
+  let captcha = null;
+  formDialog({
+    title: 'Chcem jazdiť', submit: 'Zaregistrovať sa',
+    intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Po registrácii dostaneš QR pass na vstup.`,
+    fields: [
+      { name: 'legal_name', label: 'Meno a priezvisko', required: true, max: 60, autocomplete: 'name' },
+      { name: 'birth_date', label: 'Dátum narodenia', type: 'date', required: true, hint: 'Podľa veku v deň eventu ťa zaradíme do kategórie. Pod 16 rokov treba súhlas rodiča.' },
+      { name: 'email', label: 'E-mail', type: 'email', required: true, max: 254, autocomplete: 'email', hint: 'Pošleme naň potvrdenie a pass.' },
+      { name: 'country', label: 'Krajina', type: 'select', options: COUNTRIES },
+      { name: 'city', label: 'Mesto', max: 60, placeholder: 'nepovinné', value: LSx.get('gosko:reg-me', {}).city },
+      { name: 'instagram', label: 'Instagram', max: 31, placeholder: '@tvojmeno, nepovinné', value: LSx.get('gosko:reg-me', {}).instagram },
+      { name: 'public_name_mode', label: 'Ako sa má tvoje meno zobraziť vo výsledkoch', type: 'select', options: NAME_MODES },
+      { name: 'nickname', label: 'Prezývka', max: 30, placeholder: 'nepovinné', hint: 'Povinná, ak chceš byť vo výsledkoch pod prezývkou.' },
+      { name: 'women', label: 'Chcem jazdiť v Babskej kategórii (jazdkyne od 16 rokov).', type: 'checkbox', showIf: v => !minor(v) },
+      { name: 'guardian_name', label: 'Meno rodiča alebo zákonného zástupcu', max: 60, showIf: minor, requiredIfShown: true },
+      { name: 'guardian_email', label: 'E-mail rodiča', type: 'email', max: 254, showIf: minor, requiredIfShown: true, hint: 'Jazdec do 16 rokov: rodičovi pošleme odkaz na potvrdenie súhlasu. Registrácia platí až po ňom.' },
+      { name: 'rules', label: ['Súhlasím s ', linkTo('#/pravidla', 'pravidlami súťaže'), '.'], type: 'checkbox', required: true },
+      { name: 'privacy', label: ['Beriem na vedomie ', linkTo('#/sukromie', 'zásady ochrany osobných údajov'), ' a súhlasím so spracúvaním údajov na registráciu a zverejnenie výsledkov.'], type: 'checkbox', required: true },
+      { name: 'photo', label: 'Súhlasím so zverejnením fotiek a videí z eventu, na ktorých som (nepovinné).', type: 'checkbox' },
+      { name: 'nft', label: 'Chcem záznam o účasti a výsledku aj ako neprenosné NFT na blockchaine Base. Neobsahuje žiadne osobné údaje (nepovinné).', type: 'checkbox' },
+      { name: 'newsletter', label: 'Pošlite mi e-mail aj o ďalších GOSko eventoch.', type: 'checkbox' },
+      CONFIG.TURNSTILE_SITE_KEY ? { name: 'captcha', label: 'Overenie', type: 'custom', render: () => (captcha = captchaField()), validate: () => (captcha.value() ? '' : 'Potvrď, že nie si robot.') } : null,
+    ].filter(Boolean),
+    onSubmit: async v => {
+      const check = validateRegistration(v, { eventDate: ev.date, today: todayIn(), captchaRequired: !!CONFIG.TURNSTILE_SITE_KEY });
+      if (!check.ok) throw new UserError(Object.values(check.errors)[0]);
+      /* polia rodiča a babská kategória sa posielajú len tam, kde platia */
+      const data = check.minor ? { ...v, women: false } : { ...v, guardian_name: '', guardian_email: '' };
+      let r;
+      try {
+        r = await completeRegistration({ fetch: browserFetch, apiBase: API, ev, payload: buildPayload(data, ev.id, v.captcha),
+          save: p => LSX.set('gosko:passes', upsertPass(LSX.get('gosko:passes', []), p)) });
+      } catch (err) {
+        captcha?.reset();   // token Turnstile je jednorazový
+        const detail = err.data?.errors && Object.values(err.data.errors)[0];
+        throw detail ? new UserError(`${err.message} ${detail}`) : err;
+      }
+      if (v.newsletter) store.subscribe(v.email.trim().toLowerCase(), 'registracia').catch(() => {});
+      /* predvyplnenie ďalších formulárov (trik týždňa, ďalšia registrácia); e-mail ani dátum narodenia sa neukladajú */
+      LSx.set('gosko:reg-me', { name: v.nickname || v.legal_name, instagram: v.instagram, city: v.city });
+      updateMenu();
+      if (r.status === 'check_email') return h('div', { class: 'pass-done' },
+        h('p', {}, 'Registráciu sme prijali. Pass ti pošleme e-mailom na adresu, ktorú si zadal. Pozri aj spam.'));
+      return h('div', { class: 'pass-done' },
+        h('p', {}, r.status === 'pending_guardian'
+          ? 'Registrácia čaká na súhlas rodiča. Poslali sme mu e-mail s odkazom na potvrdenie. Pass platí až po potvrdení, ukáž ho crew pri príchode.'
+          : 'Si zaregistrovaný. Toto je tvoj vstupný QR kód. Na evente ho ukážeš crew pri príchode.'),
+        passCard(r.pass),
+        h('div', { class: 'actions' },
+          ev.date ? h('button', { class: 'btn primary', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Pridať do kalendára') : null,
+          h('a', { class: 'btn', href: '#/pass' }, 'Môj pass')),
+        h('p', { class: 'note dark' }, 'Pass nájdeš v menu pod „Môj pass“ a poslali sme ti ho aj e-mailom. Pre istotu si sprav screenshot.'));
+    },
+  });
+}
+
 function registerDialog(ev) {
+  if (V2) return registerDialogV2(ev);
   formDialog({
     title: 'Chcem jazdiť', submit: 'Zaregistrovať sa',
     intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Keď zverejníme dátum a miesto, ozveme sa ti.`,
@@ -2484,13 +2621,69 @@ function passCard(p) {
     .catch(() => holder.replaceChildren(h('p', {}, 'QR sa nepodarilo načítať. Kód vstupenky: ', h('code', {}, p.token.slice(0, 8)))));
   return h('div', { class: 'pass' },
     h('div', { class: 'pass-head' }, h('span', { class: 'wide' }, p.event), h('span', { class: 'cond' }, [catName(p.category), p.date ? fmtDate(p.date) : 'dátum čoskoro'].join(', '))),
-    holder, h('p', { class: 'pass-name wide' }, p.name), h('p', { class: 'pass-code cond' }, 'Kód: ' + p.token.slice(0, 8).toUpperCase()));
+    holder, h('p', { class: 'pass-name wide' }, p.name), h('p', { class: 'pass-code cond' }, 'Kód: ' + p.token.slice(0, 8).toUpperCase()),
+    PASS_STATUS[p.status] ? h('p', { class: 'pass-status' + (p.status === 'pending_guardian' || p.status === 'cancelled' ? ' warn' : '') }, PASS_STATUS[p.status]) : null);
+}
+const PASS_STATUS = { pending_guardian: 'Čaká na potvrdenie rodiča', confirmed: 'Potvrdená registrácia', checked_in: 'Zapísaný na evente', no_show: 'Neprišiel', cancelled: 'Registrácia je zrušená' };
+const registrationEvents = () => EVENTS.filter(e => e.status === 'next');
+function passResendDialog() {
+  const evs = registrationEvents();
+  formDialog({
+    title: 'Poslať pass znova', submit: 'Poslať',
+    intro: 'Ak sme tvoju registráciu našli, pošleme pass na e-mail, ktorý si zadal pri registrácii.',
+    fields: [
+      { name: 'email', label: 'E-mail z registrácie', type: 'email', required: true, autocomplete: 'email' },
+      evs.length > 1 ? { name: 'event_id', label: 'Event', type: 'select', options: evs.map(e => ({ value: e.id, label: `${e.name}${e.date ? ', ' + fmtDate(e.date) : ''}` })) } : null,
+    ].filter(Boolean),
+    onSubmit: async v => {
+      if (!isEmail(v.email)) throw new UserError('Skontroluj e-mail.');
+      await apiRequest(browserFetch, `${API}/api/pass`, { method: 'POST', body: { email: v.email.toLowerCase(), event_id: v.event_id || evs[0]?.id || '' } });
+      return 'Ak registrácia s týmto e-mailom existuje, pass je na ceste. Pozri aj spam.';
+    },
+  });
 }
 function pagePasses(root) {
   const passes = LSX.get('gosko:passes', []);
   root.append(pageHead('Môj pass', 'Vstupné QR kódy na eventy, na ktoré si sa zaregistroval v tomto telefóne.'),
     h('div', { class: 'wrap page-body' }, passes.length ? h('div', { class: 'passes' }, passes.map(passCard))
-      : h('p', { class: 'empty' }, 'Zatiaľ tu nič nie je. Zaregistruj sa na ', h('a', { href: '#/eventy' }, 'najbližší event'), '.')));
+      : h('p', { class: 'empty' }, 'Zatiaľ tu nič nie je. Zaregistruj sa na ', h('a', { href: '#/eventy' }, 'najbližší event'), '.'),
+      V2 && registrationEvents().length ? h('p', { class: 'note' }, 'Registroval si sa v inom telefóne? ', h('button', { class: 'linklike', type: 'button', onclick: passResendDialog }, 'Pošleme ti pass znova e-mailom'), '.') : null));
+}
+/* #/pass/<token>: odkaz z e-mailu. Pass sa načíta zo servera a uloží do tohto telefónu (cache). */
+async function pagePass(root, token) {
+  root.append(pageHead('Môj pass', null));
+  const body = h('div', { class: 'wrap page-body' }, h('p', {}, 'Načítavam pass…')); root.append(body);
+  try {
+    const p = await fetchPass(browserFetch, token, { apiBase: API, eventDate });
+    LSX.set('gosko:passes', upsertPass(LSX.get('gosko:passes', []), p)); updateMenu();
+    body.replaceChildren(h('div', { class: 'passes' }, passCard(p)), h('p', { class: 'note' }, 'Pass je uložený v tomto telefóne v menu pod „Môj pass“.'));
+  } catch (err) {
+    if (!(err instanceof UserError)) console.error(err);
+    body.replaceChildren(h('p', { class: 'form-msg', role: 'alert' }, err instanceof UserError ? err.message : 'Pass sa nepodarilo načítať.'),
+      h('p', {}, h('a', { class: 'btn', href: '#/pass' }, 'Moje passy')));
+  }
+}
+
+/* ---------- registrácia: stránky z odkazov ---------- */
+function pageRegister(root, id) {
+  const ev = EVENTS.find(e => e.id === id);
+  if (!ev) return pageNotFound(root);
+  root.append(pageHead('Registrácia', `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}${ev.place ? ', ' + ev.place : ''}`));
+  const open = ev.status === 'next' && ev.registration;
+  root.append(h('div', { class: 'wrap page-body' },
+    open ? h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, 'Chcem jazdiť'))
+      : h('p', { class: 'empty' }, 'Registrácia na tento event nie je otvorená.'),
+    h('p', { class: 'note' }, 'Pred registráciou si prečítaj ', h('a', { href: '#/pravidla' }, 'pravidlá'), ' a ', h('a', { href: '#/sukromie' }, 'zásady ochrany osobných údajov'), '.'),
+    h('p', {}, h('a', { class: 'btn', href: '#/event/' + ev.id }, 'Detail eventu'))));
+  if (open) registerDialog(ev);
+}
+function pageRegisterDone(root) {
+  root.append(pageHead('Súhlas potvrdený', 'Ďakujeme. Registrácia jazdca je potvrdená a pass platí.'),
+    h('div', { class: 'wrap page-body' }, h('p', {}, 'Jazdcovi sme poslali e-mail s passom. Uvidíme sa na evente.'), h('a', { class: 'btn', href: '#/eventy' }, 'Eventy')));
+}
+function pageRegisterBadLink(root) {
+  root.append(pageHead('Odkaz neplatí', 'Odkaz na potvrdenie už bol použitý alebo je neplatný.'),
+    h('div', { class: 'wrap page-body' }, h('p', {}, 'Ak si súhlas už potvrdil, netreba robiť nič. Inak nám napíš na Instagram ', igLink(SITE.instagram), '.')));
 }
 function updateMenu() {
   const has = LSX.get('gosko:passes', []).length > 0;
@@ -2506,7 +2699,66 @@ function updateMenu() {
   }
   const wa = document.getElementById('sh-wa'); if (wa && SITE.whatsapp) { wa.href = SITE.whatsapp; wa.hidden = false; }
 }
+const NFT_STATUS = { no_consent: 'NFT: jazdec nesúhlasil', guardian_pending: 'NFT: čaká na súhlas rodiča', pending: 'NFT: vydáva sa', minted: 'NFT: vydané',
+  result_pending: 'NFT: vydané', result_set: 'NFT: vydané', failed: 'NFT: zatiaľ sa nepodarilo, server to skúsi znova' };
+/* Check-in cez POST /api/admin/checkin (Supabase JWT admina). body = {token} | {registration_id} | {event_id, rider_name}. */
+async function doCheckin(body, box) {
+  try {
+    const r = await store.adminCheckin(body), g = r.registration;
+    box.replaceChildren(h('div', { class: 'ci ci-good' }, h('p', { class: 'wide' }, 'Zapísané'), h('p', { class: 'ci-name wide' }, g.public_name), h('p', {}, catName(g.category)),
+      g.guardian_ok ? null : h('p', { class: 'ci-warn' }, 'POZOR: rodič ešte nepotvrdil súhlas'),
+      NFT_STATUS[r.nft?.status] ? h('p', { class: 'cond' }, NFT_STATUS[r.nft.status]) : null));
+    return true;
+  } catch (err) {
+    if (!(err instanceof UserError)) console.error(err);
+    if (err.code === 'ambiguous' && err.data?.candidates?.length) {
+      box.replaceChildren(h('p', { class: 'form-msg', role: 'alert' }, err.message), h('ul', { class: 'admin-list' }, err.data.candidates.map(c => h('li', {},
+        h('span', {}, `${c.public_name}, ${catName(c.category)}, ${PASS_STATUS[c.status] || c.status}`),
+        h('button', { class: 'btn small', type: 'button', onclick: () => doCheckin({ registration_id: c.id }, box) }, 'Zapísať tohto')))));
+      return false;
+    }
+    box.append(h('p', { class: 'form-msg', role: 'alert' }, err instanceof UserError ? err.message : 'Nepodarilo sa zapísať. Skús znova.'));
+    return false;
+  }
+}
+async function checkinViewV2(token, box) {
+  box.replaceChildren(h('p', {}, 'Hľadám registráciu…'));
+  let p;
+  try { p = await fetchPass(browserFetch, token, { apiBase: API, eventDate }); }
+  catch (err) {
+    if (!(err instanceof UserError)) console.error(err);
+    box.replaceChildren(h('div', { class: 'ci ci-bad' }, h('p', { class: 'wide' }, err.status === 404 ? 'Neplatný kód' : 'Chyba'), h('p', {}, err.status === 404 ? 'Takú registráciu nemáme.' : err.message)));
+    return;
+  }
+  const info = [h('p', { class: 'ci-name wide' }, p.name), h('p', {}, catName(p.category)), h('p', { class: 'cond' }, p.event)];
+  if (p.status === 'pending_guardian') info.push(h('p', { class: 'ci-warn' }, 'POZOR: rodič ešte nepotvrdil súhlas'));
+  if (p.status === 'checked_in') { box.replaceChildren(h('div', { class: 'ci ci-warn-box' }, h('p', { class: 'wide' }, 'Už zapísaný'), info)); return; }
+  if (p.status === 'cancelled') { box.replaceChildren(h('div', { class: 'ci ci-bad' }, h('p', { class: 'wide' }, 'Zrušená registrácia'), info)); return; }
+  const confirm = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
+    confirm.disabled = true;
+    if (!(await doCheckin({ token }, box))) confirm.disabled = false;
+  } }, 'Potvrdiť príchod');
+  box.replaceChildren(h('div', { class: 'ci' }, info, confirm));
+}
+/* Ručný check-in podľa mena (jazdec bez telefónu). Pri rovnakom mene ponúkne konkrétne registrácie. */
+function manualCheckin() {
+  const evs = registrationEvents().length ? registrationEvents() : EVENTS;
+  const sel = h('select', { 'aria-label': 'Event' }, evs.map(e => h('option', { value: e.id }, `${e.name}${e.date ? ', ' + fmtDate(e.date) : ''}`)));
+  const name = h('input', { type: 'text', maxlength: 60, placeholder: 'Meno jazdca', 'aria-label': 'Meno jazdca', autocomplete: 'off' });
+  const box = h('div', { class: 'scan-result' });
+  const btn = h('button', { class: 'btn small', type: 'button', onclick: async () => {
+    const n = name.value.replace(/\s+/g, ' ').trim();
+    if (n.length < 2) { box.replaceChildren(h('p', { class: 'form-msg' }, 'Napíš meno jazdca.')); return; }
+    btn.disabled = true; box.replaceChildren(h('p', {}, 'Hľadám…'));
+    await doCheckin({ event_id: sel.value, rider_name: n }, box);
+    btn.disabled = false;
+  } }, 'Zapísať príchod');
+  name.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); btn.click(); } });
+  return h('section', { class: 'admin-sec' }, h('h2', { class: 'wide sub' }, 'Ručný check-in'),
+    h('p', { class: 'note' }, 'Keď jazdec nemá pass, zapíš ho podľa mena z registrácie.'), h('div', { class: 'res-add' }, sel, name, btn), box);
+}
 async function checkinView(token, box) {
+  if (V2) return checkinViewV2(token, box);
   box.replaceChildren(h('p', {}, 'Hľadám registráciu…'));
   let r = null;
   try { r = await store.findRegistration(token); } catch (err) { console.error(err); }
@@ -2523,6 +2775,7 @@ async function checkinView(token, box) {
   box.replaceChildren(h('div', { class: 'ci' }, info, confirm));
 }
 async function adminGate(body) {
+  if (store.mode === 'offline') { put(body, h('p', { class: 'form-msg', role: 'alert' }, store.message)); return false; }
   if (store.mode === 'live' && !(await store.signedIn())) { put(body, h('button', { class: 'btn primary', type: 'button', onclick: () => loginDialog(() => route()) }, 'Prihlásiť sa')); return false; }
   if (!(await store.isAdmin())) { put(body, h('p', {}, 'Tento účet nemá prístup. Check-in robí len crew.')); return false; }
   return true;
@@ -2531,7 +2784,7 @@ async function pageCheckin(root, token) {
   root.append(pageHead('Check-in', 'Pre crew na evente.'));
   const body = h('div', { class: 'wrap page-body' }); root.append(body);
   if (!(await adminGate(body))) return;
-  const box = h('div'); put(body, box, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/admin/scan' }, 'Skenovať ďalšieho')));
+  const box = h('div'); put(body, box, h('p', { class: 'more' }, h('a', { class: 'btn', href: '#/admin/scan' }, 'Skenovať ďalšieho')), V2 ? manualCheckin() : null);
   checkinView(token, box);
 }
 async function pageScan(root) {
@@ -2540,7 +2793,7 @@ async function pageScan(root) {
   if (!(await adminGate(body))) return;
   const video = h('video', { class: 'scan-video', muted: true, playsinline: true });
   const box = h('div', { class: 'scan-result' }, h('p', { class: 'empty' }, 'Čakám na QR kód…'));
-  put(body, h('div', { class: 'scan-wrap' }, video, h('span', { class: 'scan-frame', 'aria-hidden': 'true' })), box);
+  put(body, h('div', { class: 'scan-wrap' }, video, h('span', { class: 'scan-frame', 'aria-hidden': 'true' })), box, V2 ? manualCheckin() : null);
   let stop = null;
   try {
     stop = await startScanner(video, text => {
@@ -2755,8 +3008,17 @@ async function pageAdminResults(root, eventId) {
   const clone = o => JSON.parse(JSON.stringify(o));
   const loadBracket = () => { bracket = ev.brackets?.[cat] ? clone(ev.brackets[cat]) : null; };
   const say = m => { note = m; const el = view.querySelector('.res-note'); if (el) el.textContent = m; };
-  const failed = err => { console.error(err); say('Nepodarilo sa uložiť. Skús znova.'); };
+  const failed = err => { if (!(err instanceof UserError)) console.error(err); say(err instanceof UserError ? err.message : 'Nepodarilo sa uložiť. Skús znova.'); };
   const same = s => s.toLocaleLowerCase('sk');
+  /* BACKEND_V2: výsledky sa spárujú s registráciami podľa mena (len jednoznačná zhoda), aby mali rider_id a NFT. Bez V2 vráti riadky bez zmeny. */
+  const withRegistrations = async rows => {
+    if (!V2) return rows;
+    let regs = [];
+    try { regs = (await store.eventRegistrations(ev.id)).filter(r => r.category === cat && r.name); } catch (err) { console.error(err); }
+    const by = new Map();
+    for (const r of regs) by.set(same(r.name), by.has(same(r.name)) ? null : r.id);
+    return rows.map(x => (by.get(same(x.name)) ? { ...x, registration_id: by.get(same(x.name)) } : x));
+  };
   const savedRaw = () => REMOTE.results.filter(r => r.event_id === ev.id && r.category === cat).map(r => ({ name: r.rider_name, place: r.place })).sort(byPlace);
   async function persist() {
     try { await store.saveBracket(ev.id, cat, bracket); ev.brackets = { ...ev.brackets, [cat]: clone(bracket) }; say('Uložené.'); return true; }
@@ -2778,8 +3040,9 @@ async function pageAdminResults(root, eventId) {
       note = added ? `Pridaných ${added}.` : 'Nič nové na pridanie.'; render();
     };
     const importRegs = async () => {
-      let rows = []; try { rows = await store.inbox('registrations'); } catch (err) { console.error(err); }
-      rows = rows.filter(r => r.event_id === ev.id && r.category === cat);
+      let rows = [];
+      if (V2) { try { rows = await store.eventRegistrations(ev.id); } catch (err) { failed(err); return; } rows = rows.filter(r => r.category === cat); }
+      else { try { rows = await store.inbox('registrations'); } catch (err) { console.error(err); } rows = rows.filter(r => r.event_id === ev.id && r.category === cat); }
       const arrived = rows.filter(r => r.checked_in_at), use = arrived.length ? arrived : rows;
       if (!use.length) { say('Pre túto kategóriu nie sú žiadne registrácie.'); return; }
       let added = 0;
@@ -2794,7 +3057,7 @@ async function pageAdminResults(root, eventId) {
     const saveManual = async () => {
       let names; try { names = cleanNames(manual.value.split('\n')); } catch (err) { say(err.message); return; }
       if (!names.length) { say('Napíš aspoň jedno meno.'); return; }
-      try { await store.saveResults(ev.id, cat, names.map((name, i) => ({ name, place: i + 1 }))); await refreshRemote(); note = `Uložené: ${names.length} jazdcov v poradí.`; render(); } catch (err) { failed(err); }
+      try { await store.saveResults(ev.id, cat, await withRegistrations(names.map((name, i) => ({ name, place: i + 1 })))); await refreshRemote(); note = `Uložené: ${names.length} jazdcov v poradí.`; render(); } catch (err) { failed(err); }
     };
     return h('section', { class: 'admin-sec' },
       h('h2', { class: 'wide sub' }, 'Pavúk'),
@@ -2818,7 +3081,7 @@ async function pageAdminResults(root, eventId) {
       onClear: (r, m) => mutate(b => clearWinner(b, r, m)) });
     const pl = done ? placements(bracket) : [];
     const saved = done && JSON.stringify(pl.map(x => [x.name, x.place]).sort()) === JSON.stringify(savedRaw().map(x => [x.name, x.place]).sort());
-    const saveRes = async () => { try { await store.saveResults(ev.id, cat, pl); await refreshRemote(); note = 'Výsledky sú v rebríčku.'; render(); } catch (err) { failed(err); } };
+    const saveRes = async () => { try { await store.saveResults(ev.id, cat, await withRegistrations(pl)); await refreshRemote(); note = 'Výsledky sú v rebríčku.'; render(); } catch (err) { failed(err); } };
     const del = async () => {
       if (!confirm('Zmazať pavúk? Uložené výsledky ostanú.')) return;
       try { await store.deleteBracket(ev.id, cat); bracket = null; const nb = { ...ev.brackets }; delete nb[cat]; ev.brackets = nb; note = 'Pavúk zmazaný.'; render(); } catch (err) { failed(err); }
@@ -2906,7 +3169,11 @@ function claimDialog(r) {
     fields: [...riderFields(), { name: 'note', label: 'Ako ťa overíme?', max: 300, required: true, placeholder: 'napr. napíšem vám z IG @… / bol som 2. v U16' }],
     onSubmit: async v => {
       try { await store.claimRider(r.slug, { ...profileRow(v), note: v.note }); }
-      catch (err) { if (err.message === 'taken') throw new UserError('Tento profil už niekto prevzal. Ak je to omyl, napíš nám na Instagram.'); throw err; }
+      catch (err) {
+        if (err.message === 'taken') throw new UserError('Tento profil už niekto prevzal. Ak je to omyl, napíš nám na Instagram.');
+        if (err.message === 'mine') throw new UserError('Tvoj účet už má iný profil jazdca. Ak je to omyl, napíš nám na Instagram.');
+        throw err;
+      }
       await loadRiderProfiles();
       return 'Odoslané. Keď to crew schváli, profil si upravíš v sekcii Môj profil.';
     },
@@ -3143,6 +3410,38 @@ function pagePrivacy(root) {
 }
 
 /* =====================================================================
+   HRA GHOSKATE (/hra): CONFIG.GAME 'live' = plná hra z assets/game/, 'demo' = stránka „Pripravujeme“
+   ===================================================================== */
+const GAME_PAGES = new Set();   // herné stránky majú vlastné menu: bez pásu noviniek a spoločnej pätičky
+const gamePage = name => {
+  const page = async (root, ...args) => (await import('./game/index.js'))[name](root, {
+    store, login: loginDialog, loginMode: LOGIN_MODE, go, rerender: route, setOnAuth: fn => { onAuthChange = fn; }, events: EVENTS, apiBase: API,
+  }, ...args);
+  GAME_PAGES.add(page); return page;
+};
+function pageGameDemo(root) {
+  const feat = (k, t, d) => h('div', { class: 'cm-card soon gd-card' }, h('span', { class: 'mono' }, k), h('b', {}, t), h('span', {}, d));
+  root.append(pageHead(h('span', {}, 'Ghoskate ', h('span', { class: 'demo-tag gd-tag' }, 'DEMO')), 'Hra od GOSko. Pripravujeme ju. Toto je ukážka toho, čo v nej bude.'),
+    h('div', { class: 'wrap page-body' },
+      h('section', { class: 'gd-hero' },
+        h('img', { class: 'gd-icon', src: 'icons/ghoskate-192.png', alt: '', width: 96, height: 96 }),
+        h('div', {},
+          h('p', { class: 'lead' }, 'Herná mapa skate spotov na Slovensku. Príď na spot, sprav check-in, zbieraj body a bojuj s crew o územie.'),
+          h('p', { class: 'note' }, 'Hra je zatiaľ v príprave. Keď spustíme skúšobnú verziu, dáme ti vedieť medzi prvými.'),
+          h('div', { class: 'actions' },
+            h('button', { class: 'btn primary', type: 'button', onclick: () => newsletterDialog('ghoskate') }, 'Daj mi vedieť'),
+            h('a', { class: 'btn', href: '#/profil' }, 'Medzitým si navrhni ducha a dosku')))),
+      h('h2', { class: 'wide sub' }, 'Čo v hre bude'),
+      h('div', { class: 'cm-grid' },
+        feat('Mapa', 'Herná mapa spotov', 'Skateparky a street spoty na jednej mape. Každý spot má svoju kartu, hodnotenie a klipy.'),
+        feat('Check-in', 'Check-in na spote', 'Keď si naozaj na spote, zapíšeš sa a dostaneš body. Bez toho, aby niekto videl, kde presne si.'),
+        feat('Crew', 'Crew a Turf Wars', 'Založ crew s kamošmi, pozvi ich odkazom a bojujte o spoty vo svojom meste.'),
+        feat('Klipy', 'Klipy a feed', 'Nahraj klip zo spotu. Najlepšie sa ukážu vo feede a na karte spotu.'),
+        feat('Loot', 'Loot a loadout', 'Za aktivitu padajú veci na dosku a ducha. Poskladáš si vlastný loadout v 3D.'),
+        feat('Profil', 'Herný profil', 'Prezývka, mesto, stance a avatar. Jeden profil pre hru aj pre GOSko web.'))));
+}
+
+/* =====================================================================
    ROUTER
    ===================================================================== */
 const ROUTES = [
@@ -3178,6 +3477,26 @@ const ROUTES = [
   [/^#\/tv\/([\w-]+)(?:\/(\w+))?$/, pageTv, ''],
   [/^#\/admin$/, pageAdmin, ''],
   [/^#\/profil$/, pageProfile, 'profil'],
+  /* BACKEND_V2: registrácia z odkazu, potvrdenie súhlasu rodiča, pass z e-mailu */
+  ...(V2 ? [
+    [/^#\/registracia\/potvrdene$/, pageRegisterDone, 'eventy'],
+    [/^#\/registracia\/neplatny-odkaz$/, pageRegisterBadLink, 'eventy'],
+    [/^#\/registracia\/([\w-]+)$/, pageRegister, 'eventy'],
+    [/^#\/pass\/([\w-]+)$/, pagePass, ''],
+  ] : []),
+  /* hra Ghoskate: všetko pod #/hra (isGameRoute v game/return.js) */
+  ...(GAME === 'live' ? [
+    [/^#\/hra$/, gamePage('pageGameMap'), 'hra'],
+    [/^#\/hra\/spot\/([\w-]+)$/, gamePage('pageGameMap'), 'hra'],
+    [/^#\/hra\/profil$/, gamePage('pageOnboarding'), 'hra'],
+    [/^#\/hra\/rebricek$/, gamePage('pageCrewBoard'), 'hra'],
+    [/^#\/hra\/potvrdene$/, gamePage('pageGameConsentDone'), 'hra'],
+    [/^#\/hra\/feed$/, gamePage('pageFeed'), 'hra'],
+    [/^#\/hra\/crew$/, gamePage('pageCrew'), 'hra'],   // herná crew; #/crew sú crew z data.js
+    [/^#\/hra\/crew\/pridat\/([A-Za-z0-9]{8})$/, gamePage('pageCrew'), 'hra'],   // pozvánka odkazom
+    [/^#\/hra\/loadout$/, gamePage('pageLoadout'), 'hra'],
+    [/^#\/hra\/admin$/, gamePage('pageLootAdmin'), 'hra'],   // admin hry: loot dropy, moderácia klipov
+  ] : GAME === 'demo' ? [[/^#\/hra(?:\/.*)?$/, pageGameDemo, 'hra']] : []),
 ];
 let store, cleanup = null, onAuthChange = null, renderId = 0;
 /* Prvky pod okrajom obrazovky sa pri príchode jemne dosunú. Obsah je viditeľný stále. */
@@ -3190,12 +3509,24 @@ function reveal(main) {
     el.classList.add('rv', 'rv-pre'); revealIO.observe(el);
   }
 }
+/* Herná appka Ghoskate (/hra) vs. web: trieda na body skryje hlavičku, spodné menu a pätičku webu (style.css),
+   <head> dostane manifest, názov a ikonu appky, aby sa z /hra inštalovala Ghoskate a z webu GOSko. */
+function appMode(game) {
+  document.body.classList.toggle('game-app', game);
+  const a = appHead(game);
+  const set = (sel, attr, v) => { const el = $(sel); if (el && el.getAttribute(attr) !== v) el.setAttribute(attr, v); };
+  set('link[rel="manifest"]', 'href', a.manifest);
+  set('link[rel="apple-touch-icon"]', 'href', a.icon);
+  set('meta[name="apple-mobile-web-app-title"]', 'content', a.title);
+  set('meta[name="theme-color"]', 'content', a.theme);
+}
 async function route() {
   const id = ++renderId;
   if (cleanup) { try { await cleanup(); } catch (e) { console.error(e); } cleanup = null; }
   document.querySelectorAll('dialog[open]').forEach(d => d.close());
   const rest = decodeURI(location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : '').replace(/^index\.html$/, '').replace(/\/$/, '');
   const hash = '#/' + rest;
+  appMode(GAME === 'live' && isGameRoute(hash));
   const [re, page, nav] = ROUTES.find(([re]) => re.test(hash)) || [null, pageNotFound, ''];
   const args = re ? hash.match(re).slice(1) : [];
   const main = $('#main'); main.replaceChildren(); window.scrollTo({ top: 0, behavior: 'instant' });
@@ -3207,7 +3538,7 @@ async function route() {
   const res = await page(main, ...args);
   if (id !== renderId) { if (typeof res === 'function') res(); return; }
   if (page === pageHome) main.append(siteFeed());
-  else if (![pageAdmin, pageAdminResults, pageScan, pageCheckin, pageTv, pagePasses, pageProfile, pageNotFound, pageMediaKit].includes(page)) main.append(newsStrip());
+  else if (!GAME_PAGES.has(page) && ![pageAdmin, pageAdminResults, pageScan, pageCheckin, pageTv, pagePasses, pageProfile, pageNotFound, pageMediaKit].includes(page)) main.append(newsStrip());
   reveal(main);
   cleanup = typeof res === 'function' ? res : null;
   main.focus({ preventScroll: true });
@@ -3321,6 +3652,7 @@ function initSwipeBack() {
   initPwa();
   $('#footer-news').addEventListener('click', () => newsletterDialog('footer'));
   updateMenu();
+  if (GAME === 'off') document.querySelectorAll('.nav-game, .menu-game').forEach(a => { a.hidden = true; });
   initMenu();
   initSwipeBack();
   $('#tb-back')?.addEventListener('click', e => { e.preventDefault(); goBack(); });
@@ -3337,6 +3669,8 @@ function initSwipeBack() {
     if (err) setTimeout(() => toast('Prihlasovací odkaz nefungoval: ' + err.replace(/\+/g, ' ') + '. Pošli si nový.'), 800);
   }
   store.onAuth(() => { updateAccount(); syncProfile(); onAuthChange && onAuthChange(); });
+  // hra: prihlásenie odkazom z e-mailu otvorí úvod, hráča vráť tam, odkiaľ sa prihlasoval (assets/game/return.js)
+  if (GAME === 'live' && await store.signedIn()) { const back = consumeReturn(); if (back) history.replaceState({ n: 0 }, '', back); }
   updateAccount();
   syncProfile();
   // profily jazdcov a výsledky z databázy načítame naraz; dlhšie ako 2,5 s na ne nečakáme

@@ -1,14 +1,20 @@
 /* Vygeneruje statické stránky pre zdieľanie a Google:
    každý event, jazdec, článok a hlavné sekcie dostanú vlastnú adresu s náhľadom (og:title, og:image…).
    Spúšťa sa samo cez GitHub Actions (.github/workflows/pages.yml), ručne: node scripts/build-pages.mjs
-   Pri zmene domény uprav SITE_URL (a <base href> v index.html). */
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+   Adresa webu: env SITE_URL, inak <meta name="gosko:base-url"> v index.html, inak GitHub Pages.
+   <base href> v stránkach sa nastaví podľa nej (web v koreni domény = "/"). Pri zmene domény uprav aj <base href> v index.html.
+   Bez siete (napr. lokálne): POSTS_FILE=cesta.json (pole článkov) a databáza sa nevolá. */
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SITE_URL = 'https://offthewallhack.github.io/gosko/';
+const template0 = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const metaBase = /<meta name="gosko:base-url" content="([^"]+)">/.exec(template0)?.[1];
+const SITE_URL = (process.env.SITE_URL || metaBase || 'https://offthewallhack.github.io/gosko/').replace(/\/?$/, '/');
+const BASE_PATH = new URL(SITE_URL).pathname;
 const { CONFIG, SITE, EVENTS, RIDERS = {}, CREWS = [] } = await import(join(ROOT, 'data.js'));
+const { appHead } = await import(join(ROOT, 'assets/game/return.js'));
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -17,9 +23,9 @@ const abs = u => { u = ogImg(u || 'img/ba-podium.webp'); return /^https?:/.test(
 const fmt = d => { if (!d) return ''; const [y, m, dd] = d.split('-').map(Number); return `${dd}. ${m}. ${y}`; };
 const clip = (s, n = 180) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
-const template = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const template = template0.replace(/<base href="[^"]*">/, `<base href="${BASE_PATH}">`);
 const pages = [];
-function page(path, { title, description, image, body = '', type = 'website', noindex = false, listed = true }) {
+function page(path, { title, description, image, body = '', type = 'website', noindex = false, listed = true, head = null }) {
   const url = SITE_URL + (path ? path + '/' : '');
   const full = title ? `${title} | GOSko` : 'GOSko | Game of S.K.A.T.E. na Slovensku';
   let html = template
@@ -35,6 +41,12 @@ function page(path, { title, description, image, body = '', type = 'website', no
   // obsah pre vyhľadávače a prehliadače bez JavaScriptu; aplikácia ho po načítaní nahradí
   html = html.replace(/<main id="main"([^>]*)>[\s\S]*?<\/main>/, `<main id="main"$1><div class="wrap seo-pre"><h1>${esc(title || 'GOSko')}</h1><p>${esc(description)}</p>${body}</div></main>`);
   if (noindex) html = html.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"');
+  /* samostatná appka (Ghoskate na /hra): vlastný manifest, názov na ploche, ikona a farba lišty už v HTML, nech sa dá hneď inštalovať */
+  if (head) html = html
+    .replace(/<link rel="manifest" href="[^"]*">/, `<link rel="manifest" href="${head.manifest}">`)
+    .replace(/<meta name="apple-mobile-web-app-title" content="[^"]*">/, `<meta name="apple-mobile-web-app-title" content="${esc(head.title)}">`)
+    .replace(/<link rel="apple-touch-icon" href="[^"]*">/, `<link rel="apple-touch-icon" href="${head.icon}">`)
+    .replace(/<meta name="theme-color" content="[^"]*">/, `<meta name="theme-color" content="${head.theme}">`);
   if (path) { mkdirSync(join(ROOT, path), { recursive: true }); writeFileSync(join(ROOT, path, 'index.html'), html); }
   if (listed) pages.push(path);
   return html;
@@ -49,13 +61,15 @@ for (const ev of EVENTS) {
   for (const a of ev.awards || []) { const s = slug(a.rider); const r = riders.get(s) || { name: a.rider, slug: s, res: [] }; r.res.push(`${a.name}, ${ev.name}`); riders.set(s, r); }
 }
 
-/* články zo Supabase (ak sa dajú načítať) */
-let posts = [];
-try {
+/* články zo Supabase (ak sa dajú načítať) alebo zo súboru POSTS_FILE */
+let posts = [], postsLoaded = false;
+if (process.env.POSTS_FILE) { posts = JSON.parse(readFileSync(process.env.POSTS_FILE, 'utf8')); postsLoaded = true; }
+else try {
   const r = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/posts?select=id,title,summary,body,image_url,created_at&published=eq.true&order=created_at.desc&limit=200`, { headers: { apikey: CONFIG.SUPABASE_ANON_KEY } });
-  if (r.ok) posts = await r.json(); else console.warn('posts', r.status);
+  if (r.ok) { posts = await r.json(); postsLoaded = true; } else console.warn('posts', r.status);
 } catch (err) { console.warn('Články sa nenačítali:', err.message); }
-if (!posts.length && process.env.POSTS_FILE) posts = JSON.parse(readFileSync(process.env.POSTS_FILE, 'utf8'));
+/* stránky článkov sa pri úspešnom načítaní zostavia nanovo (zmazané a skryté články zmiznú) */
+if (postsLoaded && existsSync(join(ROOT, 'novinka'))) rmSync(join(ROOT, 'novinka'), { recursive: true, force: true });
 
 /* stránky článkov: z databázy, a keď sa nedá pripojiť, zo starých vygenerovaných stránok (nech neostanú so starou hlavičkou) */
 const unesc = t => String(t || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
@@ -78,6 +92,7 @@ const SECTIONS = [
   ['jazdci', 'Jazdci', 'Skejteri, ktorí jazdili GOSko: profily, výsledky a dosky.'],
   ['sien-slavy', 'Sieň slávy', 'Víťazi GOSko eventov a ocenenia.'],
   ['novinky', 'Novinky', 'Čo sa deje v GOSku a na skate scéne.'],
+  ['hra', 'Ghoskate (demo)', 'Ghoskate, pripravovaná hra od GOSko: herná mapa skate spotov na Slovensku, check-in na spote, crew, body a rebríček. Pridaj si ju na plochu ako appku.'],
   ['mapa', 'Mapa spotov', 'Skateparky a spoty na Slovensku. Pridaj aj svoj spot a ohodnoť ostatné.'],
   ['parky', 'Postav si skatepark', '3D stavebnica skateparku. Najlepšie parky podľa hlasov idú do top 10.'],
   ['doska', 'Navrhni si dosku', 'Tvoja 3D skateboard doska s nálepkami z GOSko eventov.'],
@@ -97,7 +112,8 @@ const home = page('', { title: '', description: 'GOSko je séria Game of S.K.A.T
 writeFileSync(join(ROOT, 'index.html'), home);
 writeFileSync(join(ROOT, '404.html'), home.replace('<meta name="theme-color"', '<meta name="robots" content="noindex">\n<meta name="theme-color"'));
 
-for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d,
+/* hra Ghoskate (/hra) má vlastný manifest a ikonu, nech sa dá pridať na plochu ako samostatná appka */
+for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d, head: p === 'hra' && CONFIG.GAME === 'live' ? appHead(true) : null, image: p === 'hra' ? 'img/ba-trick-5.webp' : undefined,
   body: p === 'eventy' ? list(EVENTS.map(e => link(`event/${e.id}`, e.name))) : p === 'jazdci' || p === 'rebricek' ? list([...riders.values()].map(r => link(`jazdec/${r.slug}`, r.name))) : p === 'novinky' ? list(postPages.map(x => link(`novinka/${x.id}`, x.title))) : '' });
 for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', image: e.photos?.[0]?.src,
   description: clip([e.status === 'next' ? 'Ďalší stop GOSko' : 'GOSko', e.place, e.date ? fmt(e.date) : e.when || 'coming soon', e.about].filter(Boolean).join(' · ')),
