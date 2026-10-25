@@ -3121,3 +3121,7 @@ footer .foot-act a{overflow-wrap:anywhere;max-width:100%}
 @media (max-width:560px){ footer .foot-act a{font-size:.78rem;letter-spacing:-.01em} }
 .hcard:has(.hc-gen) .hc-foil{opacity:.2}
 .hcard.on:has(.hc-gen) .hc-foil,.hcard:hover:has(.hc-gen) .hc-foil{opacity:.45}
+
+/* nálepky eventov: pozvánka „Chceš GOSko vo svojom meste?“ je tlačidlo, nie odkaz */
+button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}
+.sw-item.invite .sw-reg{background:#FFD21F;color:var(--ink,#0e0d0c);border-color:var(--ink,#0e0d0c)}
