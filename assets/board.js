@@ -169,7 +169,7 @@ function roundEvent(x, num, title) {
   for (const r of [136, 180]) { x.beginPath(); x.arc(200, 200, r, 0, 7); x.stroke(); }
   x.fillStyle = p.text; for (const px of [38, 362]) { x.beginPath(); x.arc(px, 200, 5, 0, 7); x.fill(); }
   arcText(x, 'GAME OF S.K.A.T.E.', 200, 200, 148, 26, 5, true, 1.8);
-  arcText(x, `${title} #${num}`, 200, 200, 170, 28, 5, false, 1.8);
+  arcText(x, `#${num} ${title}`, 200, 200, 170, 28, 5, false, 1.8);
   // kresba z PDF, vložená do vnútorného kruhu
   const k = 126 / ART_FIT.r;
   x.translate(200, 200); x.scale(k, k); x.translate(-ART_FIT.cx, -ART_FIT.cy);
