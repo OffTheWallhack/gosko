@@ -76,18 +76,31 @@ Tvoja prezentácia `ghoskate/` ostala bez zmeny. `/hra` je samostatná stránka.
 5. V `data.js` nastav `API_BASE` a `BACKEND_V2: true`. Pre hru nastav `GAME: 'live'`.
 6. Zvýš `VERSION` v `sw.js` a spusti `node scripts/build-pages.mjs`.
 
+## Rebríček: tvoje pravidlá + naše filtre
+
+Body, Best Trick za 20 b., poradie pri rovnosti (skorší event) aj súčet bodov jazdca ostali tvoje.
+Overené v prehliadači: Open, U16, Babská, Best Trick aj zoznam jazdcov dávajú rovnaké poradie a body ako tvoja main.
+Pribudli tri veci, ktoré sa ukážu samé, až keď majú zmysel:
+
+- **„Všetky časy“** pri výbere sezóny. Ukáže sa, keď sú výsledky aspoň z 2 sezón. Body sa rátajú za každú sezónu zvlášť a potom sčítajú.
+- **Krajina (Celkový, Slovensko, Česko…)**. Ukáže sa, keď sú výsledky aspoň z 2 krajín. Krajina je z eventu (`country` v `data.js`), pri `BACKEND_V2` z profilu jazdca.
+- **Odkaz „NFT“** pri výsledku na stránke eventu a v profile jazdca. Len pri `BACKEND_V2` a nastavenom `NFT_CONTRACT_ADDRESS`.
+
+Dnes je všetko z jednej sezóny a zo Slovenska, takže rebríček vyzerá presne ako doteraz.
+
 ## Čo vedome nie je zapojené
 
-- **GOSko Ranking v2** (`assets/ranking.js`): na webe ostáva tvoj rebríček. Moje pravidlá sú iné: Best Trick bez bodov a pri rovnosti rozhodujú výhry. Tvoje pravidlá: Best Trick 20 b. a pri rovnosti skorší event. Ak chceš rebríček podľa krajín (SK, CZ) alebo za všetky roky, dá sa doplniť podľa tvojich pravidiel.
+- **Moje pravidlá rebríčka** (`assets/ranking.js`): Best Trick bez bodov a body z rôznych kategórií sa nesčítavajú. Na webe ostávajú tvoje pravidlá, súbor sa používa len v testoch.
+- **Rozlíšenie dvoch jazdcov s rovnakým menom** (podľa `rider_id` z registrácie). Pôjde až so zapnutím `BACKEND_V2`, lebo mení adresy profilov jazdcov.
 - **Stránka Rebríčkový poriadok** a **prenos passov zo starej adresy** (`/import-passes`) nie sú v menu ani v routách.
 
 ## Čo som zmenil v tvojich súboroch
 
-- `assets/app.js`: prepínače, registrácia v2, pass, ručný check-in, prihlásenie heslom, stránka `/hra` a herné adresy. Tvoje funkcie sú nezmenené. Nové veci bežia len pri zapnutom prepínači.
+- `assets/app.js`: prepínače, registrácia v2, pass, ručný check-in, prihlásenie heslom, stránka `/hra`, herné adresy a filtre rebríčka (všetky časy, krajina, NFT). Tvoje funkcie sú nezmenené. Nové veci bežia len pri zapnutom prepínači.
 - `assets/store.js`: nové metódy pre registráciu v2, hru a prihlásenie heslom. Pri `BACKEND_V2: false` číta a zapisuje tie isté tabuľky ako doteraz.
 - `index.html`: odkaz na hru v hornej lište a v menu, integrity pri three.js.
 - `assets/style.css`: štýly pre pass, štítok DEMO a hru (pridané na koniec).
-- `sw.js`: verzia `gosko-v96`, do offline zoznamu pribudli nové súbory.
+- `sw.js`: verzia `gosko-v97`, do offline zoznamu pribudli nové súbory.
 - `scripts/build-pages.mjs`: stránka `hra/`, adresa webu sa dá zadať cez `SITE_URL`.
 - `assets/map.js`, `assets/qr.js`: knižnice z `assets/vendor/` namiesto CDN.
 - `assets/board.js`: kontrola „znížené animácie“ sa číta až pri kreslení. Správanie je rovnaké.
