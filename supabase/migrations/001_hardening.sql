@@ -71,6 +71,25 @@ grant delete on public.parks, public.votes, public.community_events, public.spot
 
 grant execute on function public.is_admin(), public.park_is_approved(uuid) to anon, authenticated;
 
+-- Robova admin správa spotov (supabase-spots-admin.sql, #/admin/spoty): úprava a pridanie
+-- spotu všetkými stĺpcami, fotky v spot_photos. Riadky obmedzuje RLS: upravuje len admin,
+-- bežný používateľ pridá spot iba s approved = false. Na novej inštalácii (bez spot_photos)
+-- sa preskočí, granty potom dá supabase-spots-admin.sql.
+do $$
+declare
+  spot_admin_cols text[] := array['name', 'city', 'area', 'kind', 'tag', 'description', 'lat', 'lng',
+    'photo_url', 'approved', 'updated_at'];
+  cols text;
+begin
+  if to_regclass('public.spot_photos') is not null then
+    select string_agg(quote_ident(column_name), ', ') into cols from information_schema.columns
+      where table_schema = 'public' and table_name = 'spots' and column_name = any (spot_admin_cols);
+    execute format('grant insert (%s), update (%s) on public.spots to authenticated', cols, cols);
+    grant select on public.spot_photos to anon, authenticated;
+    grant insert, update, delete on public.spot_photos to authenticated;
+  end if;
+end $$;
+
 -- ---------- 7) URL iba http(s) alebo NULL ----------
 -- Staré riadky: odkaz bez schémy dostane https://, iná schéma (javascript:, data:) sa zmaže.
 update public.community_events set link = 'https://' || link

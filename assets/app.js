@@ -2193,7 +2193,7 @@ async function pageProfile(root) {
   if (!anon) put(body, h('div', { class: 'pf-grid pf-grid-acct' }, h('div', { class: 'pf-card' },
     h('p', { class: 'mono pf-k' }, 'Prihlásený ako'),
     h('p', { class: 'pf-email' }, email || 'ukážkový režim'),
-    admin ? h('p', { class: 'pf-admin' }, h('span', { class: 'chip on' }, 'Admin / crew'), ' ', h('a', { class: 'btn primary', href: '#/admin' }, 'Otvoriť admin'), ' ', h('a', { class: 'btn small', href: '#/admin/vysledky' }, 'Výsledky'), ' ', h('a', { class: 'btn small', href: '#/admin/scan' }, 'Check-in')) : null,
+    admin ? h('p', { class: 'pf-admin' }, h('span', { class: 'chip on' }, 'Admin / crew'), ' ', h('a', { class: 'btn primary', href: '#/admin' }, 'Otvoriť admin'), ' ', h('a', { class: 'btn small', href: '#/admin/vysledky' }, 'Výsledky'), ' ', h('a', { class: 'btn small', href: '#/admin/spoty' }, 'Spoty'), ' ', h('a', { class: 'btn small', href: '#/admin/scan' }, 'Check-in')) : null,
     store.mode === 'live' ? h('form', { class: 'pf-pw', onsubmit: async e => {
       e.preventDefault(); msg.textContent = '';
       if (pw.value.length < 8) { msg.textContent = 'Heslo musí mať aspoň 8 znakov.'; return; }
@@ -2357,6 +2357,7 @@ async function pageAdmin(root) {
   put(body, h('div', { class: 'actions' },
     h('button', { class: 'btn primary', type: 'button', onclick: () => postDialog(null, renderPosts) }, '+ Pridať novinku'),
     h('a', { class: 'btn primary', href: '#/admin/vysledky' }, 'Zapisovať výsledky'),
+    h('a', { class: 'btn primary', href: '#/admin/spoty' }, 'Spoty na mape'),
     h('a', { class: 'btn primary', href: '#/admin/scan' }, 'Check-in (skener)')));
   const postsBox = h('div');
   async function renderPosts() {
@@ -2576,6 +2577,25 @@ const parkPhotos = p => {
   const extra = p.photos || (p.photosFrom ? (EVENT_MEDIA[p.photosFrom]?.photos || []) : []);
   return [...(p.photo ? [{ src: p.photo, alt: p.name }] : []), ...extra.filter(x => x.src !== p.photo)];
 };
+/* Skateparky: ak sú v databáze (naživo), tá je jediný zdroj pravdy, takže admin parky môže upraviť, skryť aj zmazať.
+   Zoznam v data.js je záloha (ukážkový režim alebo nedostupná databáza) a dopĺňa len to, čo v DB nie je (poloha fotky, fotky z eventu).
+   Spárovanie ide podľa názvu (slug). */
+const spotImg = s => s.photos?.[0]?.url || s.photo_url || null;
+function mergeParks(dbSpots) {
+  const db = dbSpots.filter(s => s.kind === 'Skatepark' && Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  const urlsOf = d => { const u = (d.photos || []).map(x => x.url).filter(Boolean); if (!u.length && d.photo_url) u.push(d.photo_url); return u; };
+  const fromDb = d => {
+    const base = SKATEPARKS.find(p => slug(p.name) === slug(d.name)) || {};
+    const urls = urlsOf(d);
+    const photos = urls.length ? { photo: urls[0], photos: urls.slice(1).map(src => ({ src, alt: d.name })), photoPos: urls[0] === base.photo ? base.photoPos : undefined }
+      : { photo: null, photos: [] };
+    return { photosFrom: base.photosFrom, name: d.name, city: d.city, area: d.area || '', tag: d.tag || 'park', about: d.description || base.about || '', lat: d.lat, lng: d.lng, ...photos };
+  };
+  if (store.mode === 'live' && db.length) return db.map(fromDb);
+  const used = new Set();
+  const out = SKATEPARKS.map(p => { const d = db.find(x => slug(x.name) === slug(p.name)); if (!d) return p; used.add(d.id); return fromDb(d); });
+  return [...out, ...db.filter(d => !used.has(d.id)).map(fromDb)];
+}
 async function pageMap(root) {
   const mapEl = h('div', { class: 'map' });
   const list = h('ul', { class: 'spot-list' }), parksList = h('ul', { class: 'park-list' }), somBox = h('div');
@@ -2588,22 +2608,23 @@ async function pageMap(root) {
   async function load() {
     let spots = [];
     const [R] = await Promise.all([ratingsMap(), store.listSpots().then(x => { spots = x; }).catch(err => console.error(err))]);
-    const som = SKATEPARKS.find(p => p.name === SITE.spotOfMonth);
+    const parks = mergeParks(spots);
+    const som = parks.find(p => p.name === SITE.spotOfMonth);
     somBox.replaceChildren(...(som ? [h('section', { class: 'som' + (som.photo ? ' has-photo' : '') },
       som.photo ? h('button', { type: 'button', class: 'som-imgb', onclick: () => lightbox(parkPhotos(som).length ? parkPhotos(som) : [{ src: som.photo, alt: som.name }], 0), 'aria-label': `Fotky: ${som.name}` }, h('img', { class: 'som-img', src: som.photo, alt: som.name, loading: 'lazy' })) : null,
       parkPhotos(som).length ? h('div', { class: 'som-strip' }, parkPhotos(som).slice(1).map((ph, i) => h('button', { type: 'button', onclick: () => lightbox(parkPhotos(som), i + 1), 'aria-label': 'Zväčšiť: ' + ph.alt }, h('img', { src: ph.src, alt: '', loading: 'lazy' })))) : null,
       h('span', { class: 'som-k mono' }, 'Spot mesiaca'), h('h2', {}, som.name), h('p', { class: 'som-c mono' }, [som.area, som.city].filter(Boolean).join(', ')),
       h('p', {}, SITE.spotOfMonthNote || som.about), ratingEl('park:' + slug(som.name), R, load),
       h('a', { class: 'btn small', href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(som.name + ' ' + som.city)}`, target: '_blank', rel: 'noopener' }, 'Navigovať'))] : []));
-    const visible = spots.filter(s => !s.pending || store.mode === 'demo');
+    const visible = spots.filter(s => s.kind !== 'Skatepark' && (!s.pending || store.mode === 'demo'));
     const evPoints = EVENTS.filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lng)).map(e => ({ lat: e.lat, lng: e.lng, kind: 'event', title: e.name,
       popup: h('div', { class: 'pop' }, h('strong', {}, e.name), h('span', {}, [e.place, fmtDate(e.date)].filter(Boolean).join(', ')), h('a', { href: '#/event/' + e.id }, 'Detail eventu')) }));
     const parkLink = p => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.city)}`;
-    const parkPoints = SKATEPARKS.map(p => ({ lat: p.lat, lng: p.lng, kind: p.tag === 'GOSko' ? 'gosko' : 'park', title: p.name, label: p.name.replace(/^Skatepark\s+/, '').replace(/\s*\(.*\)\s*$/, ''),
+    const parkPoints = parks.map(p => ({ lat: p.lat, lng: p.lng, kind: p.tag === 'GOSko' ? 'gosko' : 'park', title: p.name, label: p.name.replace(/^Skatepark\s+/, '').replace(/\s*\(.*\)\s*$/, ''),
       popup: h('div', { class: 'pop' }, h('strong', {}, p.name), h('span', {}, [p.area, p.city].filter(Boolean).join(', ')), h('span', {}, p.about), h('a', { href: parkLink(p), target: '_blank', rel: 'noopener' }, 'Navigovať')) }));
     /* karty skateparkov: fotka (p.photo v data.js), kým nie je, grafika s názvom; „Na mape“ priblíži park */
     const showOnMap = p => { if (stopMap?.focus) { mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); stopMap.focus(p.lat, p.lng); } };
-    parksList.replaceChildren(...SKATEPARKS.map(p => h('li', { class: 'park-card' + (p.photo ? ' has-photo' : '') },
+    parksList.replaceChildren(...parks.map(p => h('li', { class: 'park-card' + (p.photo ? ' has-photo' : '') },
       h('button', { type: 'button', class: 'pk-img', 'aria-label': parkPhotos(p).length ? `Fotky: ${p.name}` : `Ukázať ${p.name} na mape`, onclick: () => parkPhotos(p).length ? lightbox(parkPhotos(p), 0) : showOnMap(p) },
         p.photo ? h('img', { src: p.photo, alt: '', loading: 'lazy', style: p.photoPos ? `object-position:${p.photoPos}` : null }) : h('span', { class: 'pk-ph', 'aria-hidden': 'true' }, h('span', {}, p.city)),
         parkPhotos(p).length > 1 ? h('span', { class: 'pk-count mono' }, `${parkPhotos(p).length} fotiek`) : null,
@@ -2614,12 +2635,12 @@ async function pageMap(root) {
           h('button', { type: 'button', class: 'btn small', onclick: () => showOnMap(p) }, 'Na mape'),
           h('a', { class: 'btn small primary', href: parkLink(p), target: '_blank', rel: 'noopener' }, 'Navigovať'))))));
     const spotPoints = visible.filter(s => !s.pending).map(s => ({ lat: s.lat, lng: s.lng, kind: 'spot', title: s.name,
-      popup: h('div', { class: 'pop' }, s.photo_url && h('img', { src: s.photo_url, alt: '' }), h('strong', {}, s.name), h('span', {}, [s.kind, s.city].filter(Boolean).join(', ')),
+      popup: h('div', { class: 'pop' }, spotImg(s) && h('img', { src: spotImg(s), alt: '' }), h('strong', {}, s.name), h('span', {}, [s.kind, s.city].filter(Boolean).join(', ')),
         h('a', { href: navLink(s.lat, s.lng), target: '_blank', rel: 'noopener' }, 'Navigovať')) }));
     if (stopMap) stopMap();
     stopMap = await mountMap(mapEl, [...parkPoints, ...evPoints, ...spotPoints]).catch(err => { console.error(err); mapEl.replaceChildren(h('p', { class: 'empty' }, 'Mapu sa nepodarilo načítať.')); return null; });
     list.replaceChildren(...(visible.length ? visible.map(s => h('li', { class: 'spot' },
-      s.photo_url ? h('img', { src: s.photo_url, alt: `Spot ${s.name}`, loading: 'lazy' }) : h('div', { class: 'spot-nophoto', 'aria-hidden': 'true' }),
+      spotImg(s) ? h('img', { src: spotImg(s), alt: `Spot ${s.name}`, loading: 'lazy' }) : h('div', { class: 'spot-nophoto', 'aria-hidden': 'true' }),
       h('div', {}, h('p', { class: 'spot-name' }, s.name), h('p', { class: 'spot-meta' }, [s.kind, s.city].filter(Boolean).join(', ')),
         s.description && h('p', { class: 'spot-desc' }, s.description), s.pending && h('span', { class: 'tag' }, 'Čaká na schválenie'), !s.pending && ratingEl('spot:' + s.id, R, load),
         h('a', { class: 'btn small', href: navLink(s.lat, s.lng), target: '_blank', rel: 'noopener' }, 'Navigovať')))) : [h('li', { class: 'empty' }, 'Zatiaľ tu nie je žiadny spot. Pošli prvý.')]));
@@ -3002,6 +3023,104 @@ async function pageTv(root, eventId, pinCat) {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     document.body.classList.remove('tv-mode');
   };
+}
+
+/* ---------- admin: spoty a skateparky na mape (pridať, upraviť, fotky, zmazať) ---------- */
+const SPOT_KINDS = ['Skatepark', 'Street spot', 'DIY', 'Iné'];
+function adminSpotDialog(spot, done) {
+  let point = spot && Number.isFinite(spot.lat) ? { lat: spot.lat, lng: spot.lng } : null, newPhotos = [];
+  const dlg = formDialog({
+    title: spot ? 'Upraviť spot' : 'Pridať spot', submit: spot ? 'Uložiť zmeny' : 'Pridať na mapu',
+    intro: spot ? null : 'Spot sa na mape ukáže hneď. Fotky môžeš pridať tu alebo neskôr v zozname.',
+    fields: [
+      { name: 'name', label: 'Názov', required: true, max: 60, value: spot?.name },
+      { name: 'city', label: 'Mesto', required: true, max: 40, value: spot?.city },
+      { name: 'area', label: 'Časť mesta (nepovinné)', max: 60, value: spot?.area },
+      { name: 'kind', label: 'Typ', type: 'select', options: SPOT_KINDS, value: spot?.kind, hint: 'Typ „Skatepark“ sa ukáže medzi skateparkami s červeným pinom, ostatné ako spoty od komunity.' },
+      { name: 'tag', label: 'Štítok (nepovinné)', max: 20, value: spot?.tag, placeholder: 'betón, indoor, GOSko…' },
+      { name: 'description', label: 'Popis', type: 'textarea', max: 400, rows: 4, value: spot?.description, placeholder: 'Čo tam je, povrch, rozmery, kedy je tam pokoj…' },
+      { name: 'approved', label: 'Zobraziť na mape', type: 'checkbox', checked: spot ? spot.approved !== false : true },
+      { name: 'photos', label: spot ? 'Pridať ďalšie fotky' : 'Fotky (nepovinné)', type: 'custom', hint: 'Môžeš vybrať viac naraz. Zmenšíme ich pred nahratím.', render: () => {
+        const input = h('input', { type: 'file', accept: 'image/*', multiple: true, 'aria-label': 'Fotky spotu' });
+        const prev = h('div', { class: 'photo-prevs' });
+        input.addEventListener('change', async () => {
+          newPhotos = []; prev.replaceChildren();
+          for (const f of [...input.files]) {
+            try { const b = await resizePhoto(f, store.mode === 'demo' ? 900 : 1600, store.mode === 'demo' ? .7 : .82); newPhotos.push(b); prev.append(h('img', { class: 'photo-prev', alt: '', src: URL.createObjectURL(b) })); } catch { /* nečitateľný súbor preskočíme */ }
+          }
+        });
+        return { el: h('div', {}, input, prev), value: () => newPhotos };
+      } },
+      { name: 'point', label: 'Presné miesto', type: 'custom', hint: 'Ťukni na mapu alebo potiahni pin.', render: () => {
+        const mapEl = h('div', { class: 'picker' });
+        const status = h('span', { class: 'picker-status' }, point ? `Pin: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}` : 'Pin ešte nie je položený.');
+        let picker = null;
+        mountPicker(mapEl, p => { point = p; status.textContent = `Pin: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`; }, point).then(pk => { picker = pk; })
+          .catch(() => { status.textContent = 'Mapu sa nepodarilo načítať.'; });
+        return { el: h('div', {}, mapEl, h('div', { class: 'picker-bar' }, status)), value: () => point,
+          validate: () => point ? '' : 'Polož pin na mapu.', destroy: () => picker && picker.destroy() };
+      } },
+    ],
+    onSubmit: async v => {
+      const id = await store.adminSaveSpot({ id: spot?.id, name: v.name, city: v.city, area: v.area, kind: v.kind, tag: v.tag, description: v.description,
+        approved: v.approved, lat: v.point.lat, lng: v.point.lng });
+      let failed = 0;
+      for (const b of v.photos) { try { await store.adminAddSpotPhoto(id, b); } catch (err) { console.error(err); failed++; } }
+      done && done();
+      return failed ? `Spot je uložený, ale ${failed} fotiek sa nenahralo. Skús ich pridať znova v zozname.` : 'Uložené.';
+    },
+  });
+  return dlg;
+}
+async function pageAdminSpots(root) {
+  root.append(pageHead('Spoty na mape', 'Pridávaj a upravuj skateparky a spoty, nahrávaj a mazaj k nim fotky.'));
+  const body = h('div', { class: 'wrap page-body' }); root.append(body);
+  if (!(await adminGate(body))) return;
+  const box = h('div'), note = h('p', { class: 'note', role: 'status' });
+  const say = m => { note.textContent = m; };
+  put(body, h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', type: 'button', onclick: () => adminSpotDialog(null, render) }, '+ Pridať spot'),
+      h('a', { class: 'btn', href: '#/mapa' }, 'Pozrieť mapu'), h('a', { class: 'btn', href: '#/admin' }, 'Späť do adminu')),
+    note, box);
+  const guard = async (fn, ok) => { say('Pracujem…'); try { await fn(); say(ok || ''); } catch (err) { console.error(err); say('Nepodarilo sa. Skús to znova.'); } await render(); };
+  async function addPhotos(spot, files) {
+    let n = 0;
+    for (const f of files) {
+      say(`Nahrávam fotku ${n + 1} z ${files.length}…`);
+      try { await store.adminAddSpotPhoto(spot.id, await resizePhoto(f, store.mode === 'demo' ? 900 : 1600, store.mode === 'demo' ? .7 : .82)); n++; }
+      catch (err) { console.error(err); }
+    }
+    say(n === files.length ? `Nahraté: ${n}.` : `Nahraté ${n} z ${files.length}. Zvyšok sa nepodaril.`); await render();
+  }
+  const card = s => {
+    const file = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, 'aria-label': 'Pridať fotky: ' + s.name });
+    file.addEventListener('change', () => { const f = [...file.files]; file.value = ''; if (f.length) addPhotos(s, f); });
+    return h('li', { class: 'admin-spot' },
+      h('div', { class: 'as-head' },
+        h('b', {}, s.name), ' ', h('span', { class: 'note' }, [s.kind, s.city, s.area].filter(Boolean).join(', ')),
+        s.approved === false ? h('span', { class: 'tag' }, s.user_id ? 'Čaká na schválenie alebo skryté' : 'Skryté') : null),
+      s.description ? h('p', { class: 'spot-desc' }, s.description) : null,
+      h('div', { class: 'as-photos' }, s.photos.length ? s.photos.map((ph, i) => h('figure', { class: 'as-ph' },
+        h('img', { src: ph.url, alt: `${s.name}, fotka ${i + 1}`, loading: 'lazy' }),
+        h('figcaption', {},
+          i === 0 ? h('span', { class: 'tag' }, 'hlavná') : (ph.id ? h('button', { class: 'btn small', type: 'button', onclick: () => guard(() => store.adminSetSpotCover(ph), 'Hlavná fotka zmenená.') }, 'Hlavná') : null),
+          h('button', { class: 'btn small', type: 'button', onclick: () => { if (confirm('Zmazať túto fotku?')) guard(() => store.adminDeleteSpotPhoto(ph), 'Fotka je zmazaná.'); } }, 'Zmazať')))) : h('p', { class: 'empty' }, 'Zatiaľ bez fotky.')),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn small primary', type: 'button', onclick: () => file.click() }, 'Pridať fotky'), file,
+        h('button', { class: 'btn small', type: 'button', onclick: () => adminSpotDialog(s, render) }, 'Upraviť'),
+        h('button', { class: 'btn small', type: 'button', onclick: () => guard(() => store.adminSaveSpot({ ...s, approved: s.approved === false }), s.approved === false ? 'Spot je na mape.' : 'Spot je skrytý.') }, s.approved === false ? 'Zobraziť' : 'Skryť'),
+        h('button', { class: 'btn small', type: 'button', onclick: () => {
+          if (confirm(`Zmazať spot „${s.name}“ aj s fotkami? Nedá sa vrátiť.`)) guard(() => store.adminDeleteSpot(s.id), 'Spot je zmazaný.');
+        } }, 'Zmazať')));
+  };
+  async function render() {
+    let list = [];
+    try { list = await store.adminListSpots(); } catch (err) { console.error(err); box.replaceChildren(h('p', { class: 'empty' }, 'Spoty sa nepodarilo načítať.')); return; }
+    const parks = list.filter(s => s.kind === 'Skatepark'), rest = list.filter(s => s.kind !== 'Skatepark');
+    const sec = (t, a) => h('section', { class: 'admin-sec' }, h('h2', { class: 'wide sub' }, t), a.length ? h('ul', { class: 'admin-spots' }, a.map(card)) : h('p', { class: 'empty' }, 'Zatiaľ nič.'));
+    box.replaceChildren(sec('Skateparky', parks), sec('Spoty od komunity', rest));
+  }
+  await render();
 }
 
 /* ---------- admin: zápis výsledkov ---------- */
@@ -3491,6 +3610,7 @@ const ROUTES = [
   [/^#\/partner\/([\w-]+)$/, pagePartner, 'partneri'],
   [/^#\/tv\/([\w-]+)(?:\/(\w+))?$/, pageTv, ''],
   [/^#\/admin$/, pageAdmin, ''],
+  [/^#\/admin\/spoty$/, pageAdminSpots, ''],
   [/^#\/profil$/, pageProfile, 'profil'],
   /* BACKEND_V2: registrácia z odkazu, potvrdenie súhlasu rodiča, pass z e-mailu */
   ...(V2 ? [
@@ -3553,7 +3673,7 @@ async function route() {
   const res = await page(main, ...args);
   if (id !== renderId) { if (typeof res === 'function') res(); return; }
   if (page === pageHome) main.append(siteFeed());
-  else if (!GAME_PAGES.has(page) && ![pageAdmin, pageAdminResults, pageScan, pageCheckin, pageTv, pagePasses, pageProfile, pageNotFound, pageMediaKit].includes(page)) main.append(newsStrip());
+  else if (!GAME_PAGES.has(page) && ![pageAdmin, pageAdminSpots, pageAdminResults, pageScan, pageCheckin, pageTv, pagePasses, pageProfile, pageNotFound, pageMediaKit].includes(page)) main.append(newsStrip());
   reveal(main);
   cleanup = typeof res === 'function' ? res : null;
   main.focus({ preventScroll: true });
