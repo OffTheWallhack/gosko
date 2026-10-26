@@ -1,3 +1,11 @@
+import { UserError } from './util.js';
+import { loadScript } from './qr.js';
+import { apiRequest, browserFetch } from './api.js';
+
+/* @supabase/supabase-js 2.117.2 (UMD, globál window.supabase), uložené na webe: assets/vendor/SOURCES.txt.
+   Používa sa pri CONFIG.BACKEND_V2 (bez závislosti od CDN); inak ide knižnica z jsDelivr ako doteraz. */
+const SUPABASE_JS = 'assets/vendor/supabase-2.117.2.js';
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 export const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
 const LS = {
@@ -28,6 +36,31 @@ const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
 /* cesta súboru v úložisku 'spots' z jeho verejnej adresy (alebo null, ak fotka nie je z úložiska) */
 const spotPathFromUrl = url => { const m = /\/object\/public\/spots\/(.+?)(?:\?.*)?$/.exec(url || ''); return m ? decodeURIComponent(m[1]) : null; };
 
+/* ---------- BACKEND_V2 (registrácia v2, GoskoPass, admin cez API): pomocníci ---------- */
+/* Riadky pohľadu registrations_admin pre admin výsledkov. Meno je verejné meno podľa voľby jazdca; U16 bez súhlasu
+   rodiča meno nemá a dostane zástupné „Jazdec U16 #abcd“ (stabilné podľa ID, aby sa dalo spárovať s registráciou). */
+export const adminRegistrations = rows => rows.map(r => ({
+  id: r.id, category: r.category, status: r.status, checked_in_at: r.checked_in_at,
+  name: r.public_name || `Jazdec U16 #${String(r.id).slice(0, 4)}`,
+}));
+
+/* Riadky pohľadu results_public (+ krajina z riders_public) do tvaru { event_id, category, rider_name, place, rider_id, country?, nft? }.
+   Staršie výsledky bez registrácie majú rider_id null. */
+export function mapPublicResults(rows, riders = []) {
+  const country = new Map(riders.map(r => [r.id, r.country]));
+  return rows.map(r => {
+    const out = { event_id: r.event_id, category: r.category, rider_name: r.public_name, place: r.place, rider_id: r.rider_id ?? null };
+    if (r.rider_id && country.get(r.rider_id)) out.country = country.get(r.rider_id);
+    if (r.token_id != null && r.token_id !== '') out.nft = { chain_id: r.chain_id, token_id: String(r.token_id), status: r.nft_status };
+    return out;
+  });
+}
+
+const DEMO_API = 'V ukážkovom režime (bez databázy) to nefunguje.';
+const POST_COLS = 'id,created_at,title,summary,body,image_url,link,link_label,author,pinned,published,event_id';
+/* Kam vedie odkaz z e-mailu (Supabase Auth): koreň webu, nie aktuálna podstránka (/profil, /mapa…). */
+const appRoot = () => (typeof document !== 'undefined' ? new URL('./', document.baseURI).href : location.origin + '/');
+
 function demoStore() {
   const K = { parks: 'gosko:parks', votes: 'gosko:votes', events: 'gosko:community-events', spots: 'gosko:spots',
     results: 'gosko:results', awards: 'gosko:awards', brackets: 'gosko:brackets', photos: 'gosko:event-photos' };
@@ -44,7 +77,12 @@ function demoStore() {
   const toDataUrl = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
   return {
     mode: 'demo',
+    client: null,
     onAuth() {},
+    async listOfficialEvents() { return []; },
+    async accessToken() { return ''; },
+    async adminCheckin() { throw new UserError(DEMO_API); },
+    async eventRegistrations() { return []; },
     async signedIn() { return true; },
     async email() { return ''; },
     async login() {}, async loginPassword() {}, async verifyCode() {}, async verifyLink() {}, async setPassword() {}, async logout() {},
@@ -211,16 +249,28 @@ function demoStore() {
 }
 
 async function liveStore(CONFIG) {
-  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  let createClient;
+  if (CONFIG.BACKEND_V2) { await loadScript(SUPABASE_JS); ({ createClient } = window.supabase); }
+  else ({ createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'));
   const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'gosko-auth' },
   });
   const session = async () => (await sb.auth.getSession()).data.session;
   const must = ({ data, error }) => { if (error) throw error; return data; };
   const created = r => ({ ...r, created: Date.parse(r.created_at) });
-  return {
+  const live = {
     mode: 'live',
+    /* Supabase klient pre hru Ghoskate na /hra (assets/game/api.js) */
+    client: sb,
     onAuth(fn) { sb.auth.onAuthStateChange(() => fn()); },
+    /* prihlásenie heslom s novým účtom (CONFIG.LOGIN_MODE 'password', assets/login.js) */
+    async signInPassword(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    async signUp(email, password) { return must(await sb.auth.signUp({ email, password, options: { emailRedirectTo: appRoot() } })); },
+    async resendConfirmation(email) { must(await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: appRoot() } })); },
+    async accessToken() { return (await session())?.access_token || ''; },
+    async listOfficialEvents() { return []; },
+    async adminCheckin() { throw new UserError('Check-in cez API je vypnutý (CONFIG.BACKEND_V2).'); },
+    async eventRegistrations() { return []; },
     async signedIn() { return !!(await session()); },
     async email() { return (await session())?.user?.email || ''; },
     async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } })); },
@@ -499,12 +549,72 @@ async function liveStore(CONFIG) {
     async mySpots() { const s = await session(); if (!s) return []; return must(await sb.from('spots').select('id,created_at,name,city,approved').eq('user_id', s.user.id).order('created_at', { ascending: false })); },
     async myActivity() { if (!(await session())) return null; const { data, error } = await sb.rpc('my_activity'); if (error) throw error; return data; },
   };
+  if (!CONFIG.BACKEND_V2) return live;
+
+  /* BACKEND_V2: databáza má migrácie supabase/migrations (001 hardening … 019) a beží API (api/*, Vercel).
+     Verejné čítanie ide cez pohľady bez osobných údajov, admin zápisy cez API so Supabase JWT, user_id dopĺňa databáza. */
+  const api = async (path, body) => {
+    const token = (await session())?.access_token;
+    if (!token) throw new UserError('Prihlásenie vypršalo. Prihlás sa znova.');
+    return apiRequest(browserFetch, (CONFIG.API_BASE || '') + path, { method: 'POST', body, token });
+  };
+  return Object.assign(live, {
+    async listResults() {
+      const [rows, riders] = await Promise.all([
+        sb.from('results_public').select('event_id,category,place,points,rider_id,public_name,chain_id,token_id,nft_status').limit(5000).then(must),
+        sb.from('riders_public').select('id,country').limit(5000).then(must),
+      ]);
+      return mapPublicResults(rows, riders);
+    },
+    async listOfficialEvents() { return must(await sb.from('events_public').select('id,name,city,country,date,season,status,registration_open').limit(500)); },
+    async adminCheckin(body) { return api('/api/admin/checkin', body); },
+    /* pohľad registrations_admin (006) dáva len verejné meno, lebo tieto mená idú do verejných tabuliek brackets a event_awards */
+    async eventRegistrations(event_id) {
+      return adminRegistrations(must(await sb.from('registrations_admin').select('id,category,status,checked_in_at,public_name').eq('event_id', event_id).neq('status', 'cancelled').limit(2000)));
+    },
+    /* rows = [{ name, place, registration_id? }]; jedna transakcia na serveri (save_results), prázdny zoznam kategóriu zmaže */
+    async saveResults(event_id, category, rows) {
+      return api('/api/admin/results', { event_id, category, rows: rows.map(r => ({ rider_name: r.name, place: r.place, ...(r.registration_id ? { registration_id: r.registration_id } : {}) })) });
+    },
+    async deleteResults(event_id, category) { return api('/api/admin/results', { event_id, category, rows: [] }); },
+    /* anon smie čítať len verejné stĺpce noviniek (014: bez user_id a image_path) */
+    async listPosts() { return must(await sb.from('posts').select(POST_COLS).eq('published', true).order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(100)).map(created); },
+    async getPost(id) { return must(await sb.from('posts').select(POST_COLS).eq('id', id).maybeSingle()); },
+    /* verejne len schválené profily bez user_id a poznámky (015); claimed = profil už niekto prevzal */
+    async riderProfiles() { return must(await sb.from('rider_profiles_public').select('*').limit(1000)); },
+    /* hodnotenie skateparkov a spotov na webe je v spot_reviews, lebo public.spot_ratings patrí hre (010); user_id vidí len prihlásený */
+    async spotRatings() { return must(await sb.from('spot_reviews').select((await session()) ? 'spot_key,stars,tags,user_id' : 'spot_key,stars,tags').limit(5000)); },
+    async rateSpot(spot_key, stars, tags) { must(await sb.from('spot_reviews').upsert({ spot_key, stars, tags }, { onConflict: 'spot_key,user_id' })); },
+    async claimRider(slug, fields) {
+      const { error } = await sb.from('rider_profiles').insert({ slug, status: 'pending', ...fields });   // user_id = auth.uid() dopĺňa databáza
+      if (error) { if (error.code === '23505') throw new Error(/user_once/.test(error.message || '') ? 'mine' : 'taken'); throw error; }
+    },
+  });
 }
 
 export { isEmail };
-export async function getStore(CONFIG) {
-  if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
-    try { return await liveStore(CONFIG); } catch (err) { console.error(err); }
+/* mode: 'live' = Supabase; 'demo' = CONFIG je prázdny alebo sa Supabase nenačítal (ukladá sa do prehliadača).
+   Pri BACKEND_V2 sa výpadok Supabase nezamení za ukážku: getStore vráti 'offline' a formuláre ukážu chybu
+   (žiadny QR pass ani admin, ktoré by neboli v databáze). */
+export async function getStore(CONFIG, { timeout = 10000, connect = liveStore } = {}) {
+  if (!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY)) return demoStore();
+  if (!CONFIG.BACKEND_V2) {
+    try { return await connect(CONFIG); } catch (err) { console.error(err); }
+    return demoStore();
   }
-  return demoStore();
+  let timer;
+  try {
+    return await Promise.race([connect(CONFIG), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('Supabase sa nenačítal včas.')), timeout); })]);
+  } catch (err) { console.error(err); return offlineStore(); }
+  finally { clearTimeout(timer); }
+}
+
+const OFFLINE_MSG = 'Nepodarilo sa spojiť so serverom GOSko. Skontroluj pripojenie, obnov stránku a skús to znova.';
+/* každá metóda, ktorá nie je vymenovaná, hodí UserError s textom pre človeka (aj tie, ktoré pribudnú neskôr) */
+function offlineStore() {
+  const down = async () => { throw new UserError(OFFLINE_MSG); };
+  const base = { mode: 'offline', message: OFFLINE_MSG, client: null, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
+    async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; }, async me() { return null; },
+    async myProfile() { return null; }, async myInventory() { return []; } };
+  return new Proxy(base, { get: (t, k) => (k in t || typeof k === 'symbol' || k === 'then' ? t[k] : down), has: (t, k) => k !== 'then' });
 }

@@ -9,6 +9,20 @@ export const CONFIG = {
   SUPABASE_URL: 'https://moxscedyreyvhkbkebmv.supabase.co',
   // Verejný (publishable) kľúč, je určený na web. Tajný kľúč (sb_secret_…) sem nikdy nepatrí.
   SUPABASE_ANON_KEY: 'sb_publishable_xxQm6zYj66nQ32z4Qi4lJA_DyQrOY5T',
+  // Prihlásenie: 'magic' = odkaz alebo kód z e-mailu (+ voliteľne heslo, ako doteraz), 'password' = e-mail a heslo aj s novým účtom.
+  LOGIN_MODE: 'magic',
+  /* Rozšírenia z master-gosko (popis a postup zapnutia: docs/CO-PRIDAL-PIRY.md).
+     BACKEND_V2: registrácia v2 so súhlasom rodiča, QR pass zo servera, check-in a výsledky cez API, GoskoPass NFT.
+     Zapni až keď sú v databáze migrácie supabase/migrations a beží API (Vercel). false = web beží presne ako doteraz. */
+  BACKEND_V2: false,
+  // Adresa API pri BACKEND_V2 (napr. https://gosko-master.vercel.app). Prázdne = ten istý web.
+  API_BASE: '',
+  // Cloudflare Turnstile pri registrácii v2, verejný site key (secret je len na serveri). Prázdne = bez overenia.
+  TURNSTILE_SITE_KEY: '',
+  // Adresa kontraktu GoskoPass na Base (verejná). Prázdne = pri výsledkoch sa nezobrazí odkaz na NFT.
+  NFT_CONTRACT_ADDRESS: '',
+  // Hra Ghoskate na /hra: 'demo' = stránka „Pripravujeme“ (odkaz v hornej lište), 'live' = plná hra (treba migrácie 010–019), 'off' = bez hry.
+  GAME: 'demo',
 };
 
 export const SITE = {
@@ -198,7 +212,7 @@ export const SEASON_RULES = {
 };
 
 /* Pravidlá a FAQ. Kým sú prázdne, stránka Pravidlá sa v menu nezobrazuje.
-   RULES: [{ title: 'Ako sa hrá', text: 'Text. Prázdny riadok = nový odstavec.' }]
+   RULES: [{ title: 'Ako sa hrá', text: 'Text. Prázdny riadok = nový odstavec.', draft?: true }]
    FAQ:   [{ q: 'Otázka?', a: 'Odpoveď.' }]
    Pošli mi ich a doplním ich presne tak, ako ich napíšeš. */
 export const RULES = [

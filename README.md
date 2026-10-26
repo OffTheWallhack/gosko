@@ -248,3 +248,8 @@ ostatní ľudia kód nedostanú. Do šablóny Magic Link pridaj `{{ .Token }}`, 
 
 **Pri prechode na gosko.sk:** okrem `<base href>` v `index.html` zmeň aj `<base href="/gosko/">` v `ghoskate/index.html` na `/`
 a adresy v `og:url`, `og:image` a `canonical` v tom istom súbore.
+
+## Rozšírenia z master-gosko
+
+Registrácia v2 so súhlasom rodiča, GoskoPass NFT, admin cez API a hra Ghoskate na `/hra` sú v kóde, ale vypnuté prepínačmi v `data.js`.
+Čo presne pribudlo a ako to zapnúť: [docs/CO-PRIDAL-PIRY.md](docs/CO-PRIDAL-PIRY.md).

@@ -4,7 +4,8 @@ import { DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, DECK_COLORS, GRIP_COLORS, W
 import { ART_LOGO, ART_GHOST, ART_FIT } from './sticker-art.js';
 
 const FONT = '"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* matchMedia až pri vykreslení (nie pri importe modulu), aby sa board.js dal načítať aj mimo prehliadača a lenivo */
+const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let logoPromise = null;
 export function loadLogo() {
@@ -408,7 +409,7 @@ const SLOTS = [
   { x: -.135, z: -.036, r: .12 }, { x: .1, z: -.042, r: .08 }, { x: -.02, z: .045, r: -.18 },
   { x: .15, z: -.01, r: .25 }, { x: -.06, z: -.005, r: -.22 },
 ];
-export const MAX_STICKERS = SLOTS.length;
+export const MAX_STICKERS = SLOTS.length;   // ranking.js MAX_STICKERS musí sedieť (test v tests/unit/ranking.test.js)
 
 function buildBoard(stickers, logo, renderer, look) {
   look = lookOf(look);
@@ -758,7 +759,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   }
   const ro = new ResizeObserver(resize); ro.observe(canvas);
 
-  let vel = 0, pvel = 0, drag = null, idleAt = 0, alive = true, visible = true, auto = !reduceMotion;
+  let vel = 0, pvel = 0, drag = null, idleAt = 0, alive = true, visible = true, auto = !reduceMotion();
   let anim = null, flipTo = null, last = 0;
   const pointers = new Map(); let pinch = null;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -853,7 +854,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
         }
       }
     } else {
-      if (sceneName === 'ride' && !reduceMotion) {
+      if (sceneName === 'ride' && !reduceMotion()) {
         const v = 2.1;   // m/s
         env.userData.groundTex.offset.x += dt * v * 24 / 32;   // zem uteká pod doskou
         env.userData.backTex.offset.x += dt * v * .25 * 3 / 18;
@@ -861,7 +862,7 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
         rig.position.y = WHEEL_Y + Math.sin(now / 90) * .0015;
         if (!anim && auto && now > nextRideTrick) { api.trick(Math.random() < .6 ? 'ollie' : 'kickflip'); nextRideTrick = now + 7000 + Math.random() * 6000; }
       }
-      if (sceneName === 'free' && !reduceMotion) {
+      if (sceneName === 'free' && !reduceMotion()) {
         rig.position.y = POSES.free.pos[1] + Math.sin(now / 800) * .035;
         if (auto && !drag) rig.rotation.y += dt * .35;
         const d = env.userData.dust; if (d) d.rotation.y += dt * .02;
@@ -881,10 +882,10 @@ export async function mountBoard(canvas, { stickers = [], onSticker, look, deck,
   };
   Object.assign(api, {
     flip() { vel = 0; flipTo = (sceneName === 'studio' ? spin.rotation.y : orbit.yaw) + Math.PI; },
-    trick(name) { const T = TRICKS[name] || (name === 'ollie' ? { name: 'Ollie', ms: 700 } : null); if (!T || anim || reduceMotion) return; anim = { ...T, key: name, t0: performance.now() }; if (name === 'kickflip' && sceneName !== 'studio') anim.ms = 820; },
+    trick(name) { const T = TRICKS[name] || (name === 'ollie' ? { name: 'Ollie', ms: 700 } : null); if (!T || anim || reduceMotion()) return; anim = { ...T, key: name, t0: performance.now() }; if (name === 'kickflip' && sceneName !== 'studio') anim.ms = 820; },
     reset() { vel = 0; pvel = 0; flipTo = null; if (sceneName === 'studio') { spin.rotation.y = -.45; pitch.rotation.x = 0; S.setZoom(1); } else { S._z = 1; setScene(sceneName); } idleAt = performance.now(); },
     zoomBy(f) { zoomTo(getZoom() * f); },
-    setAuto(on) { auto = !!on && !reduceMotion; if (!auto) vel = 0; },
+    setAuto(on) { auto = !!on && !reduceMotion(); if (!auto) vel = 0; },
     setLook(l) {
       curLook = lookOf(l);
       const go = () => { S.rebuild(curStickers, curLook); if (sceneName !== 'studio') shadowsOn(true); };

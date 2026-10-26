@@ -29,7 +29,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;600&family=Pirata+One&display=swap">
 <link rel="stylesheet" href="assets/style.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<!-- three.js (1,3 MB) sa stiahne až na stránkach s 3D (dynamický import board.js / park.js / mascot.js). integrity = SHA-384 súborov z npm three@0.160.0. -->
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"},"integrity":{"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js":"sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ","https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/SVGLoader.js":"sha384-9bjPxggmiDnjr/OACK/AtBAq85KJBJ8uSxAccTaM1brUeoDRXfcC1wAo3l6hRsfZ"}}</script>
 </head>
 <body>
 <svg class="sprite" aria-hidden="true" focusable="false">
@@ -68,6 +69,7 @@
       <a href="eventy" data-nav="eventy">Eventy</a>
       <a href="rebricek" data-nav="rebricek">Rebríček</a>
       <a href="komunita" data-nav="komunita">Komunita</a>
+      <a class="nav-game" href="hra" data-nav="hra">Hra <span class="nav-demo">DEMO</span></a>
     </nav>
     <div class="top-right">
       <a class="acct" id="acct" href="profil" aria-label="Môj profil"><span class="acct-t">Môj profil</span><svg class="acct-arrow" viewBox="0 0 40 24" aria-hidden="true"><path d="M3 15c7-9 18-11 29-6"/><path d="M27 4.5 33 9l-6.5 3.5"/></svg><img class="acct-ghost" src="img/ghost-cream.svg" alt="" width="96" height="108"></a>
@@ -91,6 +93,7 @@
     </nav>
     <nav class="sh-list" aria-label="Viac">
       <a href="pass" data-pass-link hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7h17v3a2 2 0 0 0 0 4v3h-17v-3a2 2 0 0 0 0-4z"/><path d="M14 8v1.5M14 11.3v1.4M14 14.5V16"/></svg><span><b>Môj pass</b><small>QR na vstup</small></span><svg class="sh-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
+      <a href="hra" class="menu-game"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.3-1.6L14.3 21 12 19.4 9.7 21l-2.4-1.6z"/><circle cx="9.5" cy="11" r=".9"/><circle cx="14.5" cy="11" r=".9"/></svg><span><b>Hra Ghoskate <i class="demo-tag">DEMO</i></b><small>Pripravujeme: herná mapa spotov</small></span><svg class="sh-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
       <a href="novinky"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5"/></svg><span><b>Novinky</b><small>Čo je nové v GOSku</small></span><svg class="sh-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
       <a href="trik-tyzdna"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="12.5" height="11" rx="2"/><path d="m15.5 10.5 5.5-3v9l-5.5-3z"/></svg><span><b>Trik mesiaca</b><small>Pošli klip a hlasuj</small></span><svg class="sh-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
       <a href="crew"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 21V3.5M5.5 4.5h12l-2.5 4 2.5 4h-12"/></svg><span><b>Crew</b><small>Partie zo scény</small></span><svg class="sh-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
