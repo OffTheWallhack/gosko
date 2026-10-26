@@ -71,7 +71,7 @@ export async function mountMap(el, points) {
 }
 
 /* Výber presného bodu: ťuk na mapu alebo potiahnutie pinu. onChange({lat,lng}) */
-export async function mountPicker(el, onChange) {
+export async function mountPicker(el, onChange, initial) {
   const L = await loadLeaflet();
   const map = baseMap(L, el, { scrollWheelZoom: true });
   let marker = null;
@@ -83,6 +83,8 @@ export async function mountPicker(el, onChange) {
     onChange({ lat: ll[0], lng: ll[1] });
   };
   map.on('click', e => set(e.latlng.lat, e.latlng.lng));
+  /* úprava existujúceho spotu: pin je hneď na jeho mieste */
+  if (initial && Number.isFinite(initial.lat) && Number.isFinite(initial.lng)) set(initial.lat, initial.lng, 15);
   setTimeout(() => map.invalidateSize(), 80);
   return {
     locate() {

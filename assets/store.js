@@ -25,6 +25,8 @@ export const INBOX = {
 };
 
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
+/* cesta súboru v úložisku 'spots' z jeho verejnej adresy (alebo null, ak fotka nie je z úložiska) */
+const spotPathFromUrl = url => { const m = /\/object\/public\/spots\/(.+?)(?:\?.*)?$/.exec(url || ''); return m ? decodeURIComponent(m[1]) : null; };
 
 function demoStore() {
   const K = { parks: 'gosko:parks', votes: 'gosko:votes', events: 'gosko:community-events', spots: 'gosko:spots',
@@ -77,6 +79,41 @@ function demoStore() {
     async pendingParks() { return []; },
     async pendingEvents() { return LS.get(K.events, []).filter(e => !e.approved); },
     async pendingSpots() { return LS.get(K.spots, []).filter(e => !e.approved); },
+
+    /* ---------- admin: správa spotov (ukážkový režim, všetko v prehliadači) ---------- */
+    async adminListSpots() {
+      return LS.get(K.spots, []).map(s => {
+        const photos = (s.photos || []).map(p => ({ ...p, spot_id: s.id }));
+        if (s.photo_url && !photos.some(p => p.url === s.photo_url)) photos.unshift({ id: null, url: s.photo_url, legacy: true, spot_id: s.id });
+        return { ...s, photos };
+      });
+    },
+    async adminSaveSpot(s) {
+      const a = LS.get(K.spots, []);
+      const row = { name: s.name, city: s.city, area: s.area || null, kind: s.kind || 'Skatepark', tag: s.tag || null, description: s.description || null,
+        lat: s.lat, lng: s.lng, approved: s.approved !== false };
+      let id = s.id;
+      if (id) { const x = a.find(q => q.id === id); if (x) Object.assign(x, row); }
+      else { id = uid(); a.unshift({ id, created: Date.now(), photos: [], ...row }); }
+      if (!LS.set(K.spots, a)) throw new Error('Prehliadač nemá voľné miesto na uloženie.');
+      return id;
+    },
+    async adminDeleteSpot(id) { LS.set(K.spots, LS.get(K.spots, []).filter(x => x.id !== id)); },
+    async adminAddSpotPhoto(spot_id, blob) {
+      const a = LS.get(K.spots, []), s = a.find(x => x.id === spot_id); if (!s) return;
+      (s.photos = s.photos || []).push({ id: uid(), url: await toDataUrl(blob) });
+      if (!LS.set(K.spots, a)) throw new Error('Prehliadač nemá voľné miesto na uloženie fotky.');
+    },
+    async adminDeleteSpotPhoto(photo) {
+      const a = LS.get(K.spots, []), s = a.find(x => x.id === photo.spot_id); if (!s) return;
+      if (photo.id) s.photos = (s.photos || []).filter(p => p.id !== photo.id); else s.photo_url = null;
+      LS.set(K.spots, a);
+    },
+    async adminSetSpotCover(photo) {
+      const a = LS.get(K.spots, []), s = a.find(x => x.id === photo.spot_id); if (!s || !photo.id) return;
+      s.photos = [(s.photos || []).find(p => p.id === photo.id), ...(s.photos || []).filter(p => p.id !== photo.id)].filter(Boolean);
+      LS.set(K.spots, a);
+    },
     async pendingEventPhotos() { return LS.get(K.photos, []).filter(e => !e.approved); },
     async approve(kind, id) {
       const key = { spots: K.spots, events: K.events, photos: K.photos }[kind]; if (!key) return;
@@ -255,6 +292,50 @@ async function liveStore(CONFIG) {
     async pendingParks() { return must(await sb.from('parks').select('*').eq('approved', false).order('created_at')).map(created); },
     async pendingEvents() { return must(await sb.from('community_events').select('*').eq('approved', false).order('created_at')).map(created); },
     async pendingSpots() { return must(await sb.from('spots').select('*').eq('approved', false).order('created_at')).map(created); },
+
+    /* ---------- admin: správa spotov a skateparkov (pridať, upraviť, fotky, zmazať) ---------- */
+    async adminListSpots() {
+      const rows = must(await sb.from('spots').select('*').order('created_at', { ascending: false }));
+      const ph = must(await sb.from('spot_photos').select('*').order('sort').order('created_at'));
+      return rows.map(r => {
+        const photos = ph.filter(p => p.spot_id === r.id);
+        /* fotka od používateľa (stĺpec photo_url) sa ukáže tiež, kým ju admin nezmaže */
+        if (r.photo_url && !photos.some(p => p.url === r.photo_url)) photos.unshift({ id: null, url: r.photo_url, path: spotPathFromUrl(r.photo_url), legacy: true, spot_id: r.id });
+        return { ...created(r), photos };
+      });
+    },
+    async adminSaveSpot(s) {
+      const row = { name: s.name, city: s.city, area: s.area || null, kind: s.kind || 'Skatepark', tag: s.tag || null, description: s.description || null,
+        lat: s.lat, lng: s.lng, approved: s.approved !== false, updated_at: new Date().toISOString() };
+      if (s.id) { must(await sb.from('spots').update(row).eq('id', s.id)); return s.id; }
+      return must(await sb.from('spots').insert(row).select('id').single()).id;
+    },
+    async adminDeleteSpot(id) {
+      const ph = must(await sb.from('spot_photos').select('path').eq('spot_id', id));
+      const own = must(await sb.from('spots').select('photo_url').eq('id', id).maybeSingle());
+      const paths = [...ph.map(p => p.path), spotPathFromUrl(own?.photo_url)].filter(Boolean);
+      must(await sb.from('spots').delete().eq('id', id));
+      if (paths.length) await sb.storage.from('spots').remove(paths).catch(() => {});
+    },
+    async adminAddSpotPhoto(spot_id, blob) {
+      const u = (await session()).user.id;
+      const path = `${u}/${newToken()}.jpg`;
+      must(await sb.storage.from('spots').upload(path, blob, { contentType: 'image/jpeg', upsert: false }));
+      const url = sb.storage.from('spots').getPublicUrl(path).data.publicUrl;
+      const last = must(await sb.from('spot_photos').select('sort').eq('spot_id', spot_id).order('sort', { ascending: false }).limit(1));
+      must(await sb.from('spot_photos').insert({ spot_id, url, path, sort: (last[0]?.sort ?? -1) + 1 }));
+    },
+    async adminDeleteSpotPhoto(photo) {
+      if (photo.id) must(await sb.from('spot_photos').delete().eq('id', photo.id));
+      else must(await sb.from('spots').update({ photo_url: null }).eq('id', photo.spot_id));
+      if (photo.path) await sb.storage.from('spots').remove([photo.path]).catch(() => {});
+    },
+    /* hlavná (prvá) fotka: dostane najnižšie poradie */
+    async adminSetSpotCover(photo) {
+      if (!photo.id) return;
+      const first = must(await sb.from('spot_photos').select('sort').eq('spot_id', photo.spot_id).order('sort').limit(1));
+      must(await sb.from('spot_photos').update({ sort: (first[0]?.sort ?? 0) - 1 }).eq('id', photo.id));
+    },
     async pendingEventPhotos() { return must(await sb.from('event_photos').select('*').eq('approved', false).order('created_at')).map(created); },
     async approve(kind, id) {
       const table = { parks: 'parks', events: 'community_events', spots: 'spots', photos: 'event_photos' }[kind];

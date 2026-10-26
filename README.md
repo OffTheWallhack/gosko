@@ -87,6 +87,19 @@ to stačí. Na skutočný zber registrácií a hlasovanie treba Supabase.
 V admine potom schvaľuješ parky, eventy a spoty od komunity a vidíš registrácie,
 odber noviniek, objednávky pop-upov a záujem o shop. Všetko sa dá stiahnuť ako CSV.
 
+### Spoty a skateparky na mape (`#/admin/spoty`)
+
+Admin (cez tlačidlo „Spoty na mape“ v adminovi) môže:
+- **pridať spot alebo park** (názov, mesto, časť mesta, typ, štítok, popis, pin na mape, fotky),
+- **upraviť** všetky informácie a posunúť pin,
+- **pridať viac fotiek**, zmazať ľubovoľnú a určiť hlavnú,
+- **skryť** spot z mapy (bez mazania) alebo ho **zmazať** aj s fotkami.
+
+Typ „Skatepark“ sa ukáže medzi skateparkami (červený pin, karta s fotkami), ostatné typy ako spoty od komunity.
+Naživo je zdrojom pravdy databáza (tabuľky `spots` a `spot_photos`, SQL v `supabase-spots-admin.sql`).
+Zoznam `SKATEPARKS` v `data.js` je len záloha, keď je databáza nedostupná, a v ukážkovom režime. Mapa nepotrebuje žiadny API kľúč
+(Leaflet + OpenStreetMap/CARTO); verejný Supabase kľúč v `data.js` je určený na zverejnenie, ochranu dáta zabezpečuje RLS.
+
 ## Stavebnica parku
 
 Na PC: prekážku vyber klikom alebo ju myšou potiahni rovno na plochu. Položenú prekážku chytíš

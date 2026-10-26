@@ -3125,3 +3125,14 @@ footer .foot-act a{overflow-wrap:anywhere;max-width:100%}
 /* nálepky eventov: pozvánka „Chceš GOSko vo svojom meste?“ je tlačidlo, nie odkaz */
 button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}
 .sw-item.invite .sw-reg{background:#FFD21F;color:var(--ink,#0e0d0c);border-color:var(--ink,#0e0d0c)}
+
+/* admin: spoty na mape */
+.admin-spots{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.admin-spot{padding:14px 0;border-top:1px solid var(--line-dark)}
+.as-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.as-photos{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.as-ph{margin:0;width:150px}
+.as-ph img{display:block;width:150px;height:110px;object-fit:cover;border-radius:var(--r-s)}
+.as-ph figcaption{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.photo-prevs{display:flex;flex-wrap:wrap;gap:8px}
+.photo-prevs .photo-prev{max-height:90px}
