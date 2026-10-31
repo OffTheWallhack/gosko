@@ -1,6 +1,6 @@
 -- Duch verzia 3 + špeciálne veci (assets/ghost.js): zamknuté voľby podľa inventára, dve nálepky (mark, mark2),
 -- automatické odomykanie špeciálnych situácií (Halloween, Vianoce, Silvester, 7 dní v kuse).
--- Nahrádza starší v3 (ten mal chybu v syntaxi). Spusti v Supabase SQL editore po supabase-ghoskate.sql. Dá sa spustiť opakovane.
+-- Na živej databáze už spustené (31. 10. 2026). Nahrádza starší v3 (ten mal chybu v syntaxi). Spusti v Supabase SQL editore po supabase-ghoskate.sql. Dá sa spustiť opakovane.
 -- Ostatné špeciálne veci dáva admin do inventára: win:gosko (víťaz), win:podium (bedňa), win:trick (trik týždňa),
 -- crew:founder (zakladateľ crew), bug:hunter (nahlásená chyba). Eventy ako doteraz: event:winter, event:after, event:night, event:ba3.
 
@@ -70,7 +70,6 @@ declare
 begin
   if uid is null or not exists (select 1 from public.profiles where id = uid) then return got; end if;
   insert into public.ghost_days (user_id, day) values (uid, d) on conflict do nothing;
-  delete from public.ghost_days where user_id = uid and day < d - 30;
   if (m = 10 and dd >= 30) or (m = 11 and dd <= 2) then want := array_append(want, 'event:halloween'); end if;
   if m = 12 and dd between 23 and 27 then want := array_append(want, 'event:xmas'); end if;
   if (m = 12 and dd = 31) or (m = 1 and dd <= 2) then want := array_append(want, 'event:newyear'); end if;
