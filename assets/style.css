@@ -3170,3 +3170,10 @@ button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;co
 .ge-ch-item{appearance:none;font:inherit;font-size:.82rem;font-weight:700;color:var(--cream);background:rgba(255,255,255,.04);border:1px solid var(--line-dark);border-radius:999px;padding:7px 11px;cursor:pointer}
 .ge-ch-item small{color:var(--muted-dark);font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}
 .ge-ch-item[aria-pressed="true"]{border-color:var(--red);background:rgba(160,20,20,.18)}
+
+/* v15: spodná lišta na telefóne: pri skrolovaní (iOS, zaokrúhľovanie pixelov) presvital pod ňou 1 px obsahu.
+   Lišta sa posunie o 1 px pod okraj a pod ňou je ešte pás v jej farbe, takže medzera nemá kade vzniknúť. */
+@media (max-width:760px){
+  .tabbar{bottom:-1px;padding-bottom:calc(9px + var(--sab))}
+  .tabbar::before{content:"";position:absolute;left:0;right:0;top:100%;height:80px;background:rgb(14,13,16);pointer-events:none}
+}
