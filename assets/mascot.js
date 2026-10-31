@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { makeBoardModel } from './board.js';
-import { ghostOf, EYE_COLORS as EYES, HEADS as HEAD, EXTRAS as EXTRA, MARKS, FINISHES, EX, EMOTES, randomEmote, drawFace } from './ghost.js';
+import { ghostOf, EYE_COLORS as EYES, HEADS as HEAD, EXTRAS as EXTRA, MARKS, FINISHES, EX, EMOTES, randomEmote, drawFace, markText } from './ghost.js';
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const K = .31;   // mierka sveta ducha (hlava má polomer 1) na dosku z board.js (dĺžka .8)
@@ -139,6 +139,29 @@ function paintBody() {
   if (S.pattern === 'tiedye') { const P = rng(S.seed * 5 + 1); for (let i = 0; i < 9; i++) { const x = P() * TW, y = P() * TH, r = 90 + P() * 160; wrapDraw(x, r, X => { const g = c.createRadialGradient(X, y, 0, X, y, r); g.addColorStop(0, i % 2 ? S.color2 : shade(S.color, .25)); g.addColorStop(.6, i % 2 ? shade(S.color2, .2) : S.color2); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.globalAlpha = .75; c.fillRect(X - r, y - r, r * 2, r * 2); c.globalAlpha = 1; }); } for (let i = 0; i < 14; i++) { c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 3; c.beginPath(); c.arc(TW * .5, TH * .45, 40 + i * 32, 0, 7); c.stroke(); } }
   if (S.pattern === 'leopard') { const P = rng(S.seed * 11 + 5); for (let i = 0; i < 90; i++) { const x = P() * TW, y = P() * TH, r = 12 + P() * 16; wrapDraw(x, r * 2, X => { c.fillStyle = shade(S.color2, -.35); c.beginPath(); c.ellipse(X, y, r * 1.5, r, P() * 3, 0, 7); c.fill(); c.fillStyle = S.color2; c.beginPath(); c.ellipse(X + 2, y + 1, r * 1.05, r * .68, 0, 0, 7); c.fill(); }); } }
   if (S.pattern === 'flames') { const P = rng(S.seed * 2 + 9), cols = [S.color2, shade(S.color2, .18), shade(S.color2, .4)], B = TH * (HEM_F + .06); cols.forEach((col, k) => { c.fillStyle = col; c.beginPath(); c.moveTo(0, TH); for (let x = 0; x <= TW; x += 24) { const hgt = TH * (.3 - k * .08) * (.55 + P() * .9); c.lineTo(x, B - hgt); c.lineTo(x + 12, B - hgt * .35); } c.lineTo(TW, TH); c.closePath(); c.fill(); }); }
+  if (S.pattern === 'bones') {   // kostra: chrbtica a rebrá na predku, panva pri leme
+    const X = TW / 2, k = TW / 1024; c.fillStyle = S.color2; c.strokeStyle = S.color2; c.lineCap = 'round';
+    for (let v = .47; v < .69; v += .028) { rr(c, X - 9 * k, TH * v, 18 * k, TH * .02, 4 * k); c.fill(); }
+    c.lineWidth = 11 * k; [0, 1, 2, 3].forEach(i => { const y = TH * (.5 + i * .045), w = (120 - i * 14) * k; [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(X + sd * 14 * k, y); c.quadraticCurveTo(X + sd * w * .7, y - 12 * k, X + sd * w, y + 22 * k); c.stroke(); }); });
+    c.beginPath(); c.ellipse(X - 34 * k, TH * .7, 30 * k, 18 * k, .3, 0, 7); c.ellipse(X + 34 * k, TH * .7, 30 * k, 18 * k, -.3, 0, 7); c.fill();
+    // chrbát: lebka a kosti krížom
+    const B = TW * .02; c.lineWidth = 16 * k; [[-1, 1], [1, -1]].forEach(([a, b2]) => { c.beginPath(); c.moveTo(B + a * 60 * k + TW, TH * .55 - 40 * k); c.lineTo(B + b2 * 60 * k + TW, TH * .55 + 40 * k); c.stroke(); c.beginPath(); c.moveTo(B + a * 60 * k, TH * .55 - 40 * k); c.lineTo(B + b2 * 60 * k, TH * .55 + 40 * k); c.stroke(); });
+  }
+  if (S.pattern === 'sweater') {   // pletený sveter: štrikové očká, cik-cak pásy a stromčeky
+    const n = 96, cw = TW / n, ch2 = cw; c.fillStyle = 'rgba(0,0,0,.08)';
+    for (let y = 0; y < TH; y += ch2) for (let x = 0; x < TW; x += cw) c.fillRect(x + cw * .45, y, cw * .1, ch2);
+    const row = (v, fn) => { const y0 = Math.round(TH * v / ch2) * ch2; for (let i = 0; i < n; i++) fn(i, y0); };
+    const px = (i, y, col) => { c.fillStyle = col; c.fillRect(i * cw, y, cw + .5, ch2 + .5); };
+    const zig = v => row(v, (i, y) => { const z = Math.abs((i % 6) - 3); px(i, y + z * ch2 - ch2, S.color2); });
+    zig(.08); zig(.5); zig(.86);
+    row(.58, (i, y) => { const m = i % 12; const TREE = ['....#....', '...###...', '..#####..', '...###...', '.#######.', '....#....']; if (m < 9) TREE.forEach((r, ry) => { if (r[m] === '#') px(i, y + ry * ch2, S.color2); }); if (m === 10 && i % 24 === 10) px(i, y + 2 * ch2, '#f3ebdd'); });
+    row(.03, (i, y) => { if (i % 4 === 1) px(i, y, '#f3ebdd'); });
+  }
+  if (S.pattern === 'vhs') {   // VHS: farebné pruhy s posunom, jemné riadky
+    const P = rng(S.seed + 41); c.globalAlpha = .9;
+    [[.04, .02], [.49, .025], [.6, .02], [.72, .03]].forEach(([v, hh]) => { const sh = (P() - .5) * TW * .05; [['#ff2e63', 0], ['#08d9d6', 1], ['#f9ed69', 2]].forEach(([col, k2]) => { c.fillStyle = col; c.fillRect(0, TH * v + k2 * TH * hh * .7, TW, TH * hh * .6); c.fillRect(TW * P() + sh, TH * v + k2 * TH * hh * .7 - TH * .006, TW * .08, TH * hh * .6); }); });
+    c.globalAlpha = .07; c.fillStyle = '#000'; for (let y = 0; y < TH; y += 4) c.fillRect(0, y, TW, 1.5); c.globalAlpha = 1;
+  }
   if (S.finish === 'holo') { const g = c.createLinearGradient(0, 0, TW, TH * .6); ['#ff6ad5', '#ffd36a', '#8aff9a', '#6ad5ff', '#b46aff', '#ff6ad5'].forEach((col, i, a) => g.addColorStop(i / (a.length - 1), col)); c.globalAlpha = .32; c.fillStyle = g; c.fillRect(0, 0, TW, TH); c.globalAlpha = 1; }
   // povrchy, ktoré majú vlastnú textúru (kreslia sa cez farbu tela)
   if (S.finish === 'wood') { const P = rng(31); c.globalAlpha = .55; for (let y = 0; y < TH; y += 3) { c.fillStyle = P() < .5 ? 'rgba(120,80,40,.5)' : 'rgba(230,200,150,.4)'; const w = 1 + P() * 3; c.fillRect(0, y + Math.sin(y * .05) * 4, TW, w); } c.globalAlpha = 1; for (let i = 0; i < 3; i++) { const x = P() * TW, y = TH * (.3 + P() * .5); c.strokeStyle = 'rgba(80,50,20,.55)'; for (let r = 8; r < 70; r += 9) { c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r * 2.6, r, 0, 0, 7); c.stroke(); } } }
@@ -183,20 +206,41 @@ function paintBody() {
     }
   }
   if (S.stickers) drawStickers(c, R);
-  // znak na tele (tetovanie), vľavo dole na predku; kreslí sa pred špinou, takže sa ošúcha s telom
-  if (S.mark !== 'none') {
-    const cell = TW / 93, ox = TW * .36, oy = TH * .50; c.fillStyle = S.markColor; c.globalAlpha = .92;
-    c.save(); c.translate(ox + TW * .078, 0); c.scale(-1, 1);   // textúra je na tele zrkadlovo, preto sa znak kreslí prevrátený
-    const artM = MARKS[S.mark].art || null, txt = S.mark === 'number' ? String(S.seed).padStart(4, '0') : S.mark === 'initials' ? S.initials : MARKS[S.mark].text || '';
-    if (!artM) { c.restore(); c.save(); c.translate(TW * .49, 0); c.scale(-1, 1); c.font = Math.round(TW / (txt.length > 3 ? 16 : 12.5)) + 'px Anton, Impact, sans-serif'; c.textAlign = 'left'; c.fillText(txt, 0, oy + TH / 7.75); }
-    else artM.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') c.fillRect(x * cell, oy + y * cell, cell + .5, cell + .5); }));
-    c.restore(); c.globalAlpha = 1;
-  }
+  // nálepky na tele: prvá vľavo, druhá vpravo (z pohľadu diváka). Kreslia sa pred špinou, takže sa ošúchajú s telom.
+  drawMark(c, S.mark, S.markColor, 0); drawMark(c, S.mark2, S.mark2Color, 1);
   colorTex.needsUpdate = true; roughTex.needsUpdate = true;
 }
 const gray = v => { const k = Math.round(Math.max(0, Math.min(1, v)) * 255); return `rgb(${k},${k},${k})`; };
 function blob(c, x, y, rad, P) { c.beginPath(); const n = 9; for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, rr = rad * (.75 + P() * .45); const px = x + Math.cos(a) * rr * 1.5, py = y + Math.sin(a) * rr; i ? c.lineTo(px, py) : c.moveTo(px, py); } c.closePath(); c.fill(); }
 function chip(c, x, y, rad, R) { c.beginPath(); const n = 8; for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, rr = rad * (.4 + R() * .8); const px = x + Math.cos(a) * rr * 1.6, py = y + Math.sin(a) * rr; i ? c.lineTo(px, py) : c.moveTo(px, py); } c.closePath(); c.fill(); }
+/* Jedna nálepka: pixel art 7×7 alebo text. Textúra je na tele zrkadlovo, preto sa kreslí prevrátene.
+   S.markSticker = vyrezaná vinylová nálepka (biely okraj a tieň), inak tetovanie. */
+function drawMark(c, key, color, slot) {
+  if (!key || key === 'none' || !MARKS[key]) return;
+  slot = slot ? 0 : 1;   // na textúre je ľavá a pravá strana prehodená
+  const cell = TW / 93, oy = TH * .50, artM = MARKS[key].art || null, stick = S.markSticker;
+  const edge = new THREE.Color(color).getHSL({}).l > .72 ? '#151312' : '#faf6ee';   // svetlá nálepka dostane tmavý okraj
+  c.save(); c.globalAlpha = stick ? 1 : .92;
+  if (artM) {
+    const ox = slot ? TW * .562 : TW * .36;
+    c.translate(ox + TW * .078, 0); c.scale(-1, 1);
+    const cells = []; artM.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') cells.push([x, y]); }));
+    if (stick) {
+      const out = new Set(); cells.forEach(([x, y]) => { for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) out.add((x + a) + ',' + (y + b)); });
+      c.fillStyle = 'rgba(0,0,0,.28)'; out.forEach(k => { const [x, y] = k.split(',').map(Number); c.fillRect(x * cell + cell * .25, oy + y * cell + cell * .35, cell + .5, cell + .5); });
+      c.fillStyle = edge; out.forEach(k => { const [x, y] = k.split(',').map(Number); c.fillRect(x * cell, oy + y * cell, cell + .5, cell + .5); });
+    }
+    c.fillStyle = color; cells.forEach(([x, y]) => c.fillRect(x * cell, oy + y * cell, cell + .5, cell + .5));
+  } else {
+    const txt = markText(S, key); if (!txt) { c.restore(); return; }
+    c.translate(slot ? TW * .53 : TW * .49, 0); c.scale(-1, 1);
+    c.font = Math.round(TW / (txt.length > 3 ? 16 : 12.5)) + 'px Anton, Impact, sans-serif'; c.textAlign = slot ? 'right' : 'left'; c.lineJoin = 'round';
+    const y = oy + TH / 7.75;
+    if (stick) { c.lineWidth = TW / 70; c.strokeStyle = 'rgba(0,0,0,.28)'; c.strokeText(txt, TW / 400, y + TW / 300); c.strokeStyle = edge; c.strokeText(txt, 0, y); }
+    c.fillStyle = color; c.fillText(txt, 0, y);
+  }
+  c.restore();
+}
 function drawStickers(c, R) {
   const list = [['GOSKO', 'BRATISLAVA', '#A01414', '#F3EBDD'], ['GOSKO 2', 'ŽILINA', '#151312', '#F3EBDD'], ['GOSKO 3', 'BA WINTER', '#F3EBDD', '#A01414'], ['FOUNDER', '2026', '#c4adff', '#151312']];
   const spots = [[.2, .42], [.8, .38], [.03, .3], [.68, .55]];
@@ -435,6 +479,50 @@ function buildItems() {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(.3, .025, 8, 32), gold()); ring.position.set(0, -1.52, 1.08); items.add(ring);
     const one = new THREE.Mesh(new THREE.PlaneGeometry(.26, .26), std(0xffffff, { map: stickerTex('#e2b53c', '1', '#7a5200'), roughness: .3, metalness: .6 })); one.position.set(0, -1.52, 1.075); items.add(one);
   }
+  if (S.head === 'pumpkin') {   // vyrezaná tekvica: rebrá, stopka, tvár svieti zvnútra
+    const fc = document.createElement('canvas'); fc.width = 512; fc.height = 256; const x = fc.getContext('2d');
+    const ec = document.createElement('canvas'); ec.width = 512; ec.height = 256; const e = ec.getContext('2d');
+    x.fillStyle = '#ff7a1a'; x.fillRect(0, 0, 512, 256); for (let i = 0; i < 512; i += 32) { const g = x.createLinearGradient(i, 0, i + 32, 0); g.addColorStop(0, 'rgba(120,40,0,.35)'); g.addColorStop(.5, 'rgba(255,190,90,.12)'); g.addColorStop(1, 'rgba(120,40,0,.35)'); x.fillStyle = g; x.fillRect(i, 0, 32, 256); }
+    e.fillStyle = '#000'; e.fillRect(0, 0, 512, 256);
+    const carve = (fill) => { fill.beginPath(); const U = 128; [[U - 34, 1], [U + 34, -1]].forEach(([cx]) => { fill.moveTo(cx - 18, 112); fill.lineTo(cx + 18, 112); fill.lineTo(cx, 84); fill.closePath(); }); fill.moveTo(U - 50, 140); for (let i = 0; i <= 10; i++) fill.lineTo(U - 50 + i * 10, i % 2 ? 150 : 166); fill.lineTo(U + 50, 140); fill.quadraticCurveTo(U, 156, U - 50, 140); fill.closePath(); fill.fill(); };
+    x.fillStyle = '#3a1500'; carve(x); e.fillStyle = '#ffd25a'; carve(e);
+    const tx = new THREE.CanvasTexture(fc), te = new THREE.CanvasTexture(ec); tx.colorSpace = te.colorSpace = THREE.SRGBColorSpace;
+    const g = new THREE.SphereGeometry(.62, 48, 24), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i), a = Math.atan2(v.z, v.x), k = 1 - .08 * Math.pow(Math.abs(Math.sin(a * 5)), .6); p.setXYZ(i, v.x * k, v.y * .78, v.z * k); }
+    g.computeVertexNormals();
+    const pk = new THREE.Mesh(g, std(0xffffff, { map: tx, emissive: new THREE.Color(0xffffff), emissiveMap: te, emissiveIntensity: 1.3, roughness: .55, clearcoat: .3 }));
+    pk.position.set(0, 1.12, 0); pk.rotation.z = -.12; head.add(pk);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(.06, .09, .26, 8), std(0x4d6b2a, { roughness: .9 })); stem.position.set(.03, 1.6, 0); stem.rotation.z = -.35; head.add(stem);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 6), std(0x5f8a30, { roughness: .8 })); leaf.scale.set(1.6, .25, 1); leaf.position.set(-.14, 1.55, .06); head.add(leaf);
+  }
+  if (S.head === 'santa') {
+    const red = std(0xc4161c, { roughness: .9, sheen: 1, sheenColor: new THREE.Color(0xff6060) }), fur = std(0xf8f4ee, { roughness: 1, sheen: 1 });
+    head.add(dome(1.05, Math.PI * .36, red));
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(.62, 1.0, 32), red); cone.position.set(.18, 1.25, -.05); cone.rotation.z = -.75; head.add(cone);
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(.98, .16, 14, 64), fur); trim.rotation.x = Math.PI / 2; trim.position.y = .4; trim.scale.set(1, 1, 1.25); head.add(trim);
+    const pg = new THREE.IcosahedronGeometry(.17, 3), pp = pg.attributes.position, R = rng(5); for (let i = 0; i < pp.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(pp, i).multiplyScalar(1 + (R() - .5) * .2); pp.setXYZ(i, v.x, v.y, v.z); } pg.computeVertexNormals();
+    const pom = new THREE.Mesh(pg, fur); pom.position.set(.62, 1.42, -.05); head.add(pom);
+  }
+  if (S.head === 'partyhat') {
+    const pc = document.createElement('canvas'); pc.width = 256; pc.height = 256; const x = pc.getContext('2d');
+    x.fillStyle = '#2d6cc0'; x.fillRect(0, 0, 256, 256); ['#ffc61a', '#ee6fae', '#f3ebdd'].forEach((col, k) => { x.fillStyle = col; for (let i = -256; i < 512; i += 96) { x.beginPath(); x.moveTo(i + k * 32, 0); x.lineTo(i + k * 32 + 24, 0); x.lineTo(i + k * 32 + 24 - 256, 256); x.lineTo(i + k * 32 - 256, 256); x.fill(); } });
+    x.fillStyle = '#fff'; for (let i = 0; i < 40; i++) { x.beginPath(); x.arc((i * 53) % 256, (i * 97) % 256, 4, 0, 7); x.fill(); }
+    const t2 = new THREE.CanvasTexture(pc); t2.colorSpace = THREE.SRGBColorSpace;
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(.42, 1.05, 32, 1, true), std(0xffffff, { map: t2, roughness: .4, clearcoat: .6, side: THREE.DoubleSide })); hat.position.set(.22, 1.38, 0); hat.rotation.z = -.28; head.add(hat);
+    const pom = new THREE.Mesh(new THREE.IcosahedronGeometry(.12, 2), std(0xffc61a, { roughness: 1, sheen: 1 })); pom.position.set(.36, 1.88, 0); head.add(pom);
+    const str = new THREE.Mesh(new THREE.TorusGeometry(.95, .012, 6, 48, Math.PI), std(0xf3ebdd)); str.rotation.set(0, Math.PI / 2, 0); str.position.set(.2, .5, 0); head.add(str);
+  }
+  if (S.extra === 'flag') {   // vlajka crew na tyčke za chrbtom, s iniciálami
+    const fc = document.createElement('canvas'); fc.width = 256; fc.height = 160; const x = fc.getContext('2d');
+    x.fillStyle = xc; x.fillRect(0, 0, 256, 160); x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(0, 130, 256, 30);
+    const light = new THREE.Color(xc).getHSL({}).l > .6; x.fillStyle = light ? '#151312' : '#f3ebdd'; x.font = '96px Anton, Impact, sans-serif'; x.textAlign = 'center'; x.fillText(S.initials, 128, 112);
+    x.font = '700 18px "IBM Plex Mono", monospace'; x.fillText('CREW', 128, 152);
+    const t2 = new THREE.CanvasTexture(fc); t2.colorSpace = THREE.SRGBColorSpace;
+    const fg = new THREE.Group(); fg.position.set(.62, -.2, -.85); fg.rotation.z = -.12; items.add(fg);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 2.4, 10), std(0x2b2a2e, { metalness: .7, roughness: .35 })); pole.position.y = 1.0; fg.add(pole);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(.06, 12, 8), gold()); tip.position.y = 2.22; fg.add(tip);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.0, .62, 16, 1), std(0xffffff, { map: t2, roughness: .85, side: THREE.DoubleSide })); cloth.position.set(.53, 1.86, 0); cloth.name = 'flag'; cloth.userData.base = Float32Array.from(cloth.geometry.attributes.position.array); fg.add(cloth);
+  }
   if (S.finish === 'glow') {
     const tex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 10, 64, 64, 64); const col = new THREE.Color(S.color); const rgb = `${col.r * 255 | 0},${col.g * 255 | 0},${col.b * 255 | 0}`; g.addColorStop(0, `rgba(${rgb},.5)`); g.addColorStop(.55, `rgba(${rgb},.16)`); g.addColorStop(1, `rgba(${rgb},0)`); x.fillStyle = g; x.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.scale.setScalar(4.6); sp.position.set(0, -.3, -.2); items.add(sp);
@@ -596,6 +684,15 @@ function buildBuddy() {
     [-1, 1].forEach(s => { const eye = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), std(0x0e0d0c)); eye.position.set(s * .32, .1, .92); eye.scale.set(1, .6, .4); eye.rotation.z = -s * .5; buddyG.add(eye); });
     buddyG.scale.setScalar(.34); buddyG.position.set(-1.6, -.4, .4);
   }
+  if (b === 'bug') {   // lienka: lezie okolo dosky, občas vzlietne
+    const lb = new THREE.Group(); lb.name = 'lb'; buddyG.add(lb);
+    const shellM = std(0xd8231f, { roughness: .2, clearcoat: 1 }), blk = std(0x111111, { roughness: .5 });
+    [-1, 1].forEach(sd => { const sh = new THREE.Mesh(new THREE.SphereGeometry(.15, 20, 12, 0, Math.PI, 0, Math.PI / 2), shellM); sh.rotation.y = sd > 0 ? 0 : Math.PI; sh.name = 'sh' + sd; sh.position.y = .03; lb.add(sh);
+      [[.07, .06, .05], [.1, .1, -.04], [.04, .12, .02]].forEach(([dx, dy, dz]) => { const sp = new THREE.Mesh(new THREE.SphereGeometry(.028, 8, 6), blk); sp.position.set(sd * dx, dy, dz); sp.scale.y = .4; sh.add(sp); }); });
+    const hd = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), blk); hd.position.set(0, .05, .14); lb.add(hd);
+    [-1, 1].forEach(sd => { const e = new THREE.Mesh(new THREE.SphereGeometry(.015, 6, 4), std(0xffffff)); e.position.set(sd * .035, .08, .19); lb.add(e); });
+    lb.scale.setScalar(2.1);
+  }
   const big = { cat: 1.25, pigeon: 1.3, rat: 1.2, crow: 1.2, drone: 1.1 }[b];
   if (big) buddyG.scale.multiplyScalar(big);
   if (b === 'moths' || b === 'bats' || b === 'butterfly') buddyG.children.forEach(ch => ch.scale.setScalar(1.25));
@@ -613,6 +710,9 @@ function tickBuddy(t) {
   if (b === 'bats') { buddyG.children.forEach(bat => { const i = bat.userData.i, a = t * .9 + i * Math.PI; bat.position.set(Math.cos(a) * 1.7, 1.6 + Math.sin(t * 1.7 + i) * .4, Math.sin(a) * 1.0); bat.rotation.y = -a; const f = Math.sin(t * 16 + i) * .8; bat.getObjectByName('wl').rotation.y = f; bat.getObjectByName('wr').rotation.y = -f; }); }
   if (b === 'crow') { const h = buddyG.getObjectByName('head'); if (h) { h.rotation.y = Math.sin(t * .8) > .7 ? .6 : 0; h.position.y = .42 + (Math.sin(t * 5) > .9 ? -.04 : 0); } }
   if (b === 'drone') { buddyG.position.set(1.35 + Math.sin(t * .6) * .3, 1.7 + Math.sin(t * 1.5) * .12, .5 + Math.cos(t * .5) * .3); buddyG.rotation.y = -.4 + Math.sin(t * .6) * .3; buddyG.rotation.z = Math.sin(t * .6) * .1; buddyG.getObjectByName('drone')?.children.forEach(o => { if (o.name === 'rotor') o.rotation.y = t * 40; }); }
+  if (b === 'bug') { const lb = buddyG.getObjectByName('lb'); if (!lb) return; const cyc = t % 12, fly = cyc > 8; const a = t * .5;
+    if (!fly) { lb.position.set(Math.cos(a) * 1.25, -1.97, Math.sin(a) * .65 + .4); lb.rotation.set(0, -a, 0); lb.getObjectByName('sh1').rotation.z = 0; lb.getObjectByName('sh-1').rotation.z = 0; }
+    else { const p = (cyc - 8) / 4, h = Math.sin(p * Math.PI); lb.position.set(Math.cos(a) * (1.25 + h * .3), -1.97 + h * 2.6, Math.sin(a) * .65 + .4); const f = .5 + Math.sin(t * 40) * .3; lb.getObjectByName('sh1').rotation.z = -f; lb.getObjectByName('sh-1').rotation.z = f; } }
   if (b === 'mini') { buddyG.position.y = -.4 + Math.sin(t * 2.1) * .12; buddyG.rotation.y = Math.sin(t * .8) * .3 + .4; }
 }
 /* efekty: sprity z plátna */
@@ -631,6 +731,15 @@ function buildFx() {
   if (f === 'lightning') { const tex = spriteTex(x => { x.strokeStyle = '#fff'; x.lineWidth = 8; x.lineJoin = 'round'; x.beginPath(); x.moveTo(70, 4); x.lineTo(40, 60); x.lineTo(66, 58); x.lineTo(44, 124); x.lineTo(96, 50); x.lineTo(68, 52); x.lineTo(90, 4); x.closePath(); x.stroke(); x.fillStyle = '#9fd4ff'; x.fill(); }); for (let i = 0; i < 2; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.setScalar(.7); sp.userData.i = i; sp.visible = false; fxG.add(sp); } }
   if (f === 'aura') { const tex = spriteTex(x => { const g = x.createRadialGradient(64, 64, 10, 64, 64, 64); g.addColorStop(0, 'rgba(255,220,120,.55)'); g.addColorStop(.6, 'rgba(255,190,60,.18)'); g.addColorStop(1, 'rgba(255,190,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); }); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.scale.setScalar(4.2); sp.name = 'aura'; fxG.add(sp); const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6, .03, 8, 80), std(0xffd04a, { emissive: new THREE.Color(0xffc040), emissiveIntensity: 1.5 })); ring.rotation.x = Math.PI / 2; ring.name = 'ring'; fxG.add(ring); for (let i = 0; i < 10; i++) { const st = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteTex(x => { x.fillStyle = '#fff2b0'; x.beginPath(); x.moveTo(64, 4); x.quadraticCurveTo(66, 62, 124, 64); x.quadraticCurveTo(66, 66, 64, 124); x.quadraticCurveTo(62, 66, 4, 64); x.quadraticCurveTo(62, 62, 64, 4); x.fill(); }), transparent: true, depthWrite: false })); st.scale.setScalar(.25); st.userData.i = i; fxG.add(st); } }
   if (f === 'flames') { flameCv = document.createElement('canvas'); flameCv.width = 64; flameCv.height = 96; flameTex = new THREE.CanvasTexture(flameCv); flameTex.colorSpace = THREE.SRGBColorSpace; [-1.3, 1.3].forEach(x => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.scale.set(.55, .8, 1); sp.userData.x = x; fxG.add(sp); }); }
+  const glowTex = (rgb, a = .9) => spriteTex(x => { const g = x.createRadialGradient(64, 64, 2, 64, 64, 62); g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(.25, `rgba(${rgb},${a * .8})`); g.addColorStop(1, `rgba(${rgb},0)`); x.fillStyle = g; x.fillRect(0, 0, 128, 128); });
+  if (f === 'souls') { const tex = spriteTex(x => { const g = x.createRadialGradient(64, 84, 4, 64, 70, 46); g.addColorStop(0, 'rgba(230,255,220,1)'); g.addColorStop(.35, 'rgba(90,255,140,.85)'); g.addColorStop(1, 'rgba(20,200,90,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(64, 4); x.quadraticCurveTo(108, 70, 64, 124); x.quadraticCurveTo(20, 70, 64, 4); x.fill(); }); for (let i = 0; i < 7; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.userData.i = i; fxG.add(sp); } }
+  if (f === 'snowfall') { const n = 160, g = new THREE.BufferGeometry(), arr = new Float32Array(n * 3); for (let i = 0; i < n; i++) { arr[i * 3] = (Math.random() - .5) * 5; arr[i * 3 + 1] = Math.random() * 5 - 2.2; arr[i * 3 + 2] = (Math.random() - .5) * 3.4; } g.setAttribute('position', new THREE.BufferAttribute(arr, 3)); const pts = new THREE.Points(g, new THREE.PointsMaterial({ map: glowTex('235,242,255', 1), size: .13, transparent: true, depthWrite: false, color: 0xffffff })); pts.name = 'snow'; fxG.add(pts); }
+  if (f === 'fireworks') { const cols = [0xff4d6d, 0xffc61a, 0x5cc8ff, 0x7dff7a]; for (let k = 0; k < 3; k++) { const n = 48, g = new THREE.BufferGeometry(), dir = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); dir[i * 3] = r * Math.cos(a); dir[i * 3 + 1] = u; dir[i * 3 + 2] = r * Math.sin(a); } g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.userData.dir = dir; const pts = new THREE.Points(g, new THREE.PointsMaterial({ map: glowTex('255,255,255', 1), size: .16, transparent: true, depthWrite: false, color: cols[k], blending: THREE.AdditiveBlending })); pts.userData.k = k; fxG.add(pts); } }
+  if (f === 'orbit') { const cols = [0xf3ebdd, 0xa01414, 0xffc61a]; for (let i = 0; i < 3; i++) { const w = new THREE.Group(); const ur = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .13, 28), std(cols[i], { roughness: .45 })); ur.rotation.x = Math.PI / 2; w.add(ur); const core = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, .15, 16), std(0xc9ccd0, { metalness: .9, roughness: .25 })); core.rotation.x = Math.PI / 2; w.add(core); w.userData.i = i; fxG.add(w); } }
+  if (f === 'spotlight') { const bt = spriteTex(x => { const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,248,220,0)'); g.addColorStop(.25, 'rgba(255,248,220,.12)'); g.addColorStop(1, 'rgba(255,248,220,.42)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.25, 1.7, 6, 40, 1, true), new THREE.MeshBasicMaterial({ map: bt, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); beam.name = 'beam'; fxG.add(beam);
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(1.7, 48), new THREE.MeshBasicMaterial({ map: glowTex('255,240,200', .55), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); pool.rotation.x = -Math.PI / 2; pool.name = 'pool'; fxG.add(pool); }
+  if (f === 'flashes') { const tex = spriteTex(x => { const g = x.createRadialGradient(64, 64, 1, 64, 64, 40); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.3, 'rgba(220,235,255,.7)'); g.addColorStop(1, 'rgba(200,220,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); x.fillStyle = 'rgba(255,255,255,.9)'; x.fillRect(4, 62, 120, 4); x.fillRect(62, 4, 4, 120); }); for (let i = 0; i < 6; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.userData.i = i; fxG.add(sp); } }
 }
 function tickFx(t) {
   const f = S.effect; if (f === 'none') return;
@@ -645,6 +754,16 @@ function tickFx(t) {
   if (f === 'lightning') fxG.children.forEach(sp => { const i = sp.userData.i, ph = (t * 1.5 + i * 2.3) % 7; sp.visible = ph < .25; if (sp.visible) { sp.position.set(gp.x + (i ? -.9 : .9), gp.y + .9 - ph * 2, gp.z + .4); sp.material.opacity = ph < .12 ? 1 : .4; } });
   if (f === 'aura') fxG.children.forEach(o => { if (o.name === 'aura') { o.position.set(gp.x, gp.y + .1, gp.z - .3); o.material.opacity = .8 + Math.sin(t * 2) * .2; } else if (o.name === 'ring') { o.position.set(gp.x, gp.y - 1.5, gp.z); o.rotation.z = t * .4; o.scale.setScalar(1 + Math.sin(t * 2) * .04); } else { const i = o.userData.i, a = t * .6 + i * .63; o.position.set(gp.x + Math.cos(a) * 1.5, gp.y - .8 + ((t * .3 + i * .1) % 1) * 2.2, gp.z + Math.sin(a) * 1.1); o.material.opacity = .5 + Math.sin(t * 4 + i) * .5; } });
   if (f === 'flames' && flameCv) { const x = flameCv.getContext('2d'); x.clearRect(0, 0, 64, 96); for (let k = 0; k < 3; k++) { const g = x.createRadialGradient(32, 80, 2, 32 + Math.sin(t * 9 + k) * 6, 60 - k * 14, 26 - k * 7); g.addColorStop(0, ['rgba(255,120,30,.9)', 'rgba(255,200,60,.9)', 'rgba(255,250,200,.95)'][k]); g.addColorStop(1, 'rgba(255,60,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 96); } flameTex.needsUpdate = true; fxG.children.forEach(sp => { sp.position.set(boardRig.position.x + sp.userData.x * Math.cos(boardRig.rotation.y), boardRig.position.y + .25, boardRig.position.z - sp.userData.x * Math.sin(boardRig.rotation.y)); sp.visible = S.board.show; }); }
+  if (f === 'souls') fxG.children.forEach(sp => { const i = sp.userData.i, ph = (t * .32 + i / 7) % 1, a = i * .9 + t * .7; sp.position.set(gp.x + Math.cos(a) * (1.35 - ph * .3), gp.y - 1.6 + ph * 3.4, gp.z + Math.sin(a) * .9); sp.material.opacity = Math.sin(ph * Math.PI); sp.scale.set(.32, .45, 1); });
+  if (f === 'snowfall') { const pts = fxG.getObjectByName('snow'); if (pts) { pts.position.set(gp.x, gp.y, gp.z); const a = pts.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) - .012; if (y < -2.2) y = 2.8; a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(t * 1.3 + i) * .002); } a.needsUpdate = true; } }
+  if (f === 'fireworks') fxG.children.forEach(pts => { const k = pts.userData.k, P = 2.7, ph = (t + k * .9) % P, a = pts.geometry.attributes.position, dir = pts.geometry.userData.dir, cyc = Math.floor((t + k * .9) / P);
+    const bx = gp.x + [-1.3, 1.4, .1][k] + Math.sin(cyc * 3.1 + k) * .4, bz = gp.z - .8 + Math.cos(cyc * 1.7) * .3, by = gp.y + 1.9 + (k % 2) * .4;
+    if (ph < .55) { const y = gp.y - 1.2 + (by - gp.y + 1.2) * (ph / .55); for (let i = 0; i < a.count; i++) a.setXYZ(i, bx, y - (i % 4) * .05, bz); pts.material.size = .1; pts.material.opacity = 1; }
+    else { const e = ph - .55; for (let i = 0; i < a.count; i++) a.setXYZ(i, bx + dir[i * 3] * e * 1.1, by + dir[i * 3 + 1] * e * 1.1 - e * e * .6, bz + dir[i * 3 + 2] * e * 1.1); pts.material.size = .17; pts.material.opacity = Math.max(0, 1 - e / (P - .55)); }
+    a.needsUpdate = true; });
+  if (f === 'orbit') fxG.children.forEach(w => { const i = w.userData.i, a = t * 1.3 + i * Math.PI * 2 / 3; w.position.set(gp.x + Math.cos(a) * 1.55, gp.y - .2 + Math.sin(a) * .35, gp.z + Math.sin(a) * 1.0); w.rotation.set(0, -a, t * 6); });
+  if (f === 'spotlight') { const bm = fxG.getObjectByName('beam'), pl = fxG.getObjectByName('pool'); if (bm) { bm.position.set(gp.x + Math.sin(t * .5) * .08, gp.y + 1.0, gp.z); bm.rotation.z = Math.sin(t * .5) * .03; bm.material.opacity = .85 + Math.sin(t * 3) * .1; } if (pl) pl.position.set(gp.x, -1.99, gp.z); }
+  if (f === 'flashes') fxG.children.forEach(sp => { const i = sp.userData.i, P = 1.7 + i * .37, ph = (t + i * .61) % P, cyc = Math.floor((t + i * .61) / P); sp.visible = ph < .12; if (sp.visible) { const a = (cyc * 2.3 + i * 1.7) % (Math.PI * 1.2) - Math.PI * .6 + Math.PI / 2; sp.position.set(gp.x + Math.cos(a) * 2.6, gp.y - .9 + ((cyc + i) % 3) * .45, gp.z + Math.sin(a) * 1.6); sp.scale.setScalar(ph < .05 ? .9 : .55); } });
 }
 
 
@@ -732,6 +851,7 @@ function wobble(t, amp) {
     const wl = items.getObjectByName('wing-1'), wr = items.getObjectByName('wing1'); if (wl && wr) { const f = Math.sin(t * 7) * .5; wl.rotation.y = .7 + f; wr.rotation.y = -.7 - f; }
     const pass = items.getObjectByName('pass'); if (pass) pass.rotation.z = Math.sin(t * 1.7) * .12;
     const scf = items.getObjectByName('scarf'); if (scf) scf.rotation.z = .15 + Math.sin(t * 2.3) * .12;
+    const flg = items.getObjectByName('flag'); if (flg) { const a = flg.geometry.attributes.position, b = flg.userData.base; for (let i = 0; i < a.count; i++) { const x0 = b[i * 3] + .5; a.setZ(i, Math.sin(x0 * 5 - t * 5) * .08 * x0); } a.needsUpdate = true; }
     const tool = items.getObjectByName('tool'); if (tool) tool.rotation.z = .3 + Math.sin(t * 1.9) * .2;
     if (!trick && m && now > nextTrick && !emote) { startTrick(Math.random() < .7 ? 'flip' : 'ollie'); nextTrick = now + 7000 + Math.random() * 6000; }
     if (trick) {

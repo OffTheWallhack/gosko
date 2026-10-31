@@ -1,7 +1,7 @@
 /* Pixelový duch GOSko: ten istý duch ako v 3D, ale ako postavička zo starej hry (12 snímok/s, dithering, grimasy).
    Bez three.js. API: mountPixelGhost(canvas, { ghost, look, interactive, onScene }) a renderPixelGhost(ghost, { look, width, height }) pre statický obrázok.
    Nastavenie ducha = profiles.ghost (ghost.js, ghostOf). Doska = loadout (looks.js). */
-import { ghostOf, BODY_COLORS, EYE_COLORS as EYES, HEADS as HEAD, EXTRAS as EXTRA, MARKS, FINISHES, EX, EMOTES, randomEmote, BODY_PATH, EYE_L_PATH, EYE_R_PATH, MOUTH_PATH } from './ghost.js';
+import { ghostOf, BODY_COLORS, EYE_COLORS as EYES, HEADS as HEAD, EXTRAS as EXTRA, MARKS, FINISHES, EX, EMOTES, randomEmote, markText, BODY_PATH, EYE_L_PATH, EYE_R_PATH, MOUTH_PATH } from './ghost.js';
 import { DECKS, WHEELS, TRUCKS, isHex } from './looks.js';
 
 const hex6 = n => '#' + n.toString(16).padStart(6, '0');
@@ -84,6 +84,8 @@ function bodyPixels() {
   const CH = (() => { const [h, s, l] = rgbHsl(hexRgb(S.color)); return [.97, .82, .5, .3, .15].map(v => hslRgb(h, Math.min(.35, s * .5), v * .85 + l * .15)); })();
   // fľaky (vzor)
   const spots = []; if (S.pattern === 'spots') { const P = rng(S.seed * 7 + 3); for (let i = 0; i < 40 && spots.length < 8; i++) { const x = 2 + P() * (GW - 4) | 0, y = 2 + P() * (GH - 8) | 0; if (!M(x, y) || (x > 7 && x < 33 && y > faceTop - 2 && y < faceBot + 2)) continue; spots.push([x, y, P() < .5 ? 2 : 1.5]); } }
+  const VHS = S.pattern === 'vhs' ? [[2, ramp('#ff2e63')], [3, ramp('#08d9d6')], [faceBot + 2, ramp('#ff2e63')], [faceBot + 3, ramp('#08d9d6')], [faceBot + 4, ramp('#f9ed69')], [GH - 9, ramp('#08d9d6')], [GH - 8, ramp('#f9ed69')]] : null;
+  const TREE = ['....#....', '...###...', '..#####..', '...###...', '.#######.', '....#....'];
   for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
     if (!M(x, y)) continue;
     const r = GW / 2; let nx = (x + .5 - CX) / r, ny = y + .5 < HC ? (y + .5 - HC) / r : 0;
@@ -110,6 +112,9 @@ function bodyPixels() {
     if (S.pattern === 'tiedye') { const dd = Math.hypot((x - CX) * .8, (y - HC - 8) * .55); if ((dd / 4 | 0) % 2 === 0 || hsh(x, y, 2) < .12) ramp_ = R2; }
     if (S.pattern === 'leopard') { let hit = 0; for (const [sx, sy] of leo) { const dd = Math.hypot((x - sx) * .85, y - sy); if (dd <= 1.6) { hit = 1; break; } if (dd <= 2.7) hit = 2; } if (hit === 1) ramp_ = R2; else if (hit === 2) ramp_ = R3; }
     if (S.pattern === 'flames') { const hgt = 4 + Math.round(hsh(x / 2 | 0, 0, S.seed + 8) * 9) + ((x % 3 === 0) ? 2 : 0); if (y > GH - 2 - hgt) ramp_ = (y > GH - 2 - hgt * .5) ? R3 : R2; }
+    if (S.pattern === 'bones') { const by = y - faceBot, dx = Math.abs(x + .5 - CX); if (dx < 1 && by >= 2 && by <= GH - faceBot - 5 && by % 3 !== 1) ramp_ = R2; for (const ry of [3, 6, 9]) { const w = 9 - ry / 3; if (by === ry && dx > 1.5 && dx < w + 1.5) ramp_ = R2; if (by === ry + 1 && Math.abs(dx - (w + 1)) < .6) ramp_ = R2; } }
+    if (S.pattern === 'sweater') { const zz = yy => y === yy + Math.abs((x % 6) - 3) - 1; if (zz(4) || zz(GH - 8)) ramp_ = R2; const ty = y - (faceBot + 3), m = ((x - 1) % 10 + 10) % 10; if (ty >= 0 && ty < 6 && m < 9 && TREE[ty][m] === '#') ramp_ = R2; }
+    if (VHS) { const hit = VHS.find(([yy]) => yy === y); if (hit && hsh(x >> 2, y, S.seed + 3) > .15) ramp_ = hit[1]; }
     let c = ramp_[t];
     // povrchy s textúrou
     if (S.finish === 'concrete') { const n = hsh(x, y, 13); if (n < .12) c = mix(c, [0, 0, 0], .25); else if (n > .9) c = mix(c, [255, 255, 255], .18); }
@@ -125,14 +130,23 @@ function bodyPixels() {
     if (d > 0 && hsh(x, y, S.seed) < d * (.03 + .5 * Math.pow(y / GH, 3))) c = mix(c, [74, 58, 42], .55);
     out[y * GW + x] = pack(c);
   }
-  // znak na tele (tetovanie): vľavo dole, kde je telo celé
-  if (S.mark !== 'none') {
-    const mc = hexRgb(S.markColor), ox = 5, oy = GH - 14;
-    const artM = MARKS[S.mark].art || null, txt = S.mark === 'number' ? String(S.seed).padStart(4, '0') : S.mark === 'initials' ? S.initials : MARKS[S.mark].text || '';
-    const setM = (X, Y) => { if (M(X, Y)) { out[Y * GW + X] = pack(mix(mc, unpack(out[Y * GW + X]), .12)); holo[Y * GW + X] = 255; } };
-    if (artM) artM.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') setM(ox + x, oy + y); }));
-    else { const str = txt; [...str].forEach((ch, i) => { const g = FONT[ch]; for (let k = 0; k < 15; k++) if (g[k] === '1') setM(ox + i * 4 + k % 3, oy + 1 + (k / 3 | 0)); }); }
-  }
+  // nálepky na tele: slot 1 vľavo dole, slot 2 vpravo dole; pri štýle nálepky biely vyrezaný okraj
+  let used = 0;
+  const markPts = (key, slot) => {
+    if (!key || key === 'none' || !MARKS[key]) return [];
+    const artM = MARKS[key].art || null, pts = [], oy = GH - 14;
+    if (artM) { const ox = slot ? GW - 12 : 5; artM.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') pts.push([ox + x, oy + y]); })); }
+    else { const str = String(markText(S, key)).toUpperCase().replace(/[^A-Z0-9]/g, ''), w = str.length * 4 - 1, ox = slot ? Math.max(GW - 5 - w, used + 2) : 5; [...str].forEach((ch, i) => { const g = FONT[ch]; if (g) for (let k = 0; k < 15; k++) if (g[k] === '1') pts.push([ox + i * 4 + k % 3, oy + 1 + (k / 3 | 0)]); }); }
+    pts.forEach(([x]) => { used = Math.max(used, x); });
+    return pts;
+  };
+  [[S.mark, S.markColor, 0], [S.mark2, S.mark2Color, 1]].forEach(([key, col, slot]) => {
+    const pts = markPts(key, slot); if (!pts.length) return;
+    const mc = hexRgb(col), own = new Set(pts.map(([x, y]) => x + ',' + y));
+    const edge = rgbHsl(mc)[2] > .72 ? [21, 19, 18] : [250, 246, 238];
+    if (S.markSticker) pts.forEach(([x, y]) => { for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const X = x + a, Y = y + b; if (!own.has(X + ',' + Y) && M(X, Y)) { out[Y * GW + X] = pack(edge); holo[Y * GW + X] = 255; } } });
+    pts.forEach(([X, Y]) => { if (M(X, Y)) { out[Y * GW + X] = pack(S.markSticker ? mc : mix(mc, unpack(out[Y * GW + X]), .12)); holo[Y * GW + X] = 255; } });
+  });
   // odlesk (vinyl/holo)
   if (S.finish === 'vinyl' || S.finish === 'holo') { const sx = CX - 9, sy = HC - 10; [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 1], [3, -1]].forEach(([a, b]) => { const x = sx + a, y = sy + b; if (M(x, y)) { out[y * GW + x] = pack(S.finish === 'holo' ? [255, 255, 255] : mix(R1[0], [255, 255, 255], .7)); holo[y * GW + x] = 255; } }); }
   // šmuhy
@@ -340,6 +354,22 @@ function drawItems(L, dist) {
     L.draw(HORN, rx, top + colTop[rx - PX + 1] - 4, R, true);
   }
   if (S.head === 'crown') L.draw(CROWN, cx - 6, top - 6, { ...GOLD, R: [210, 30, 40], B: [60, 120, 230] });
+  if (S.head === 'pumpkin') L.draw(['......gg......', '.....gg.......', '...dOOOOOOd...', '.dOOdOOOOdOOd.', 'dOOdOOOOOOdOOd', 'dOdYYdOOdYYdOd', 'dOdYYdOOdYYdOd', 'dOOdOOYYOOdOOd', 'dOdYdYdYdYdYOd', '.dOdYYYYYYdOd.', '..dddOOOOddd..'], cx - 7, top - 9, { d: [150, 60, 10], O: [255, 122, 26], Y: [255, 214, 90], g: [80, 110, 40] });
+  if (S.head === 'santa') {
+    const R = ramp('#c4161c'), W = ramp('#F3EBDD');
+    for (let by = -1; by <= 9; by++) { const l = by < 0 ? spanL[0] + 1 : spanL[by] - 1, r = by < 0 ? spanR[0] - 1 : spanR[by] + 1, cuff = by >= 7, L2 = cuff ? l - 1 : l, R2 = cuff ? r + 1 : r; for (let x = L2; x <= R2; x++) { let t = toneAt(x, L2, R2); if (cuff && (x + by) % 3 === 0) t = Math.min(3, t + 1); L.set(x + PX, by + top, pack((cuff ? W : R)[t])); } }
+    L.draw(['.hbb....', 'hbbbs...', '.bbbbs..', '..bbbbs.', '...bbbs.', '....bbs.'], cx - 2, top - 5, pal4(R));
+    L.draw(POM, cx + 4, top, pal4(W));
+  }
+  if (S.head === 'partyhat') { const cols = [[45, 108, 192], [255, 198, 26], [238, 111, 174]], hx = cx + 2; for (let r = 0; r <= 11; r++) { const w = Math.round(r * .42); for (let x = -w; x <= w; x++) { const c = cols[((((x + r) >> 1) % 3) + 3) % 3]; L.set(hx + x, top - 10 + r, pack(x === w ? c.map(v => v * .7 | 0) : c)); } } L.draw(['.Y.', 'YHY', '.Y.'], hx - 1, top - 13, { Y: [255, 198, 26], H: [255, 241, 168] }); }
+  if (S.extra === 'flag') {
+    const R = ramp(S.extraColor), px = PX + GW - 5, fy = top - 12;
+    for (let y = fy; y <= top + 16; y++) L.set(px, y, pack([60, 58, 64]));
+    L.set(px, fy - 1, pack(GOLD.Y));
+    for (let y = 0; y < 8; y++) for (let x = 1; x <= 11; x++) L.set(px + x, fy + y, pack(R[y > 5 ? 2 : x % 4 === 0 ? 1 : 0]));
+    const ink = rgbHsl(hexRgb(S.extraColor))[2] > .6 ? [21, 19, 18] : [243, 235, 221];
+    [...String(S.initials).toUpperCase()].forEach((ch, i) => { const g = FONT[ch]; if (g) for (let k = 0; k < 15; k++) if (g[k] === '1') L.set(px + 3 + i * 4 + k % 3, fy + 1 + (k / 3 | 0), pack(ink)); });
+  }
   if (S.extra === 'headphones') {
     const R = ramp(S.extraColor);
     for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) { if (y - PT >= HC - 4) continue; const dd = dist[y * LW + x]; if (dd === 2) L.set(x, y, pack(x < cx ? R[0] : R[1])); else if (dd === 3) L.set(x, y, pack(R[2])); }
@@ -642,6 +672,14 @@ function draw(advance = false) {
   if (S.effect === 'lightning') { const ph = t % 70; if (ph < 3) { const side = (t / 70 | 0) % 2 ? -1 : 1, x = gx + PX + (side > 0 ? GW + 4 : -8), y = gy + PT - 6; art(['..##', '.##.', '####', '..##', '.##.', '.#..'], x, y, { '#': ph === 1 ? [255, 255, 255] : [159, 212, 255] }); for (let k = 0; k < 6; k++) blend(gx + PX + (k * 7) % GW, gy + PT + (k * 11) % GH, [255, 255, 255], .25); } }
   if (S.effect === 'aura') { for (let a = 0; a < 48; a++) { const ang = a / 48 * Math.PI * 2 + t * .03, r = 25 + Math.round(Math.sin(t * .2 + a) * 1.5); const x = gx + PX + CX + Math.round(Math.cos(ang) * r * 1.1), y = gy + PT + 22 + Math.round(Math.sin(ang) * r); if ((a + t) % 3 === 0) put(x, y, pack([255, 215, 90]) >>> 0); else blend(x, y, [255, 200, 80], .5); } for (let i = 0; i < 4; i++) { const ph = (t + i * 11) % 30; if (ph < 5) { const x = gx + PX - 6 + (hsh(i, t / 30 | 0, 61) * (GW + 12) | 0), y = gy + PT - 4 + (hsh(i, t / 30 | 0, 62) * (GH + 8) | 0); put(x, y, pack([255, 250, 210]) >>> 0); put(x - 1, y, pack([255, 215, 90]) >>> 0); put(x + 1, y, pack([255, 215, 90]) >>> 0); put(x, y - 1, pack([255, 215, 90]) >>> 0); put(x, y + 1, pack([255, 215, 90]) >>> 0); } } }
   if (S.effect === 'flames' && S.board.show) { const fr = t % 2, FL = fr ? ['...o...', '..oY...', '.oYYo..', 'oYWYYo.', '.oYYo..'] : ['..o....', '.oYo...', '.oYYo..', 'oYWYo..', '.oYo...']; art(FL, bx - 7, deckY - 7, { o: [255, 90, 20], Y: [255, 180, 40], W: [255, 240, 180] }); art(FL.slice(1), bx + 44, deckY - 6, { o: [255, 90, 20], Y: [255, 180, 40], W: [255, 240, 180] }); }
+  if (S.effect === 'souls') for (let i = 0; i < 4; i++) { const life = 44, ph = (t + i * 11) % life, side = i % 2 ? 1 : -1, x = gx + PX + CX + side * (GW / 2 + 3 + (i >> 1) * 4) + Math.round(Math.sin((t + i * 5) * .2) * 1.5), y = gy + PT + GH - 4 - (ph * .8 | 0); if (ph < 38) art(ph < 30 ? ['.w.', 'wGw', 'gGg', '.g.'] : ['.g.', 'gGg', '.g.'], x - 1, y, { w: [220, 255, 220], G: [120, 255, 150], g: [40, 190, 90] }); }
+  if (S.effect === 'snowfall') for (let i = 0; i < 40; i++) { const H = PT + GH + 8, x = gx + PX - 12 + ((hsh(i, 1, 9) * (GW + 24) + Math.sin((t + i) * .12) * 1.5) | 0), y = gy + ((hsh(i, 2, 9) * H + t * (.3 + hsh(i, 3, 9) * .3)) % H | 0); put(x, y, pack(i % 3 ? [245, 248, 255] : [200, 212, 235]) >>> 0); }
+  if (S.effect === 'fireworks') for (let k = 0; k < 2; k++) { const P = 34, ph = (t + k * 17) % P, cyc = ((t + k * 17) / P) | 0, bx = gx + PX + CX + (k ? 18 : -18) + ((hsh(cyc, k, 31) - .5) * 10 | 0), by = gy + PT - 6 - (hsh(cyc, k, 32) * 6 | 0), base = gy + PT + GH, col = [[255, 77, 109], [255, 198, 26], [92, 200, 255], [125, 255, 122]][(cyc + k) % 4];
+    if (ph < 8) { const y = base - (base - by) * ph / 8; put(bx, y, pack([255, 240, 200]) >>> 0); put(bx, y + 1, pack([255, 160, 60]) >>> 0); }
+    else { const e = ph - 8; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, r = Math.min(e, 10) * .9, x = bx + Math.round(Math.cos(a) * r), y = by + Math.round(Math.sin(a) * r + e * e * .02); if (e < 18) put(x, y, pack(e < 12 ? col : mix(col, [40, 30, 50], (e - 12) / 6)) >>> 0); } if (e < 3) put(bx, by, pack([255, 255, 255]) >>> 0); } }
+  if (S.effect === 'orbit') for (let i = 0; i < 3; i++) { const a = t * .12 + i * Math.PI * 2 / 3, x = gx + PX + CX + Math.round(Math.cos(a) * (GW / 2 + 6)), y = gy + PT + GH - 14 + Math.round(Math.sin(a) * 4); if (Math.sin(a) < 0 && x > gx + PX && x < gx + PX + GW) continue; art(['.w.', 'wcw', '.w.'], x - 1, y - 1, { w: [[243, 235, 221], [200, 40, 40], [255, 198, 26]][i], c: [180, 184, 190] }); }
+  if (S.effect === 'spotlight') { const sx = gx + PX + CX; for (let y = 0; y <= FY + 1; y++) { const w = 4 + y * .32; for (let x = -w; x <= w; x++) if (bayer(sx + x, y) < .55) blend(sx + x, y, [255, 246, 214], .14); } for (let y = -3; y <= 3; y++) for (let x = -24; x <= 24; x++) if ((x / 24) ** 2 + (y / 3) ** 2 < 1) blend(sx + x, FY + 1 + y, [255, 240, 200], .22); }
+  if (S.effect === 'flashes') for (let i = 0; i < 3; i++) { const P = 23 + i * 7, ph = (t + i * 9) % P, cyc = ((t + i * 9) / P) | 0; if (ph < 2) { const side = (cyc + i) % 2 ? 1 : -1, x = gx + PX + CX + side * (GW / 2 + 8 + (hsh(cyc, i, 71) * 14 | 0)), y = gy + PT + 4 + (hsh(cyc, i, 72) * GH * .7 | 0); art(['...w...', '...w...', '..wWw..', 'wwWWWww', '..wWw..', '...w...', '...w...'], x - 3, y - 3, { w: [210, 225, 255], W: [255, 255, 255] }); if (ph === 0) for (let k = 0; k < 40; k++) blend(gx + PX + (hsh(k, cyc, 73) * GW | 0), gy + PT + (hsh(k, cyc, 74) * GH | 0), [255, 255, 255], .3); } }
   }
   if (fx.bang) art(BANG, gx + PX + GW - 2, gy + PT - 12, { k: [24, 14, 18], Y: [255, 208, 64] });
   if (S.board.extra === 'wax' && S.board.show) art(['.wwww.', 'wWWWww', 'wWrrww', 'wwwwww', '.ssss.'], cx + 30, deckY + 1, { w: [243, 235, 221], W: [255, 250, 240], r: [160, 20, 20], s: [180, 170, 160] });
@@ -676,6 +714,7 @@ function drawBuddy(t, cx) {
   if (S.buddy === 'bats') { for (let i = 0; i < 2; i++) { const a = t * .06 + i * Math.PI, x = cx + Math.round(Math.cos(a) * 30), y = FY - 44 + Math.round(Math.sin(t * .12 + i) * 5); art((t + i) % 2 ? ['#.....#', '##.#.##', '.#####.'] : ['.......', '##.#.##', '#######'], x - 3, y, { '#': [27, 22, 32] }); put(x - 1, y + 1, pack([255, 42, 31]) >>> 0); put(x + 1, y + 1, pack([255, 42, 31]) >>> 0); } }
   if (S.buddy === 'crow') { const gx = cx + 30; art((t >> 3) % 2 ? ['....##', '...####', 'o#####.', '.####..', '.#.#...'] : ['....##.', '...####', '.######', 'o###...', '.#.#...'], gx + 4, FY - 15, { '#': [24, 24, 30], o: [80, 80, 90] }); put(gx + 9, FY - 14, pack([230, 230, 240]) >>> 0); }
   if (S.buddy === 'drone') { const x = cx + 20 + Math.round(Math.sin(t * .05) * 10), y = FY - 52 + Math.round(Math.sin(t * .09) * 3); art(['r#.....#r', 'k#######k', '.#kkkkk#.', '....k....'], x - 4, y, { '#': [40, 40, 46], k: [26, 26, 30], r: [255, 42, 31] }); if (t % 2) { for (const dx of [-5, 4]) { put(x + dx, y - 1, pack([120, 120, 130]) >>> 0); put(x + dx + 1, y - 1, pack([120, 120, 130]) >>> 0); } } put(x, y + 3, pack([57, 255, 20]) >>> 0); }
+  if (S.buddy === 'bug') { const cyc = t % 120, fly = cyc > 84; let x, y; if (!fly) { x = cx + 26 + Math.round(Math.sin(t * .03) * 6); y = FY - 3; } else { const p = (cyc - 84) / 36; x = cx + 26 - Math.round(p * 52); y = FY - 3 - Math.round(Math.sin(p * Math.PI) * 30); } art(fly && t % 2 ? ['w...w', '.RkR.', 'RkRkR', '.RRR.'] : ['..k..', '.RkR.', 'RkRkR', '.RRR.'], x - 2, y - 3, { R: [216, 35, 31], k: [20, 18, 20], w: [220, 230, 240] }); }
   if (S.buddy === 'mini') { const R = ramp(S.color), y = FY - 30 + Math.round(Math.sin(t * .18) * 2); art(['..####..', '.######.', '########', '#.####.#', '########', '########', '#.##.##.'], gx + 6, y, { '#': R[1] }); put(gx + 8, y + 3, pack(INK) >>> 0); put(gx + 11, y + 3, pack(INK) >>> 0); }
 }
 

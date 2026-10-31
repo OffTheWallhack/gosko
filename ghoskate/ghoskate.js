@@ -200,6 +200,7 @@ function renderA() {
   });
 
   const skinName = h('p', { class: 'skin-name', 'aria-live': 'polite' });
+  let ge = null;   // podrobný editor ducha (rovnaký ako v Mojom profile na webe)
   const skins = h('div', { class: 'skins', role: 'group', 'aria-label': t('create.skin') });
   const drawSkins = () => {
     skinName.textContent = GHOST_SKINS[d.ghost.skin].name[lang];
@@ -209,7 +210,7 @@ function renderA() {
         'aria-label': s.name[lang] + (locked ? '. ' + t('create.skinLocked') : ''), title: s.name[lang],
         onclick: () => {
           if (locked) { skinName.textContent = s.name[lang] + ': ' + t('create.skinLocked'); return; }
-          d.ghost = withSkin(d.ghost, k); saveDraft(); drawSkins(); updatePreview(); autosave();
+          d.ghost = withSkin(d.ghost, k); saveDraft(); drawSkins(); updatePreview(); autosave(); ge?.set(d.ghost);
         } },
         locked ? h('span', { class: 'lock', 'aria-hidden': 'true' }) : null,
         !locked && s.locked && S.justFounder ? h('span', { class: 'new' }, t('create.skinNew')) : null);
@@ -237,9 +238,22 @@ function renderA() {
   };
   drawParts();
 
+  // podrobný editor: tvár, veci, nálepky, efekty, Skúšobňa a Výzvy. Ukladá sa len odomknuté, na ukážke je aj to zo Skúšobne.
+  const geBox = h('div', { class: 'gk-ge' });
+  const geWrap = h('details', { class: 'gk-ge-wrap' }, h('summary', {}, t('create.editGhost')), geBox);
+  geWrap.addEventListener('toggle', async () => {
+    if (!geWrap.open || ge) return;
+    const [{ mountGhostEditor }, G] = await Promise.all([import('../assets/ghost-editor.js'), import('../assets/ghost.js')]);
+    let level = 1; try { level = G.ghostLevel(await S.store?.myActivity?.() || {}); } catch { /* bez účtu level 1 */ }
+    const apis = () => [S.heroApi, S.previewApi].filter(Boolean);
+    ge = mountGhostEditor(geBox, { ghost: d.ghost, inventory: S.inv, level, autoOn: true,
+      onChange: g => { d.ghost = G.unlockedGhost(g, S.inv, level); saveDraft(); drawSkins(); apis().forEach(a => a.setGhost?.(g)); updateCard(); updateAcct(); autosave(); },
+      onEmote: k => apis().forEach(a => a.emote?.(k)),
+      onAuto: v => apis().forEach(a => a.setAuto?.(v)) });
+  });
   $('#body-a').replaceChildren(
     field(t('create.nick'), nick, t('create.nickHint')), nickMsg,
-    h('div', { class: 'field' }, t('create.skin'), skins, skinName, h('p', { class: 'hint' }, h('a', { href: '../#/profil' }, t('create.moreGhost')))),
+    h('div', { class: 'field' }, t('create.skin'), skins, skinName, geWrap, h('p', { class: 'hint' }, h('a', { href: '../#/profil' }, t('create.moreGhost')))),
     h('div', { class: 'field' }, t('create.board'), tabs, parts));
 }
 

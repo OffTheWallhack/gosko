@@ -12,7 +12,7 @@ import { mountMap, mountPicker, navLink } from './map.js';
 import { initPwa } from './pwa.js';
 import { deco } from './deco.js';
 import { ITEMS, lootStickers, cacheProfile, cachedProfile, cachedInventory, localGhost, localLoadout, ghostSvg, cacheGhost, ghostOf, unlockedGhost } from './profile.js';
-import { ghostLevel, LEVELS, LEVEL_XP, XP_RULES, xpOf, levelOfXp, STYLES } from './ghost.js';
+import { ghostLevel, LEVELS, LEVEL_XP, XP_RULES, xpOf, levelOfXp, STYLES, FLAGS, FLAG_ITEMS } from './ghost.js';
 /* rozšírenia z master-gosko (docs/CO-PRIDAL-PIRY.md): registrácia v2, pass zo servera, prihlásenie heslom, hra Ghoskate */
 import { UserError } from './util.js';
 import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPayload, completeRegistration, fetchPass, upsertPass } from './register.js';
@@ -2232,17 +2232,19 @@ async function pageProfile(root) {
   put(body, ghSlot);
   (async () => {
     await syncProfile();
-    const p = cachedProfile(), inv = cachedInventory();
+    const p = cachedProfile(); let inv = cachedInventory();
     const level = ghostLevel(await store.myActivity().catch(() => null) || {});
     // editor ducha: zmeny sa hneď ukážu na duchovi a uložia do profilu (alebo len do prehliadača, kým profil nie je)
     const { mountGhostEditor } = await import('./ghost-editor.js');
     const edBox = h('div');
     let saveTimer = null;
+    // ukladá sa len to, čo má človek odomknuté; veci zo Skúšobne ostanú len na duchovi v editore
     const persist = g => {
-      cacheGhost(g);
+      const safe = unlockedGhost(g, inv, level);
+      cacheGhost(safe);
       if (!p || store.mode !== 'live') return;
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(async () => { try { const np = await store.saveProfile({ ghost: unlockedGhost(g, inv, level) }); cacheProfile(np, inv); } catch (err) { console.error(err); } }, 900);
+      saveTimer = setTimeout(async () => { try { const np = await store.saveProfile({ ghost: safe }); cacheProfile(np, inv); } catch (err) { console.error(err); } }, 900);
     };
     persistRef.fn = persist;
     let autoOn = true; try { autoOn = localStorage.getItem('gosko:ghost-auto') !== '0'; } catch { /* bez úložiska */ }
@@ -2254,6 +2256,12 @@ async function pageProfile(root) {
       onEmote: k => avatar.api.then(a => a?.emote?.(k)),
       onAuto: v => { try { localStorage.setItem('gosko:ghost-auto', v ? '1' : '0'); } catch { /* nevadí */ } avatar.api.then(a => a?.setAuto?.(v)); } });
     avatar.api.then(a => a?.setAuto?.(autoOn));
+    // špeciálne situácie (Halloween, Vianoce, 7 dní v kuse…): databáza pridá veci do inventára sama
+    if (p && store.mode === 'live' && store.claimGhostSpecials) store.claimGhostSpecials().then(got => {
+      if (!got?.length) return;
+      inv = [...new Set([...inv, ...got])]; cacheProfile(cachedProfile(), inv); editor.setInventory(inv);
+      toast('Odomkol si nové veci pre ducha: ' + got.map(i => FLAGS[Object.keys(FLAG_ITEMS).find(k => FLAG_ITEMS[k] === i)] || i).join(', ') + '. Nájdeš ich vo Výzvach.');
+    }).catch(err => console.warn('claim_ghost_specials', err));
     curLevel = level; lvlBadge.textContent = `LVL ${level} · ${LEVELS[level - 1][1]}`; paintStyle();
     edSlot.replaceChildren(...[p ? null : h('p', {}, 'Prihlás sa, aby sa duch uložil do účtu. Zatiaľ sa pamätá len v tomto prehliadači.'), edBox].filter(Boolean));
     const items = inv.filter(i => ITEMS[i]).map(i => h('li', {}, h('b', {}, ITEMS[i].name.sk), h('span', {}, ITEMS[i].about.sk)));
