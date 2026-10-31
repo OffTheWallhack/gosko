@@ -1,6 +1,6 @@
 /* GOSko service worker: web funguje aj offline a dá sa pridať na plochu.
    Pri zmene webu zvýš číslo verzie. */
-const VERSION = 'gosko-v98';
+const VERSION = 'gosko-v99';
 const SHELL = ['./', 'index.html', 'data.js', 'assets/style.css', 'assets/app.js', 'assets/board.js', 'assets/sticker-art.js', 'assets/park.js',
   'assets/store.js', 'assets/deco.js', 'assets/badges.js', 'assets/card.js', 'assets/qr.js', 'assets/map.js', 'assets/pwa.js', 'assets/bracket.js', 'assets/crt.js', 'assets/mascot.js', 'assets/ghost.js', 'assets/ghost-editor.js', 'assets/pixel-ghost.js', 'assets/profile.js', 'assets/looks.js',
   'assets/ranking.js', 'assets/util.js', 'assets/api.js', 'assets/login.js', 'assets/register.js', 'assets/pages.js',

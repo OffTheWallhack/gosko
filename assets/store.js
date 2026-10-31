@@ -548,6 +548,8 @@ async function liveStore(CONFIG) {
     async ghoskateStats() { const { data, error } = await sb.rpc('ghoskate_stats'); if (error) throw error; return data; },
     async mySpots() { const s = await session(); if (!s) return []; return must(await sb.from('spots').select('id,created_at,name,city,approved').eq('user_id', s.user.id).order('created_at', { ascending: false })); },
     async myActivity() { if (!(await session())) return null; const { data, error } = await sb.rpc('my_activity'); if (error) throw error; return data; },
+    /* špeciálne veci pre ducha (Halloween, Vianoce, Silvester, 7 dní v kuse): vráti zoznam novo pridaných vecí */
+    async claimGhostSpecials() { if (!(await session())) return []; const { data, error } = await sb.rpc('claim_ghost_specials'); if (error) throw error; return Array.isArray(data) ? data : []; },
   };
   if (!CONFIG.BACKEND_V2) return live;
 

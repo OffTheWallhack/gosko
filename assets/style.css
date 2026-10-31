@@ -3155,3 +3155,18 @@ button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;co
 .as-ph figcaption{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
 .photo-prevs{display:flex;flex-wrap:wrap;gap:8px}
 .photo-prevs .photo-prev{max-height:90px}
+
+/* v14: Skúšobňa (zamknuté veci na skúšku) a Výzvy (špeciálne situácie) v editore ducha */
+.ge-try{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 6px;border:1px dashed var(--line-dark);border-radius:12px}
+.ge-try.on{border-style:solid;border-color:#5cc8ff;background:rgba(92,200,255,.08)}
+.ge-try-msg{font-size:.82rem;color:var(--muted-dark)}
+.ge-try.on .ge-try-msg{color:#9fdcff}
+.ge-ch{display:grid;gap:8px;padding:12px;border:1px solid var(--line-dark);border-radius:12px;background:rgba(255,255,255,.02)}
+.ge-ch.on{border-color:#7fd6a0}
+.ge-ch-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ge-ch-h b{font-size:1rem}
+.ge-ch>small{color:var(--muted-dark);font-size:.82rem;line-height:1.35}
+.ge-ch-items{display:flex;flex-wrap:wrap;gap:6px}
+.ge-ch-item{appearance:none;font:inherit;font-size:.82rem;font-weight:700;color:var(--cream);background:rgba(255,255,255,.04);border:1px solid var(--line-dark);border-radius:999px;padding:7px 11px;cursor:pointer}
+.ge-ch-item small{color:var(--muted-dark);font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}
+.ge-ch-item[aria-pressed="true"]{border-color:var(--red);background:rgba(160,20,20,.18)}

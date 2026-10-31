@@ -1,5 +1,5 @@
 /* Duch GOSko: katalóg vzhľadu, výrazy a kreslenie tváre. Bez three.js, aby to zvládol aj ľahký web (Ghoskate, karty).
-   Nastavenie ducha (profiles.ghost, verzia 2) vykreslí 3D model (mascot.js) aj 2D obrázok (profile.js). */
+   Nastavenie ducha (profiles.ghost, verzia 3) vykreslí 3D model (mascot.js) aj 2D obrázok (profile.js). */
 
 /* ===== Katalóg ducha (3D, pixel, PS1). Veci sa odomykajú levelmi (XP) a eventmi (vec v inventári). ===== */
 /* Jediný zdroj pravdy pre levely: XP z aktivity na webe (profil, editor ducha aj Ghoskate). */
@@ -7,9 +7,26 @@ export const LEVEL_XP = [0, 50, 150, 350, 700, 1200, 1800, 2600, 3600, 5000];
 const LEVEL_NAMES = ['Nováčik', 'Pusher', 'Ollie', 'Kickflip', 'Tre flip', 'Manual', 'Grind', 'Big spin', 'Šampión', 'Legenda'];
 export const LEVELS = LEVEL_NAMES.map((name, i) => [i + 1, name, i ? 'Od ' + LEVEL_XP[i] + ' XP.' : 'Registrácia. Základná výbava.']);
 export const RARITY = { free: { cls: 'r-free', label: { sk: 'Free', cs: 'Free', en: 'Free' } }, lvl: { cls: 'r-lvl', label: { sk: 'Lvl', cs: 'Lvl', en: 'Lvl' } }, event: { cls: 'r-event', label: { sk: 'Event', cs: 'Event', en: 'Event' } }, wave: { cls: 'r-wave', label: { sk: '1. vlna', cs: '1. vlna', en: 'Wave 1' } }, win: { cls: 'r-win', label: { sk: 'Víťaz', cs: 'Vítěz', en: 'Winner' } } };
-export const FLAGS = { founder: '1. vlna (Founder)', winter: 'GOSko Winter', after: 'Afterparty GOSka', night: 'Nočný check-in', ba3: 'GOSko 3 Bratislava' };
-/* ktorá vec v inventári odomkne event/vlnu */
-export const FLAG_ITEMS = { founder: 'skin:founder', winter: 'event:winter', after: 'event:after', night: 'event:night', ba3: 'event:ba3' };
+export const FLAGS = { founder: '1. vlna (Founder)', winter: 'GOSko Winter', after: 'Afterparty GOSka', night: 'Nočný check-in', ba3: 'GOSko 3 Bratislava',
+  halloween: 'Halloween', xmas: 'Vianoce', newyear: 'Silvester', streak: '7 dní v kuse', win: 'Víťaz GOSka', podium: 'Bedňa', trick: 'Trik týždňa', crew: 'Zakladateľ crew', bug: 'Lovec chýb' };
+/* ktorá vec v inventári odomkne event/vlnu/špeciálnu situáciu */
+export const FLAG_ITEMS = { founder: 'skin:founder', winter: 'event:winter', after: 'event:after', night: 'event:night', ba3: 'event:ba3',
+  halloween: 'event:halloween', xmas: 'event:xmas', newyear: 'event:newyear', streak: 'streak:7', win: 'win:gosko', podium: 'win:podium', trick: 'win:trick', crew: 'crew:founder', bug: 'bug:hunter' };
+/* Ako sa zámok odomkne. auto = databáza to dá sama (claim_ghost_specials), inak to dá admin po evente. */
+export const SPECIALS = {
+  halloween: { how: 'Príď na web alebo do Ghoskate počas Halloweenu (30. 10. – 2. 11.).', auto: true },
+  xmas: { how: 'Príď počas Vianoc (23. – 27. 12.).', auto: true },
+  newyear: { how: 'Príď na Silvestra alebo na Nový rok (31. 12. – 2. 1.).', auto: true },
+  streak: { how: 'Príď 7 dní po sebe (web alebo Ghoskate, stačí otvoriť profil).', auto: true },
+  win: { how: 'Vyhraj GOSko. Po evente ti to pridá admin.' },
+  podium: { how: 'Skonči na GOSku do 3. miesta.' },
+  trick: { how: 'Vyhraj Trik týždňa.' },
+  crew: { how: 'Založ crew a priveď do nej aspoň 3 ľudí.' },
+  bug: { how: 'Nájdi a nahlás chybu na webe alebo v Ghoskate.' },
+  founder: { how: 'Založ si profil do 1. 4. 2027 (prvá vlna). Potom už nikdy.', auto: true },
+  winter: { how: 'Check-in na GOSko Winter.' }, after: { how: 'Príď na afterparty GOSka.' }, night: { how: 'Check-in na nočnom GOSku.' }, ba3: { how: 'Check-in na GOSko 3 v Bratislave.' },
+};
+const WIN_LOCKS = new Set(['win', 'podium', 'trick']);
 export const BODY_COLORS = [['Klasik', '#F3EBDD'], ['Červený', '#C9332C'], ['Mätový', '#A6EFC9'], ['Ľadový', '#A3DCF5'], ['Fialový', '#C4ADFF'], ['Uhľový', '#2a2826'], ['Betón', '#8d8a84'], ['Piesok', '#E8D6A8'], ['Oranž', '#FF7A1A'], ['Žltý', '#FFC61A'], ['Ružový', '#EE6FAE'], ['Modrý', '#2D6CC0']];
 export const ITEM_COLORS = ['#A01414', '#151312', '#F3EBDD', '#2D6CC0', '#1E6B45', '#FF7A1A', '#EE6FAE', '#FFC61A', '#8d8a84', '#6B3FB8'];
 export const DECK_COLORS = ['#A01414', '#151312', '#F3EBDD', '#7A7772', '#2D6CC0', '#6DBE45', '#6B3FB8', '#FF7A1A'];
@@ -28,6 +45,9 @@ export const PATTERNS = {
   tiedye: { name: 'Batika', about: 'Rozpité farby ako z tričkovej dielne.', lvl: 4 },
   leopard: { name: 'Leopard', about: 'Škvrny s tmavým okrajom.', lvl: 5 },
   flames: { name: 'Plamene', about: 'Horiaci lem ako na hot rode.', lvl: 6 },
+  bones: { name: 'Kostlivec', about: 'Rebrá a chrbtica, vzadu kosti krížom.', lvl: 1, lock: 'halloween' },
+  sweater: { name: 'Vianočný sveter', about: 'Pletený vzor so stromčekmi.', lvl: 1, lock: 'xmas' },
+  vhs: { name: 'VHS', about: 'Farebné pruhy ako zo starej kazety.', lvl: 1, lock: 'trick' },
 };
 export const FINISHES = {
   vinyl: { name: 'Vinyl', about: 'Lesklá figúrka, základ.', lvl: 1 },
@@ -89,6 +109,9 @@ export const HEADS = {
   horns: { name: 'Rohy', about: 'Malý čertík.', lvl: 1, lock: 'founder' },
   crown: { name: 'Koruna', about: 'Pre kráľa parku.', lvl: 8 },
   laurel: { name: 'Vavrín', about: 'Zlatý veniec šampióna.', lvl: 9 },
+  pumpkin: { name: 'Tekvica', about: 'Vyrezaná tekvica, vnútri svieti.', lvl: 1, lock: 'halloween' },
+  santa: { name: 'Mikulášska čiapka', about: 'Červená s bielym lemom.', lvl: 1, lock: 'xmas' },
+  partyhat: { name: 'Párty klobúčik', about: 'Kužeľ s brmbolcom. Polnoc.', lvl: 1, lock: 'newyear' },
 };
 export const EXTRAS = {
   none: { name: 'Nič', about: 'Bez doplnku.', lvl: 1 },
@@ -105,6 +128,7 @@ export const EXTRAS = {
   medal: { name: 'Medaila', about: 'Zlatá na stuhe. Z bedne.', lvl: 7 },
   wings: { name: 'Krídla', about: 'Malé netopierie krídla.', lvl: 7 },
   halo: { name: 'Svätožiara', about: 'Vznáša sa nad hlavou.', lvl: 1, lock: 'founder' },
+  flag: { name: 'Vlajka crew', about: 'Na tyčke za chrbtom, s tvojimi iniciálami.', lvl: 1, lock: 'crew', color: true },
 };
 export const MARKS = {
   none: { name: 'Nič', about: 'Čisté telo.', lvl: 1 },
@@ -117,6 +141,23 @@ export const MARKS = {
   initials: { name: 'Iniciály', about: 'Dve písmená podľa teba.', lvl: 4, text: 'RD' },
   star: { name: 'Hviezda', about: 'Hviezda parku.', lvl: 7, art: ['...#...', '..###..', '#######', '.#####.', '.#####.', '##...##', '#.....#'] },
   number: { name: 'Číslo', about: 'Tvoje číslo ducha.', lvl: 1, lock: 'founder' },
+  smiley: { name: 'Smajlík', about: 'Klasický úsmev.', lvl: 1, art: ['.#####.', '#######', '##.#.##', '#######', '#.###.#', '##...##', '.#####.'] },
+  wheel: { name: 'Koliesko', about: 'Skate koliesko s ložiskom.', lvl: 1, art: ['..###..', '.#####.', '##...##', '##.#.##', '##...##', '.#####.', '..###..'] },
+  board: { name: 'Doska', about: 'Deck s truckmi a kolieskami.', lvl: 1, art: ['.......', '#.....#', '.#####.', '..#.#..', '.##.##.', '.##.##.', '.......'] },
+  cone: { name: 'Kužeľ', about: 'Dopravný kužeľ z parku.', lvl: 2, art: ['...#...', '..###..', '..#.#..', '.#####.', '.#...#.', '#######', '#######'] },
+  bones: { name: 'Kosti', about: 'Prekrížené kosti.', lvl: 2, art: ['##...##', '##...##', '..#.#..', '...#...', '..#.#..', '##...##', '##...##'] },
+  sk8: { name: 'SK8', about: 'Nápis ako na nálepke zo shopu.', lvl: 2, text: 'SK8' },
+  ba: { name: 'BA', about: 'Bratislava.', lvl: 2, text: 'BA' },
+  peace: { name: 'Mier', about: 'Peace. Skate, nie vojna.', lvl: 3, art: ['..###..', '.#.#.#.', '#..#..#', '#.###.#', '##.#.##', '.#.#.#.', '..###..'] },
+  eye: { name: 'Oko', about: 'Všetko vidí.', lvl: 3, art: ['.......', '..###..', '.#...#.', '#..#..#', '.#...#.', '..###..', '.......'] },
+  tag: { name: 'Vlastný nápis', about: 'Až 4 znaky. Rok, číslo, skratka.', lvl: 5, text: '' },
+  pumpkin: { name: 'Tekvica', about: 'Halloweenská nálepka.', lvl: 1, lock: 'halloween', art: ['...#...', '.#####.', '##.#.##', '#######', '#.#.#.#', '##...##', '.#####.'] },
+  snowflake: { name: 'Vločka', about: 'Vianočná nálepka.', lvl: 1, lock: 'xmas', art: ['#..#..#', '.#.#.#.', '..###..', '#######', '..###..', '.#.#.#.', '#..#..#'] },
+  seven: { name: 'Sedmička', about: '7 dní v kuse na doske.', lvl: 1, lock: 'streak', art: ['#######', '#######', '....##.', '...##..', '..##...', '.##....', '.##....'] },
+  trophy: { name: 'Pohár', about: 'Víťaz GOSka.', lvl: 1, lock: 'win', art: ['#######', '#.###.#', '.#####.', '..###..', '...#...', '..###..', '.#####.'] },
+  podium: { name: 'Bedňa', about: 'Stál si na bedni.', lvl: 1, lock: 'podium', art: ['..###..', '..###..', '#####..', '#######', '#######', '#######', '.......'] },
+  cassette: { name: 'Kazeta', about: 'Tvoj trik týždňa na VHS.', lvl: 1, lock: 'trick', art: ['#######', '#.....#', '#.#.#.#', '#.....#', '#######', '#.###.#', '#######'] },
+  bug: { name: 'Lienka', about: 'Našiel si chybu.', lvl: 1, lock: 'bug', art: ['.#...#.', '..###..', '.#####.', '##.#.##', '###.###', '##.#.##', '.##.##.'] },
 };
 export const SHOES = {
   none: { name: 'Bez tenisiek', about: 'Duch stojí na doske len tak.', lvl: 1 },
@@ -147,6 +188,7 @@ export const BUDDIES = {
   drone: { name: 'Dron', about: 'Filmuje ťa zhora.', lvl: 5 },
   rat: { name: 'Potkan', about: 'Behá okolo dosky.', lvl: 1, lock: 'night' },
   mini: { name: 'Mini duch', about: 'Malý duch v tvojej farbe.', lvl: 1, lock: 'founder' },
+  bug: { name: 'Lienka', about: 'Lezie po doske a občas vzlietne.', lvl: 1, lock: 'bug' },
 };
 export const SCENES = {
   night: { name: 'Noc', about: 'Bratislava v noci, lampa svieti.', lvl: 1 },
@@ -170,6 +212,12 @@ export const EFFECTS = {
   lightning: { name: 'Blesky', about: 'Občas ho preskočí blesk.', lvl: 7 },
   flames: { name: 'Plamene', about: 'Horí mu doska.', lvl: 8 },
   aura: { name: 'Aura legendy', about: 'Zlatá žiara. Len sieň slávy.', lvl: 10 },
+  souls: { name: 'Dušičky', about: 'Zelené plamienky stúpajú okolo.', lvl: 1, lock: 'halloween' },
+  snowfall: { name: 'Sneženie', about: 'Vlastný sneh, aj v lete.', lvl: 1, lock: 'xmas' },
+  fireworks: { name: 'Ohňostroj', about: 'Rakety praskajú nad hlavou.', lvl: 1, lock: 'newyear' },
+  orbit: { name: 'Kolieska', about: 'Tri kolieska krúžia okolo. Za 7 dní v kuse.', lvl: 1, lock: 'streak' },
+  spotlight: { name: 'Reflektor', about: 'Svetlo zhora ako na finále.', lvl: 1, lock: 'win' },
+  flashes: { name: 'Fotoblesky', about: 'Fotografi ťa nenechajú na pokoji.', lvl: 1, lock: 'podium' },
 };
 export const WEAR_PRESETS = {
   clean: { name: 'Čistý', about: 'Rovno z krabice.', dirt: 0, scuff: 0, stickers: false },
@@ -186,12 +234,17 @@ export const GHOST_SKINS = {
   founder: { color: '#F2E6FF', holo: true, locked: 'skin:founder', name: { sk: 'Founder holo', cs: 'Founder holo', en: 'Founder holo' } },
 };
 export const DEFAULT_GHOST = { v: 3, skin: 'classic', style: '3d', color: '#F3EBDD', pattern: 'none', color2: '#A01414', eyes: 'ink', eyeShape: 'logo', mouth: 'logo', faceExtra: 'none', faceColor: '#151312', finish: 'vinyl', outline: true,
-  dirt: 0, scuff: 0, stickers: false, seed: 1995, head: 'none', headColor: '#A01414', extra: 'none', extraColor: '#151312', mark: 'none', markColor: '#151312', initials: 'GO', buddy: 'none', buddyColor: '#A01414', scene: 'night', effect: 'none',
+  dirt: 0, scuff: 0, stickers: false, seed: 1995, head: 'none', headColor: '#A01414', extra: 'none', extraColor: '#151312', mark: 'none', markColor: '#151312', initials: 'GO',
+  mark2: 'none', mark2Color: '#A01414', markSticker: false, tag: 'SK8', buddy: 'none', buddyColor: '#A01414', scene: 'night', effect: 'none',
   shoes: 'none', shoeColor: '#151312', boardExtra: 'none' };
 export const STYLES = { '3d': { name: '3D', about: 'Hlavný duch, plný model.' }, pixel: { name: 'Pixel', about: 'Ako zo starej hry. Mapa, zoznamy, Reels.' }, ps1: { name: 'PS1', about: 'Retro low-poly. Odomkne sa na leveli 6.', lvl: 6 } };
-export const CATS = { pattern: PATTERNS, finish: FINISHES, eyes: EYE_COLORS, eyeShape: EYE_SHAPES, mouth: MOUTHS, faceExtra: FACE_EXTRAS, head: HEADS, extra: EXTRAS, mark: MARKS, buddy: BUDDIES, scene: SCENES, effect: EFFECTS, shoes: SHOES, boardExtra: BOARD_EXTRAS };
+export const CATS = { pattern: PATTERNS, finish: FINISHES, eyes: EYE_COLORS, eyeShape: EYE_SHAPES, mouth: MOUTHS, faceExtra: FACE_EXTRAS, head: HEADS, extra: EXTRAS, mark: MARKS, mark2: MARKS, buddy: BUDDIES, scene: SCENES, effect: EFFECTS, shoes: SHOES, boardExtra: BOARD_EXTRAS };
 const isHex = v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
 const pick = (cat, v, d) => (cat[v] ? v : d);
+/* vlastný nápis: 4 znaky A–Z a 0–9 (pixel písmo ich má všetky) */
+const tagOf = v => String(v ?? DEFAULT_GHOST.tag).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) || DEFAULT_GHOST.tag;
+/* text nálepky (číslo ducha, iniciály, vlastný nápis) */
+export const markText = (g, key) => key === 'number' ? String(g.seed).padStart(4, '0') : key === 'initials' ? g.initials : key === 'tag' ? g.tag : MARKS[key]?.text || '';
 const num = (v, d, max = 100) => (typeof v === 'number' && v >= 0 && v <= max ? Math.round(v) : d);
 /* Normalizuje nastavenie ducha: staré { skin } aj nové v2. Vždy vráti kompletný objekt so všetkými kľúčmi. */
 export function ghostOf(g) {
@@ -206,7 +259,8 @@ export function ghostOf(g) {
     eyes: pick(EYE_COLORS, g.eyes, 'ink'), eyeShape: pick(EYE_SHAPES, g.eyeShape, 'logo'), mouth: pick(MOUTHS, g.mouth, 'logo'), faceExtra: pick(FACE_EXTRAS, g.faceExtra, 'none'), faceColor: isHex(g.faceColor) ? g.faceColor : D.faceColor, finish, outline: g.outline !== false,
     dirt: num(g.dirt, 0), scuff: num(g.scuff, 0), stickers: !!g.stickers, seed: num(g.seed, D.seed, 9999),
     head: pick(HEADS, g.head, 'none'), headColor: isHex(g.headColor) ? g.headColor : D.headColor, extra: pick(EXTRAS, g.extra, 'none'), extraColor: isHex(g.extraColor) ? g.extraColor : D.extraColor,
-    mark: pick(MARKS, g.mark, 'none'), markColor: isHex(g.markColor) ? g.markColor : D.markColor, initials: ini, buddy: pick(BUDDIES, g.buddy, 'none'), buddyColor: isHex(g.buddyColor) ? g.buddyColor : D.buddyColor, scene: pick(SCENES, g.scene, 'night'), effect: pick(EFFECTS, g.effect, 'none'),
+    mark: pick(MARKS, g.mark, 'none'), markColor: isHex(g.markColor) ? g.markColor : D.markColor, initials: ini,
+    mark2: pick(MARKS, g.mark2, 'none'), mark2Color: isHex(g.mark2Color) ? g.mark2Color : D.mark2Color, markSticker: !!g.markSticker, tag: tagOf(g.tag), buddy: pick(BUDDIES, g.buddy, 'none'), buddyColor: isHex(g.buddyColor) ? g.buddyColor : D.buddyColor, scene: pick(SCENES, g.scene, 'night'), effect: pick(EFFECTS, g.effect, 'none'),
     shoes: pick(SHOES, g.shoes, 'none'), shoeColor: isHex(g.shoeColor) ? g.shoeColor : D.shoeColor, boardExtra: pick(BOARD_EXTRAS, g.boardExtra, 'none') };
   // skin sa drží v súlade s farbou (kvôli starému strážcovi v databáze a Ghoskate výberu)
   const match = Object.entries(GHOST_SKINS).find(([k, s]) => s.color.toLowerCase() === out.color.toLowerCase() && !!s.holo === (out.finish === 'holo'));
@@ -224,10 +278,14 @@ export const ghostLevel = a => levelOfXp(xpOf(a));
 /* Je voľba odomknutá? ctx = { level, inventory } */
 export const isUnlocked = (o, ctx = {}) => !!o && (o.lvl || 1) <= (ctx.level || 1) && (!o.lock || (ctx.inventory || []).includes(FLAG_ITEMS[o.lock]));
 /* Chip na kartu voľby: [trieda, text] */
-export const chipOf = (o, lang = 'sk') => o.lock ? (o.lock === 'founder' ? ['r-wave', RARITY.wave.label[lang]] : ['r-event', FLAGS[o.lock]]) : (o.lvl || 1) >= 8 ? ['r-win', 'Lvl ' + o.lvl] : (o.lvl || 1) > 1 ? ['r-lvl', 'Lvl ' + o.lvl] : ['r-free', RARITY.free.label[lang]];
+export const chipOf = (o, lang = 'sk') => o.lock ? (o.lock === 'founder' ? ['r-wave', RARITY.wave.label[lang]] : [WIN_LOCKS.has(o.lock) ? 'r-win' : 'r-event', FLAGS[o.lock]]) : (o.lvl || 1) >= 8 ? ['r-win', 'Lvl ' + o.lvl] : (o.lvl || 1) > 1 ? ['r-lvl', 'Lvl ' + o.lvl] : ['r-free', RARITY.free.label[lang]];
 /* Všetky zámky (vecí v inventári), ktoré nastavenie používa. */
 export function ghostLocks(g) { g = ghostOf(g); const L = []; for (const [k, cat] of Object.entries(CATS)) { const l = cat[g[k]]?.lock; if (l) L.push(FLAG_ITEMS[l]); } return L; }
 /* Vráti ducha len s tým, čo má človek odomknuté (level + inventár). Zamknuté voľby padnú na základ. */
+/* Ako sa voľba odomkne (text pre zamknutú voľbu a Skúšobňu). */
+export const unlockHow = o => o.lock ? FLAGS[o.lock] + ': ' + (SPECIALS[o.lock]?.how || 'event.') : 'Level ' + o.lvl + ' (' + LEVELS[o.lvl - 1][1] + ').';
+/* Všetky veci, ktoré odomkne jeden zámok: [[kategória, kľúč, voľba]] */
+export const itemsOfLock = lock => Object.entries(CATS).filter(([k]) => k !== 'mark2').flatMap(([k, cat]) => Object.entries(cat).filter(([, o]) => o.lock === lock).map(([key, o]) => [k, key, o]));
 export function unlockedGhost(g, inventory = [], level = 10) {
   g = ghostOf(g); const ctx = { level, inventory };
   for (const [k, cat] of Object.entries(CATS)) if (!isUnlocked(cat[g[k]], ctx)) g[k] = Object.keys(cat)[0];
