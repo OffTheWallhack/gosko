@@ -124,7 +124,7 @@ function aura(P) {
 }
 function footer(o, P) {
   o.textAlign = 'center'; o.textBaseline = 'alphabetic';
-  o.fillStyle = '#F3EBDD'; o.font = `800 54px ${FB}`; o.fillText('@g.o.s.ko', STORY_W / 2, 1640);
+  o.fillStyle = '#F3EBDD'; o.font = `800 54px ${FB}`; o.fillText('@gosko.sk', STORY_W / 2, 1640);
   o.fillStyle = 'rgba(243,235,221,.65)'; o.font = `500 30px ${FM}`; spaced(o, 2); o.fillText(`GAME OF S.K.A.T.E. · ${P.season}`, STORY_W / 2, 1696); spaced(o, 0); o.textAlign = 'start';
 }
 
