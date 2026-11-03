@@ -1778,7 +1778,7 @@ function pageKarta(root, s) {
     h('p', { class: 'note' }, 'Fotku použijeme len na GOSko webe a profiloch. Kedykoľvek ju vieme odstrániť. U16: napíš cez rodiča.'),
     h('div', { class: 'actions' },
       info.photo ? h('a', { class: 'btn primary', href: `mailto:${SITE.email || 'rdurica1995@gmail.com'}?subject=${encodeURIComponent('Karta ' + r.name + ': súhlasím')}&body=${encodeURIComponent(`Súhlasím, aby GOSko použilo moju fotku na karte (${url}).`)}` }, 'Súhlasím s fotkou') : null,
-      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: 'https://ig.me/m/g.o.s.ko', target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
+      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: 'https://ig.me/m/gosko.sk', target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
   const adminBox = h('div', { class: 'kt-admin' });
   store.isAdmin().then(ok => { if (!ok) return; const b = h('button', { class: 'btn small', type: 'button', onclick: e => copy(msgFor(), e.currentTarget, 'Správa skopírovaná') }, 'Skopírovať správu pre jazdca (admin)'); adminBox.append(b); }).catch(() => {});
   root.append(h('div', { class: 'kt-page' }, stage, h('div', { class: 'wrap kt-below' }, share, h('div', { class: 'actions kt-actions' }, h('a', { class: 'btn', href: '#/jazdec/' + s }, 'Celý profil')), ask, adminBox)));
@@ -2523,7 +2523,7 @@ function shareMediaDialog(file, kind, r) {
     h('div', { class: 'dlg-head' }, h('h3', { class: 'wide' }, isVideo ? 'Video karty' : 'Karta na stories'), h('button', { class: 'x', type: 'button', 'aria-label': 'Zavrieť', onclick: () => dlg.close() }, '✕')),
     h('div', { class: 'dlg-body card-body-dlg' }, media,
       h('div', { class: 'form-actions' },
-        canShare && h('button', { class: 'btn primary', type: 'button', onclick: () => navigator.share({ files: [file], title: `${r.name} na GOSko`, text: `${r.name} na GOSko @g.o.s.ko` }).catch(() => {}) }, 'Zdieľať'),
+        canShare && h('button', { class: 'btn primary', type: 'button', onclick: () => navigator.share({ files: [file], title: `${r.name} na GOSko`, text: `${r.name} na GOSko @gosko.sk` }).catch(() => {}) }, 'Zdieľať'),
         h('a', { class: 'btn' + (canShare ? '' : ' primary'), href: url, download: file.name }, isVideo ? 'Stiahnuť video' : 'Stiahnuť obrázok')),
       h('p', { class: 'note dark' }, isVideo ? 'Video je na výšku, 6 sekúnd. Na mobile ho po stiahnutí nájdeš v galérii.' : 'Formát sedí na Instagram Story. Na mobile môžeš obrázok aj podržať a uložiť.')));
   dlg.addEventListener('close', () => { URL.revokeObjectURL(url); dlg.remove(); });
