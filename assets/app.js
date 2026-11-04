@@ -3579,7 +3579,7 @@ function pagePrivacy(root) {
       sec('Ako dlho',
         li(['Registrácie: do konca sezóny, potom ich zmažeme. Výsledky ostávajú ako história série.', 'Odber noviniek: kým sa neodhlásiš.', 'Účet a obsah, ktorý pošleš: kým ich nezmažeš ty alebo nepožiadaš o zmazanie.', 'Správy z formulárov: najviac 2 roky.'])),
       sec('Cookies a úložisko v prehliadači',
-        h('p', {}, 'Nepoužívame reklamné ani analytické cookies. V tvojom prehliadači si web pamätá len nastavenia, napríklad vzhľad tvojej dosky, prihlásenie a vstupný QR pass.')),
+        h('p', {}, 'Nepoužívame reklamné cookies. V tvojom prehliadači si web pamätá nastavenia, napríklad vzhľad tvojej dosky, prihlásenie a vstupný QR pass. Malý odznak „online“ v rohu stránky používa náhodné anonymné ID (nie je to cookie) a adresu stránky, aby sa dalo ukázať, koľko ľudí je na webe práve teraz. Neukladá sa k nemu meno, e-mail ani IP adresa.')),
       sec('Tvoje práva',
         h('p', {}, 'Môžeš požiadať o prístup k údajom, ich opravu, vymazanie, obmedzenie spracovania alebo prenos, namietať proti spracovaniu a kedykoľvek odvolať súhlas. Ak máš pocit, že s údajmi nenarábame správne, môžeš sa obrátiť na Úrad na ochranu osobných údajov SR.'),
         h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => privacyDialog() }, 'Poslať žiadosť'))),
