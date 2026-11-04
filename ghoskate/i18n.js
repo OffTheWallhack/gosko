@@ -159,7 +159,7 @@ const sk = {
   'career.now': 'Si tu',
   'career.items': [
     ['Teraz', 'Founderi', 'Vytvor ducha, pridaj spoty a získaj Founder loot.'],
-    ['November 2026', 'GOSko 3 Bratislava', 'Posledný GOSko roka a pilot novej sezóny.'],
+    ['5. 12. 2026', 'GOSko 3, HANGAIR Bratislava', 'Posledný GOSko roka a pilot novej sezóny.'],
     ['Január – február 2027', 'Vlna 1 v dielni', 'Kódujeme mapu, check-in a detail spotu.'],
     ['Marec 2027', 'Test s foundermi', 'Prví skejteri skúšajú appku naostro. Prihlás sa pri registrácii.'],
     ['Apríl 2027', 'Štart Ghoskate', 'Vlna 1 ide von: mapa, check-in a spoty od vás.'],
@@ -187,7 +187,7 @@ const sk = {
     ['Čo je digitálny loot?', 'Zbierka v appke: nálepky, decky, skiny ducha, park passy a pečiatky partnerov. Odomkneš ho jazdou, na eventoch a vo výzvach.'],
     ['Čo sa stane so spotom, ktorý pridám?', 'Pozrieme sa naň a po schválení sa ukáže na mape GOSka aj v Ghoskate. Za prvý schválený spot dostaneš nálepku Spot hunter.'],
     ['Mám menej ako 16 rokov. Môžem?', 'Áno, so súhlasom rodiča. Tvoj check-in na spote nikto iný neuvidí. Viac info pre rodičov je na GOSko webe.'],
-    ['Ako zmažem účet?', 'Napíš nám na Instagram @g.o.s.ko a účet aj s profilom zmažeme.'],
+    ['Ako zmažem účet?', 'Napíš nám na Instagram @gosko.sk a účet aj s profilom zmažeme.'],
   ],
 
   'foot.made': 'Ghoskate robí GOSko crew pre skate komunitu na Slovensku a v Česku.',
@@ -354,7 +354,7 @@ const cs = {
   'career.now': 'Jsi tady',
   'career.items': [
     ['Teď', 'Foundeři', 'Vytvoř ducha, přidej spoty a získej Founder loot.'],
-    ['Listopad 2026', 'GOSko 3 Bratislava', 'Poslední GOSko roku a pilot nové sezóny.'],
+    ['5. 12. 2026', 'GOSko 3, HANGAIR Bratislava', 'Poslední GOSko roku a pilot nové sezóny.'],
     ['Leden – únor 2027', 'Vlna 1 v dílně', 'Kódujeme mapu, check-in a detail spotu.'],
     ['Březen 2027', 'Test s foundery', 'První skejťáci zkoušejí appku naostro. Přihlas se při registraci.'],
     ['Duben 2027', 'Start Ghoskate', 'Vlna 1 jde ven: mapa, check-in a spoty od vás.'],
@@ -382,7 +382,7 @@ const cs = {
     ['Co je digitální loot?', 'Sbírka v appce: samolepky, decky, skiny ducha, park passy a razítka partnerů. Odemkneš ho ježděním, na eventech a ve výzvách.'],
     ['Co se stane se spotem, který přidám?', 'Podíváme se na něj a po schválení se objeví na mapě GOSka i v Ghoskate. Za první schválený spot dostaneš samolepku Spot hunter.'],
     ['Je mi méně než 16. Můžu?', 'Ano, se souhlasem rodiče. Tvůj check-in na spotu nikdo jiný neuvidí. Víc info pro rodiče je na GOSko webu.'],
-    ['Jak smažu účet?', 'Napiš nám na Instagram @g.o.s.ko a účet i s profilem smažeme.'],
+    ['Jak smažu účet?', 'Napiš nám na Instagram @gosko.sk a účet i s profilem smažeme.'],
   ],
 
   'foot.made': 'Ghoskate dělá GOSko crew pro skate komunitu na Slovensku a v Česku.',
@@ -549,7 +549,7 @@ const en = {
   'career.now': 'You are here',
   'career.items': [
     ['Now', 'Founders', 'Create your ghost, add spots and get Founder loot.'],
-    ['November 2026', 'GOSko 3 Bratislava', 'The last GOSko of the year and the pilot of the new season.'],
+    ['5 Dec 2026', 'GOSko 3, HANGAIR Bratislava', 'The last GOSko of the year and the pilot of the new season.'],
     ['January – February 2027', 'Wave 1 in the workshop', 'We build the map, check-ins and spot details.'],
     ['March 2027', 'Founder test', 'The first skaters try the app for real. Sign up for it when you register.'],
     ['April 2027', 'Ghoskate launch', 'Wave 1 goes live: the map, check-ins and your spots.'],
@@ -577,7 +577,7 @@ const en = {
     ['What is digital loot?', 'A collection inside the app: stickers, decks, ghost skins, park passes and partner stamps. You unlock it by riding, at events and in challenges.'],
     ['What happens to a spot I add?', 'We take a look and, once approved, it shows up on the GOSko map and in Ghoskate. Your first approved spot earns the Spot hunter sticker.'],
     ['I’m under 16. Can I join?', 'Yes, with a parent’s consent. Nobody else can see your check-in at a spot. There’s more info for parents on the GOSko site.'],
-    ['How do I delete my account?', 'Message us on Instagram @g.o.s.ko and we’ll delete your account and profile.'],
+    ['How do I delete my account?', 'Message us on Instagram @gosko.sk and we’ll delete your account and profile.'],
   ],
 
   'foot.made': 'Ghoskate is made by the GOSko crew for the skate community in Slovakia and Czechia.',

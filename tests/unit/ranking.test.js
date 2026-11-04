@@ -361,8 +361,8 @@ describe('officialEvents (events_public)', () => {
     assert.deepEqual([b.results, b.awards, b.photos, b.partners], [{}, [], [], []]);
   });
   test('existujúci event: databáza určí krajinu a či je registrácia otvorená', () => {
-    const out = R.officialEvents(base, [{ id: 'bratislava-2', name: 'x', city: 'x', country: 'SK', date: '2026-11-14', season: 2026, status: 'open', registration_open: false }]);
-    assert.deepEqual(out.updates, { 'bratislava-2': { country: 'SK', registration: false, date: '2026-11-14' } });
+    const out = R.officialEvents(base, [{ id: 'bratislava-2', name: 'x', city: 'x', country: 'SK', date: '2026-12-05', season: 2026, status: 'open', registration_open: false }]);
+    assert.deepEqual(out.updates, { 'bratislava-2': { country: 'SK', registration: false, date: '2026-12-05' } });
     assert.equal(out.added.length, 0);
   });
   test('dátum z data.js má prednosť; databáza ho doplní len keď chýba', () => {

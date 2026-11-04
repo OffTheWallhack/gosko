@@ -57,7 +57,7 @@ export const PRIVACY_VERSION = '2026-10';
 export const PRIVACY = [
   { title: 'Kto spracúva tvoje údaje', draft: true, paras: [
     'Prevádzkovateľom je občianske združenie Slovenská federácia skateboardingu (SFS), keď ho úrad zaregistruje. Dovtedy je prevádzkovateľom organizátor série GOSko. Presné identifikačné údaje doplníme po registrácii združenia.',
-    'Kontakt: formulár „Súkromie a odstránenie“ na tejto stránke alebo Instagram @g.o.s.ko.',
+    'Kontakt: formulár „Súkromie a odstránenie“ na tejto stránke alebo Instagram @gosko.sk.',
   ] },
   { title: 'Aké údaje a prečo', items: [
     'Registrácia na event: meno a priezvisko, dátum narodenia, e-mail, krajina, voliteľne mesto a Instagram. Potrebujeme ich na organizáciu eventu, zaradenie do kategórie a vstupný QR pass (právny základ: plnenie zmluvy o účasti na súťaži).',

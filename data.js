@@ -26,8 +26,15 @@ export const CONFIG = {
 };
 
 export const SITE = {
-  instagram: 'g.o.s.ko',
+  instagram: 'gosko.sk',
   email: 'rdurica1995@gmail.com',   // kontaktný e-mail (neskôr info@gosko.sk)
+  /* Kontakty na organizátorov (zobrazia sa na stránkach Pre partnerov, Kto sme, Pre rodičov a v media kite). */
+  contacts: [
+    { name: 'Robert Ďurica', phone: '+421 908 109 541', email: 'rdurica1995@gmail.com' },
+    { name: 'Radoslav Pirožek', phone: '+421 948 040 396', email: 'rado.pirozek@gmail.com' },
+    { name: 'Jakub Sluka', phone: '+421 917 900 268', email: 'jakub.slukaj@gmail.com' },
+  ],
+  videoUrl: 'https://youtu.be/h_ZyZHSvmL4',   // odkaz na video (tlačidlo „Pozrieť video“ pri GOSko 3)
   season: 2026,
   photoCredit: '',      // autor fotiek, zobrazí sa pod galériou
   /* Video na pozadí úvodky. Krátky klip bez zvuku (10 – 20 s, MP4, ideálne do 8 MB), nahraj ho do priečinka video/.
@@ -121,18 +128,18 @@ export const EVENTS = [
   },
   {
     id: 'bratislava-2',
-    name: 'GOSko 3 Bratislava',
+    name: 'GOSko 3',
     city: 'Bratislava',
-    date: '',
-    place: '',
+    date: '2026-12-05',
+    place: 'HANGAIR Bratislava',
     status: 'next',
     season: 2026,
     sticker: 'next',
-    stickerDate: '',
-    lat: null, lng: null,
-    about: 'Pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027. Plánujeme november 2026, presný dátum a miesto zverejníme čoskoro na Instagrame. Zaregistruj sa a dáme ti vedieť medzi prvými.',
-    when: '',
+    stickerDate: '05.12.2026',
+    lat: null, lng: null,   // súradnice HANGAIRu doplň z Google Maps (zatiaľ nie sú overené)
+    about: 'Tretie GOSko je indoor akcia v HANGAIR Bratislava, v sobotu 5. 12. 2026. Game of S.K.A.T.E. v kategóriách Open, U16 a Babská, plus Best Trick. Je to pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027.',
     registration: true,
+    videoUrl: 'https://youtu.be/h_ZyZHSvmL4',
     results: {},
     awards: [],
     partners: [],
@@ -146,7 +153,9 @@ export const EVENTS = [
      about: 'Krátky text o partnerovi'    (keď je vyplnený, partner dostane vlastnú stránku)
    Kým polia chýbajú, partner sa ukáže len ako text s odkazom na Instagram. */
 export const PARTNERS = {
+  /* partner z GOSka 3 sa na webe zatiaľ nezobrazuje */
   redbull: { name: 'Red Bull', instagram: 'redbullsk' },
+  /* partneri z GOSka 1 */
   '3style': { name: '3Style Academy', instagram: '3styleacademy.eu' },
   newspirit: { name: 'Newspirit', instagram: 'newspirit.sk' },
   tysomaru: { name: 'Ty Somaru', instagram: 'ty_somaru' },
@@ -156,7 +165,7 @@ export const PARTNERS = {
 /* Stránka pre partnerov */
 export const FACTS = [
   { num: '2', label: 'odjazdené eventy: Bratislava 31. 5. a Žilina 27. 6. 2026' },
-  { num: '19 000+', label: 'zobrazení na Instagrame (5 príspevkov @g.o.s.ko)' },
+  { num: '19 000+', label: 'zobrazení na Instagrame (5 príspevkov)' },
   { num: '6 826', label: 'zobrazení plagátu GOSko Bratislava' },
   { num: '5', label: 'partnerov a spolupracovníkov, od Red Bullu po 3Style Academy' },
   { num: '1 811', label: 'účtov oslovil jeden spoločný post s výsledkami' },
@@ -164,7 +173,7 @@ export const FACTS = [
 
 /* Plán sezóny (verejná verzia bez presných miest na rok 2027) */
 export const PLAN = [
-  { when: 'Nov 2026', title: 'Pilot', place: 'Bratislava', note: 'GOSko 3, dátum čoskoro' },
+  { when: '5. 12. 2026', title: 'Pilot', place: 'HANGAIR Bratislava', note: 'GOSko 3' },
   { when: '2027', title: 'Stop 1', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 2', place: 'krajské mesto' },
   { when: '2027', title: 'Stop 3', place: 'krajské mesto' },
@@ -176,8 +185,8 @@ export const PACKAGES = [
     gets: ['Názov „GOSko presented by…“ na rankingu, webe aj vo videách', 'Vlastná aktivácia na každom evente', 'Exkluzivita v tvojej kategórii'] },
   { name: 'Partner kategórie', text: 'Tvoja značka pri konkrétnej časti programu.',
     gets: ['Vlastná kategória alebo cena, napr. Junior alebo Best Trick', 'Logo v obsahu, ktorý z nej vznikne', 'Aktivácia na mieste'] },
-  { name: 'Partner pilotu', text: 'Novembrový pilot v Bratislave, štart celej sezóny.',
-    gets: ['Partner novembrového eventu', 'Uvedenie na webe a sieťach', 'Priestor na stánok'] },
+  { name: 'Partner pilotu', text: 'Pilot v Bratislave (GOSko 3, 5. 12. 2026), štart celej sezóny.',
+    gets: ['Partner pilotného eventu', 'Uvedenie na webe a sieťach', 'Priestor na stánok'] },
   { name: 'Lokálny partner', text: 'Jedna zastávka v tvojom meste alebo priestore.',
     gets: ['Partner konkrétneho eventu', 'Priestor, povolenia alebo vecné plnenie', 'Uvedenie na webe a v komunikácii eventu'] },
 ];
@@ -230,7 +239,7 @@ export const FAQ = [
   { q: 'Čo si mám priniesť?', a: 'Dosku, prilbu (pri U16 povinná) a dobrú náladu. Pitie a hudbu zabezpečíme.' },
   { q: 'Ako fungujú body a rebríček?', a: 'Za každé umiestnenie dostaneš body do sezónneho rebríčka. Najlepší jazdci sezóny postupujú do finále v Bratislave.' },
   { q: 'Môžem prísť len pozerať?', a: 'Jasné. Vstup je voľný pre všetkých, diváci hlasujú v bonusovej kategórii a na konci je afterparty.' },
-  { q: 'Kde nájdem fotky a výsledky?', a: 'Na stránke každého eventu a v rebríčku. Novinky dávame aj na Instagram @g.o.s.ko.' },
+  { q: 'Kde nájdem fotky a výsledky?', a: 'Na stránke každého eventu a v rebríčku. Novinky dávame aj na Instagram @gosko.sk.' },
   { q: 'Chcem GOSko u nás alebo byť partner. Komu napíšem?', a: 'Na stránke Pre partnerov je formulár „Zavolaj si GOSko“, alebo napíš na rdurica1995@gmail.com.' },
 ];
 
@@ -260,7 +269,7 @@ export const SKATEPARKS = [
     photo: 'img/parks/pod-ufom-1.webp', photoPos: '50% 30%', photos: [{ src: 'img/parks/pod-ufom-2.webp', alt: 'Skatepark pod Mostom SNP zhora, ľudia na farebnom betóne' }, { src: 'img/parks/pod-ufom-3.webp', alt: 'Skejter vo vzduchu pod Mostom SNP' }] },
   { name: 'Skatepark Rača (Urbanpark Tbiliská)', city: 'Bratislava', area: 'Rača', lat: 48.2049, lng: 17.1516, about: 'Domovský park prvého GOSka (31. 5. 2026).', tag: 'GOSko',
     photo: 'img/gosko1/flip-santacruz-l.webp', photoPos: '50% 12%', photos: [{ src: 'img/gosko1/flip-santacruz-l.webp', alt: 'Skok v skateparku Rača na GOSku 1' }, { src: 'img/gosko1/flip-bollard-l.webp', alt: 'Flip cez stĺpik v Rači' }, { src: 'img/gosko1/crowd-low-l.webp', alt: 'Skejteri v parku Rača' }] },
-  { name: 'Hangair', city: 'Bratislava', area: 'Vajnory', lat: 48.2045, lng: 17.1890, about: 'Akadémia akčných športov. Vnútorný park s minirampou a vonkajší betónový park.', tag: 'indoor' },
+  { name: 'Hangair', city: 'Bratislava', area: 'Vajnory', lat: 48.2045, lng: 17.1890, about: 'Akadémia akčných športov. Vnútorný park s minirampou a vonkajší betónový park. Tu bude GOSko 3 (5. 12. 2026).', tag: 'GOSko' },
   { name: 'Skatepark Solinky', city: 'Žilina', area: 'Solinky', lat: 49.2160, lng: 18.7650, about: 'Tu bolo druhé GOSko na Shred Feste (27. 6. 2026).', tag: 'GOSko' },
   { name: 'Skatepark Liptovský Mikuláš', city: 'Liptovský Mikuláš', area: '', lat: 49.0832, lng: 19.6131, about: 'Nový betónový park (860 m²), otvorený v októbri 2026.', tag: 'betón', photo: 'img/parks/liptovsky-mikulas-1.webp', photosFrom: '3473b315-274b-4190-a3e8-9f37cab0f274', photos: [{ src: 'img/parks/liptovsky-mikulas-2.webp', alt: 'Skejter na ráme v skateparku Liptovský Mikuláš' }] },
   { name: 'Skatepark KVP', city: 'Košice', area: 'Sídlisko KVP', lat: 48.7166, lng: 21.2145, about: 'Moderný park na Moskovskej triede, tu sa jazdili Majstrovstvá SR 2026.', tag: 'betón' },
@@ -295,7 +304,7 @@ export const RIDER_PRIVACY = {};
 /* Skate crew. Členov priradíš v profile jazdca (políčko crew = id crew) alebo tu v members (mená ako v rebríčku).
    instagram doplň bez @. organizer = ako sa crew píše pri eventoch v kalendári (spojí ich eventy). */
 export const CREWS = [
-  { id: 'gosko', name: 'GOSko crew', city: 'Bratislava', instagram: 'g.o.s.ko', organizer: 'GOSko', about: 'Partia, ktorá robí Game of S.K.A.T.E. po Slovensku. Eventy, rebríček a tento web.', members: [] },
+  { id: 'gosko', name: 'GOSko crew', city: 'Bratislava', instagram: 'gosko.sk', organizer: 'GOSko', about: 'Partia, ktorá robí Game of S.K.A.T.E. po Slovensku. Eventy, rebríček a tento web.', members: [] },
   { id: '3style', name: '3Style Academy', city: 'Bratislava', instagram: '3styleacademy.eu', organizer: '3Style', about: 'Akadémia akčných športov, tréningy a tábory pre mladých jazdcov.', members: [] },
   { id: 'tlakerz', hidden: true, name: 'Tlakerz', city: '', instagram: '', organizer: 'Tlakerz', about: 'Skate crew. Popis doplníme.', members: [] },
   { id: 'cube', hidden: true, name: 'Cube Skateshop', city: 'Sládkovičovo', instagram: '', organizer: 'CubeSkateshop.sk', about: 'Skateshop a organizátor Cube Skate Day.', members: [] },

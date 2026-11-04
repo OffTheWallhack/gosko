@@ -3177,3 +3177,12 @@ button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;co
   .tabbar{bottom:-1px;padding-bottom:calc(9px + var(--sab))}
   .tabbar::before{content:"";position:absolute;left:0;right:0;top:100%;height:80px;background:rgb(14,13,16);pointer-events:none}
 }
+
+/* v16: kontakty na organizátorov (tel: a mailto:) a rola partnera pri GOSko 3. Fungujú na tmavom aj svetlom pozadí. */
+.contacts{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+@media (min-width:720px){ .contacts{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.contact{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid rgba(127,127,127,.4);border-radius:12px;min-width:0}
+.contact b{font-weight:800}
+.contact a{display:block;padding:7px 0;overflow-wrap:anywhere;color:inherit;text-decoration:underline;text-underline-offset:3px}
+.p-role{flex-basis:100%;color:var(--muted-dark);font-size:.9rem}
+.light .p-role{color:var(--muted-light)}

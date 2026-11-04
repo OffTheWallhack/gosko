@@ -9,7 +9,7 @@ const ok = (v = {}) => ({
   instagram: '', country: 'SK', city: 'Bratislava', women: false, guardian_name: '', guardian_email: '',
   rules: true, privacy: true, photo: false, nft: false, captcha: 'tok', ...v,
 });
-const OPTS = { eventDate: '2026-11-14', today: '2026-10-05' };
+const OPTS = { eventDate: '2026-12-05', today: '2026-10-05' };
 
 /* falošný fetch: vráti zadanú odpoveď a zapamätá si požiadavky */
 function fakeFetch(status, body, calls = []) {
@@ -21,24 +21,24 @@ function fakeFetch(status, body, calls = []) {
 
 describe('ageAt a isMinor', () => {
   test('plné roky k dátumu', () => {
-    assert.equal(R.ageAt('2010-11-14', '2026-11-14'), 16);
-    assert.equal(R.ageAt('2010-11-15', '2026-11-14'), 15);
-    assert.equal(R.ageAt('2000-01-01', '2026-11-14'), 26);
+    assert.equal(R.ageAt('2010-12-05', '2026-12-05'), 16);
+    assert.equal(R.ageAt('2010-12-06', '2026-12-05'), 15);
+    assert.equal(R.ageAt('2000-01-01', '2026-12-05'), 26);
   });
   test('hranica narodenín: deň pred 16. narodeninami je U16, v deň narodenín už nie', () => {
-    assert.equal(R.isMinor('2010-11-15', '2026-11-14', '2026-10-05'), true);
-    assert.equal(R.isMinor('2010-11-14', '2026-11-14', '2026-10-05'), false);
+    assert.equal(R.isMinor('2010-12-06', '2026-12-05', '2026-10-05'), true);
+    assert.equal(R.isMinor('2010-12-05', '2026-12-05', '2026-10-05'), false);
   });
   test('vek sa ráta k dátumu eventu, nie k dnešku', () => {
     // dnes má 15, v deň eventu už 16
-    assert.equal(R.isMinor('2010-11-01', '2026-11-14', '2026-10-05'), false);
+    assert.equal(R.isMinor('2010-11-01', '2026-12-05', '2026-10-05'), false);
   });
   test('event bez dátumu: vek k dnešku', () => {
     assert.equal(R.isMinor('2010-11-01', '', '2026-10-05'), true);
   });
   test('neplatný alebo prázdny dátum nie je U16 (polia rodiča sa neukážu naslepo)', () => {
-    assert.equal(R.isMinor('', '2026-11-14', '2026-10-05'), false);
-    assert.equal(R.isMinor('2010-02-30', '2026-11-14', '2026-10-05'), false);
+    assert.equal(R.isMinor('', '2026-12-05', '2026-10-05'), false);
+    assert.equal(R.isMinor('2010-02-30', '2026-12-05', '2026-10-05'), false);
   });
   test('29. február: narodeniny v nepriestupnom roku sú 1. marca', () => {
     assert.equal(R.ageAt('2008-02-29', '2024-02-28'), 15);
@@ -151,7 +151,7 @@ describe('apiRequest', () => {
 });
 
 describe('completeRegistration: pass len zo servera', () => {
-  const ev = { id: 'bratislava-2', name: 'GOSko Bratislava', date: '2026-11-14' };
+  const ev = { id: 'bratislava-2', name: 'GOSko Bratislava', date: '2026-12-05' };
   const payload = R.buildPayload(ok(), ev.id, 'tok');
   const pass = { token: '11111111-2222-4333-8444-555555555555', event_id: ev.id, event_name: 'GOSko Bratislava', public_name: 'Eva Nová', category: 'open' };
 
@@ -161,7 +161,7 @@ describe('completeRegistration: pass len zo servera', () => {
     const r = await R.completeRegistration({ fetch: f, payload, ev, save: p => saved.push(p), now: 5 });
     assert.equal(f.calls[0].url, '/api/register');
     assert.equal(saved.length, 1);
-    assert.deepEqual(saved[0], { token: pass.token, eventId: ev.id, event: 'GOSko Bratislava', date: '2026-11-14', name: 'Eva Nová', category: 'open', status: 'confirmed', created: 5 });
+    assert.deepEqual(saved[0], { token: pass.token, eventId: ev.id, event: 'GOSko Bratislava', date: '2026-12-05', name: 'Eva Nová', category: 'open', status: 'confirmed', created: 5 });
     assert.equal(r.status, 'confirmed');
     assert.equal(r.pass.token, pass.token);
   });
@@ -214,9 +214,9 @@ describe('completeRegistration: pass len zo servera', () => {
 describe('fetchPass (GET /api/pass)', () => {
   test('vráti pass zo servera ako záznam do cache', async () => {
     const f = fakeFetch(200, { ok: true, pass: { token: '11111111-2222-4333-8444-555555555555', event_id: 'e1', event_name: 'GOSko', public_name: 'Eva N.', category: 'open', status: 'checked_in' } });
-    const p = await R.fetchPass(f, '11111111-2222-4333-8444-555555555555', { now: 7, eventDate: () => '2026-11-14' });
+    const p = await R.fetchPass(f, '11111111-2222-4333-8444-555555555555', { now: 7, eventDate: () => '2026-12-05' });
     assert.match(f.calls[0].url, /^\/api\/pass\?token=11111111-2222-4333-8444-555555555555$/);
-    assert.deepEqual(p, { token: '11111111-2222-4333-8444-555555555555', eventId: 'e1', event: 'GOSko', date: '2026-11-14', name: 'Eva N.', category: 'open', status: 'checked_in', created: 7 });
+    assert.deepEqual(p, { token: '11111111-2222-4333-8444-555555555555', eventId: 'e1', event: 'GOSko', date: '2026-12-05', name: 'Eva N.', category: 'open', status: 'checked_in', created: 7 });
   });
   test('404: UserError', async () => {
     await assert.rejects(R.fetchPass(fakeFetch(404, { ok: false, error: 'not_found', message: 'Pass sme nenašli.' }), 'x'), err => err instanceof UserError && /nenašli/.test(err.message));

@@ -242,7 +242,7 @@ function drawMark(c, key, color, slot) {
   c.restore();
 }
 function drawStickers(c, R) {
-  const list = [['GOSKO', 'BRATISLAVA', '#A01414', '#F3EBDD'], ['GOSKO 2', 'ŽILINA', '#151312', '#F3EBDD'], ['GOSKO 3', 'BA WINTER', '#F3EBDD', '#A01414'], ['FOUNDER', '2026', '#c4adff', '#151312']];
+  const list = [['GOSKO', 'BRATISLAVA', '#A01414', '#F3EBDD'], ['GOSKO 2', 'ŽILINA', '#151312', '#F3EBDD'], ['GOSKO 3', 'BRATISLAVA', '#F3EBDD', '#A01414'], ['FOUNDER', '2026', '#c4adff', '#151312']];
   const spots = [[.2, .42], [.8, .38], [.03, .3], [.68, .55]];
   list.forEach(([t, s, bg, fg], i) => {
     const [u, v] = spots[i]; const x = u * TW, y = v * TH, ang = (R() - .5) * .5, w = TW / 8.5, h = TH / 8.8, k = TW / 1024;

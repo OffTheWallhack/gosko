@@ -7,7 +7,7 @@ export const LEVEL_XP = [0, 50, 150, 350, 700, 1200, 1800, 2600, 3600, 5000];
 const LEVEL_NAMES = ['Nováčik', 'Pusher', 'Ollie', 'Kickflip', 'Tre flip', 'Manual', 'Grind', 'Big spin', 'Šampión', 'Legenda'];
 export const LEVELS = LEVEL_NAMES.map((name, i) => [i + 1, name, i ? 'Od ' + LEVEL_XP[i] + ' XP.' : 'Registrácia. Základná výbava.']);
 export const RARITY = { free: { cls: 'r-free', label: { sk: 'Free', cs: 'Free', en: 'Free' } }, lvl: { cls: 'r-lvl', label: { sk: 'Lvl', cs: 'Lvl', en: 'Lvl' } }, event: { cls: 'r-event', label: { sk: 'Event', cs: 'Event', en: 'Event' } }, wave: { cls: 'r-wave', label: { sk: '1. vlna', cs: '1. vlna', en: 'Wave 1' } }, win: { cls: 'r-win', label: { sk: 'Víťaz', cs: 'Vítěz', en: 'Winner' } } };
-export const FLAGS = { founder: '1. vlna (Founder)', winter: 'GOSko Winter', after: 'Afterparty GOSka', night: 'Nočný check-in', ba3: 'GOSko 3 Bratislava',
+export const FLAGS = { founder: '1. vlna (Founder)', winter: 'Zimný check-in', after: 'Afterparty GOSka', night: 'Nočný check-in', ba3: 'GOSko 3',
   halloween: 'Halloween', xmas: 'Vianoce', newyear: 'Silvester', streak: '7 dní v kuse', win: 'Víťaz GOSka', podium: 'Bedňa', trick: 'Trik týždňa', crew: 'Zakladateľ crew', bug: 'Lovec chýb' };
 /* ktorá vec v inventári odomkne event/vlnu/špeciálnu situáciu */
 export const FLAG_ITEMS = { founder: 'skin:founder', winter: 'event:winter', after: 'event:after', night: 'event:night', ba3: 'event:ba3',
@@ -24,7 +24,7 @@ export const SPECIALS = {
   crew: { how: 'Založ crew a priveď do nej aspoň 3 ľudí.' },
   bug: { how: 'Nájdi a nahlás chybu na webe alebo v Ghoskate.' },
   founder: { how: 'Založ si profil do 1. 4. 2027 (prvá vlna). Potom už nikdy.', auto: true },
-  winter: { how: 'Check-in na GOSko Winter.' }, after: { how: 'Príď na afterparty GOSka.' }, night: { how: 'Check-in na nočnom GOSku.' }, ba3: { how: 'Check-in na GOSko 3 v Bratislave.' },
+  winter: { how: 'Check-in na GOSko 3.' }, after: { how: 'Príď na afterparty GOSka.' }, night: { how: 'Check-in na nočnom GOSku.' }, ba3: { how: 'Check-in na GOSko 3.' },
 };
 const WIN_LOCKS = new Set(['win', 'podium', 'trick']);
 export const BODY_COLORS = [['Klasik', '#F3EBDD'], ['Červený', '#C9332C'], ['Mätový', '#A6EFC9'], ['Ľadový', '#A3DCF5'], ['Fialový', '#C4ADFF'], ['Uhľový', '#2a2826'], ['Betón', '#8d8a84'], ['Piesok', '#E8D6A8'], ['Oranž', '#FF7A1A'], ['Žltý', '#FFC61A'], ['Ružový', '#EE6FAE'], ['Modrý', '#2D6CC0']];
@@ -198,7 +198,7 @@ export const SCENES = {
   garage: { name: 'Garáž', about: 'Parkovací dom s neónom.', lvl: 3 },
   bridge: { name: 'Pod mostom', about: 'Betónové piliere, graffiti.', lvl: 4 },
   rooftop: { name: 'Strecha', about: 'Nad mestom, vietor.', lvl: 6 },
-  snow: { name: 'GOSko Winter', about: 'Sneží, všetko je biele.', lvl: 1, lock: 'winter' },
+  snow: { name: 'Zima', about: 'Sneží, všetko je biele.', lvl: 1, lock: 'winter' },
 };
 export const EFFECTS = {
   none: { name: 'Nič', about: 'Bez efektu.', lvl: 1 },
