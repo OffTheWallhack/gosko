@@ -181,7 +181,7 @@ const LSX = {
 const eventSticker = ev => {
   const p = parseDate(ev.date);
   return { kind: 'event', num: (String(ev.name || '').match(/\d+/) || [''])[0], title: ev.city, link: '#/event/' + ev.id,
-    status: ev.status, reg: !!ev.registration, date: p ? `${p.d}. ${p.m}. ${p.y}` : '' };   // nálepka ukáže dátum a stav (skončené / registrácia beží)
+    status: ev.status, reg: !!ev.registration, date: p ? `${p.d}. ${p.m}. ${p.y}` : '', hat: ev.hat };   // nálepka ukáže dátum a stav (skončené / registrácia beží), hat = čiapka na duchovi
 };
 function riderStickers(r) {
   const out = [];
@@ -700,7 +700,8 @@ function mountRoller(host) {
 
 /* naše eventy ako nálepky: odlepíš a vojdeš do sveta eventu */
 function stickerWall({ bare = false } = {}) {
-  const evs = [...EVENTS].sort((a, b) => (a.status === 'next' ? -1 : 0) - (b.status === 'next' ? -1 : 0) || (b.date || '').localeCompare(a.date || ''));
+  /* poradie ako išli za sebou: GOSko 1, 2, 3 … (odjazdené sú stlmené, ďalší stop svieti), pozvánka až na konci */
+  const evs = [...EVENTS].sort((a, b) => (a.date || '9').localeCompare(b.date || '9') || (a.status === 'next' ? 1 : 0) - (b.status === 'next' ? 1 : 0));
   const imgs = new Map();
   const peel = (ev, e) => {
     ev.preventDefault();
@@ -728,7 +729,7 @@ function stickerWall({ bare = false } = {}) {
   const wall = h('div', { class: 'sw' }, evs.map((e, k) => {
     const img = h('img', { alt: '', width: 260, height: 260 }); imgs.set(e.id, img);
     const isNext = e.status === 'next';
-    return h('div', { class: 'sw-item' + (isNext ? ' next' : ''), style: `--r:${[-3, 2, -2, 3][k % 4]}deg` },
+    return h('div', { class: 'sw-item' + (isNext ? ' next' : ' done'), style: `--r:${[-3, 2, -2, 3][k % 4]}deg` },
       h('a', { class: 'sw-link', href: '#/event/' + e.id, onclick: ev => peel(ev, e), 'aria-label': `${e.name}: otvoriť svet eventu` },
         h('span', { class: 'sw-st' }, img, h('span', { class: 'sw-corner', 'aria-hidden': 'true' }))),
       h('span', { class: 'sw-cap' },

@@ -136,6 +136,7 @@ export const EVENTS = [
     season: 2026,
     sticker: 'next',
     stickerDate: '05.12.2026',
+    hat: 'santa',   // mikulášska čiapka na duchovi na nálepke (po evente riadok zmaž)
     lat: null, lng: null,   // súradnice HANGAIRu doplň z Google Maps (zatiaľ nie sú overené)
     about: 'Tretie GOSko je indoor akcia v HANGAIR Bratislava, v sobotu 5. 12. 2026. Game of S.K.A.T.E. v kategóriách Open, U16 a Babská, plus Best Trick. Je to pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027.',
     registration: true,

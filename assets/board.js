@@ -147,8 +147,31 @@ const EVENT_PALS = [
   { rim: YELLOW, ring: '#17863A', ringText: YELLOW, ribbon: YELLOW, line: 'rgba(255,210,31,.4)' },  // 2: zelená a žltá
   { rim: CREAM, ring: '#FF6A1A', ringText: INK, ribbon: CREAM, line: 'rgba(243,235,221,.35)' },     // 3: oranžová
 ];
-const INVITE_PAL = { rim: CREAM, ring: '#3a3631', ringText: CREAM, ribbon: YELLOW, line: 'rgba(243,235,221,.25)' };
+/* pozvánka je zámerne tlmená (šedý prstenec, krémová stuha bez žltej), aby nevyzerala ako ďalší event */
+const INVITE_PAL = { rim: '#8d8477', ring: '#2a2724', ringText: '#a49b8f', ribbon: '#d9d0c1', line: 'rgba(243,235,221,.18)' };
 let ART = null;
+/* mikulášska čiapka na hlave ducha (zapína sa v data.js cez hat: 'santa' pri evente; žiadny text, len čiapka) */
+function santaHat(x) {
+  x.save(); x.translate(205, 163); x.rotate(-.24); x.scale(.86, .86);
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  // tieň pod čiapkou
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.ellipse(2, 10, 44, 9, 0, 0, 7); x.fill();
+  // červený kužeľ, špička spadnutá doprava
+  x.beginPath(); x.moveTo(-38, -2);
+  x.bezierCurveTo(-30, -40, -6, -62, 22, -70);
+  x.bezierCurveTo(44, -76, 62, -64, 66, -48);
+  x.bezierCurveTo(56, -52, 46, -50, 40, -40);
+  x.bezierCurveTo(34, -30, 40, -12, 40, -2);
+  x.closePath();
+  x.fillStyle = '#C8102E'; x.fill(); x.strokeStyle = INK; x.lineWidth = 4; x.stroke();
+  // svetlejší záhyb
+  x.strokeStyle = 'rgba(255,255,255,.28)'; x.lineWidth = 5; x.beginPath(); x.moveTo(-24, -14); x.bezierCurveTo(-14, -40, 4, -54, 24, -60); x.stroke();
+  // biely lem
+  rr(x, -44, -10, 86, 22, 11); x.fillStyle = '#F7F3EA'; x.fill(); x.strokeStyle = INK; x.lineWidth = 4; x.stroke();
+  // brmbolec
+  x.beginPath(); x.arc(68, -50, 12, 0, 7); x.fillStyle = '#F7F3EA'; x.fill(); x.stroke();
+  x.restore();
+}
 function burstShape(x, cx, cy, R, r, n) {
   x.beginPath();
   for (let i = 0; i < n * 2; i++) { const a = i * Math.PI / n, rad = i % 2 ? r : R; x.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); }
@@ -173,9 +196,11 @@ function eventSticker(x, spec, title) {
   x.save();
   const k = 148 / ART_FIT.r;
   x.translate(CX, CY); x.scale(k, k); x.translate(-ART_FIT.cx, -ART_FIT.cy);
-  x.fillStyle = LOGO_RED; x.fill(ART.logo);
+  if (invite) x.globalAlpha = .45;   // pozvánka: kresba len „naznačená“, nie ako hotový event
+  x.fillStyle = invite ? '#8d8477' : LOGO_RED; x.fill(ART.logo);
   x.fillStyle = '#FFFFFF'; x.fill(ART.ghost, 'evenodd');
   x.restore();
+  if (spec.hat === 'santa') santaHat(x);
   // stuha s mestom a číslom
   x.save(); x.translate(250, 421); x.rotate(-.05);
   const W = 452, H = 66, N = 20;
@@ -189,8 +214,8 @@ function eventSticker(x, spec, title) {
   if (pill) {
     x.save(); x.translate(250, 480); x.rotate(.03);
     x.font = `400 28px ${ANTON}`; const pw = Math.min(380, x.measureText(pill).width + pill.length * 2.6 + 48);
-    rr(x, -pw / 2, -22, pw, 44, 22); x.fillStyle = INK; x.fill(); x.lineWidth = 3; x.strokeStyle = invite ? YELLOW : CREAM; x.stroke();
-    x.fillStyle = invite ? YELLOW : CREAM; spaced(x, pill, 0, 10, 28, 2.6, 'center', pw - 36);
+    rr(x, -pw / 2, -22, pw, 44, 22); x.fillStyle = INK; x.fill(); x.lineWidth = 3; x.strokeStyle = invite ? '#a49b8f' : CREAM; x.stroke();
+    x.fillStyle = invite ? '#d9d0c1' : CREAM; spaced(x, pill, 0, 10, 28, 2.6, 'center', pw - 36);
     x.restore();
   }
   // pečať stavu v rohu
@@ -200,7 +225,7 @@ function eventSticker(x, spec, title) {
     x.rotate(.17);
     burstShape(x, 0, 0, 70, 61, 16);
     x.fillStyle = 'rgba(0,0,0,.4)'; x.save(); x.translate(4, 6); x.fill(); x.restore();
-    x.fillStyle = YELLOW; x.fill(); x.lineJoin = 'round'; x.lineWidth = 4; x.strokeStyle = INK; x.stroke();
+    x.fillStyle = invite ? '#d9d0c1' : YELLOW; x.fill(); x.lineJoin = 'round'; x.lineWidth = 4; x.strokeStyle = INK; x.stroke();
     x.rotate(-.34);
     x.fillStyle = INK; spaced(x, l1, 0, -8, l1.length > 7 ? 18 : 25, 1, 'center', 104); spaced(x, l2, 0, 34, l2.length > 6 ? 29 : 42, 1, 'center', 100);
   } else {

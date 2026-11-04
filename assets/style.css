@@ -3143,7 +3143,20 @@ footer .foot-act a{overflow-wrap:anywhere;max-width:100%}
 
 /* nálepky eventov: pozvánka „Chceš GOSko vo svojom meste?“ je tlačidlo, nie odkaz */
 button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}
-.sw-item.invite .sw-reg{background:#FFD21F;color:var(--ink,#0e0d0c);border-color:var(--ink,#0e0d0c)}
+/* pozvánka je tichá: menšia, stlmená, bez žltej a bez pečiatok; rozsvieti sa až pri hoveri */
+.sw-item.invite{opacity:.62;transition:opacity .25s}
+.sw-item.invite:hover,.sw-item.invite:focus-within{opacity:1}
+.sw-item.invite .sw-link{width:min(200px,100%)}
+.sw-item.invite .sw-st img{filter:grayscale(.35) drop-shadow(0 3px 2px rgba(0,0,0,.35))}
+.sw-item.invite .sw-cap b.sw-date{font-size:clamp(.95rem,1.5vw,1.05rem);font-weight:600;color:var(--muted-dark,#a49b8f)}
+.sw-item.invite .sw-reg{font-family:inherit;text-transform:none;font-size:.88rem;font-weight:600;background:none;color:var(--cream);border:1.5px solid rgba(243,235,221,.4);box-shadow:none;transform:none;padding:.55em 1.1em}
+.sw-item.invite:hover .sw-reg{transform:none;background:rgba(243,235,221,.12);border-color:var(--cream)}
+/* odjazdené eventy sú vyšedené (ako staré nálepky), ďalší stop ostáva vo farbe; na hover sa odjazdené vrátia do farby */
+.sw-item.done .sw-st img{opacity:.55;filter:grayscale(.55) drop-shadow(0 3px 2px rgba(0,0,0,.35));transition:opacity .3s,filter .3s}
+.sw-item.done:hover .sw-st img,.sw-item.done:focus-within .sw-st img{opacity:1;filter:grayscale(0) drop-shadow(0 3px 2px rgba(0,0,0,.45)) drop-shadow(0 12px 18px rgba(0,0,0,.35))}
+.sw-item.done .sw-cap b.sw-date{color:var(--muted-dark,#a49b8f)}
+.sw-item.done .sw-corner{opacity:.75}
+@media (max-width:720px){ .sw-item:first-child{grid-column:auto} .sw-item.next{grid-column:1 / -1} .sw-item.next .sw-link{width:min(210px,70%)} .sw-item:first-child:not(.next) .sw-link{width:min(170px,100%)} }
 
 /* admin: spoty na mape */
 .admin-spots{list-style:none;margin:0;padding:0;display:grid;gap:16px}
