@@ -137,12 +137,12 @@ export const EVENTS = [
     sticker: 'next',
     stickerDate: '05.12.2026',
     lat: null, lng: null,   // súradnice HANGAIRu doplň z Google Maps (zatiaľ nie sú overené)
-    about: 'Tretie GOSko je indoor akcia v HANGAIR Bratislava, v sobotu 5. 12. 2026. Game of S.K.A.T.E. v kategóriách Open, U16 a Babská, plus Best Trick. Hlavným partnerom je Red Bull, ceny do súťaží dodáva Life is Porno a celý priestor poskytuje HANGAIR. Je to pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027.',
+    about: 'Tretie GOSko je indoor akcia v HANGAIR Bratislava, v sobotu 5. 12. 2026. Game of S.K.A.T.E. v kategóriách Open, U16 a Babská, plus Best Trick. Je to pilot sezóny 2026/27 a štart všetkého, čo príde v roku 2027.',
     registration: true,
     videoUrl: 'https://youtu.be/h_ZyZHSvmL4',
     results: {},
     awards: [],
-    partners: ['redbull', 'lifeisporno', 'hangair'],
+    partners: [],
     photos: [],
   },
 ];
@@ -153,10 +153,8 @@ export const EVENTS = [
      about: 'Krátky text o partnerovi'    (keď je vyplnený, partner dostane vlastnú stránku)
    Kým polia chýbajú, partner sa ukáže len ako text s odkazom na Instagram. */
 export const PARTNERS = {
-  /* GOSko 3: hlavní partneri. Instagram, logo a web doplň, keď ich budeš mať od partnera (nič si nevymýšľame). */
-  redbull: { name: 'Red Bull', role: 'Hlavný partner', instagram: 'redbullsk' },
-  lifeisporno: { name: 'Life is Porno', role: 'Partner, dodáva ceny do súťaží' },
-  hangair: { name: 'HANGAIR', role: 'Partner, poskytuje celý priestor' },
+  /* partner z GOSka 3 sa na webe zatiaľ nezobrazuje */
+  redbull: { name: 'Red Bull', instagram: 'redbullsk' },
   /* partneri z GOSka 1 */
   '3style': { name: '3Style Academy', instagram: '3styleacademy.eu' },
   newspirit: { name: 'Newspirit', instagram: 'newspirit.sk' },
