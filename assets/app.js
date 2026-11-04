@@ -485,7 +485,17 @@ const ytId = u => { const m = String(u || '').match(/(?:youtu\.be\/|youtube\.com
 
 /* ---------- partneri ---------- */
 const partnerNode = p => (p.logo ? h('img', { class: 'p-logo', src: p.logo, alt: p.name, loading: 'lazy' }) : h('span', { class: 'p-name' }, p.name));
-const partnerItem = (id, p) => h('li', {}, partnerNode(p), p.about ? h('a', { href: '#/partner/' + id }, 'O partnerovi') : null, igLink(p.instagram));
+const partnerItem = (id, p) => h('li', {}, partnerNode(p), p.role ? h('small', { class: 'p-role' }, p.role) : null, p.about ? h('a', { href: '#/partner/' + id }, 'O partnerovi') : null, p.url && safeUrl(p.url) ? h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'Web') : null, p.instagram ? igLink(p.instagram) : null);
+/* kontakty na organizátorov: meno, telefón (tel:) a e-mail (mailto:) */
+const telHref = t => 'tel:' + String(t || '').replace(/[^\d+]/g, '');
+function contactsEl() {
+  const list = (SITE.contacts || []).filter(c => c && c.name);
+  if (!list.length) return null;
+  return h('ul', { class: 'contacts' }, list.map(c => h('li', { class: 'contact' },
+    h('b', {}, c.name),
+    c.phone ? h('a', { href: telHref(c.phone) }, c.phone) : null,
+    c.email ? h('a', { href: 'mailto:' + c.email }, c.email) : null)));
+}
 /* fotky z eventov (img/gosko1): [šírka, výška] originálu, menšia a väčšia verzia sú pripravené */
 const PHOTOS = { 'board-red': [2250, 1500], 'flip-bollard': [2576, 1717], 'crowd-board': [2576, 1717], 'crowd-low': [2576, 1717], 'carry-table': [2576, 1717], 'flip-santacruz': [2576, 1717],
   'flip-black': [1717, 2576], 'flip-car': [1717, 2576], 'car-sitting': [1717, 2576], hug: [1717, 2576],
@@ -537,8 +547,8 @@ function countdownEl(ev) {
   const when = p ? `${WEEKDAYS[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()]} ${fmtDate(ev.date)}` : '';
   let num, unit, meta;
   if (d === null) { num = 'Čoskoro'; unit = 'ďalšie GOSko'; meta = `${ev.city}: dátum a miesto zverejníme na Instagrame.`; }
-  else if (d > 0) { num = String(d); unit = `${plural(d, 'deň', 'dni', 'dní')} do ďalšieho GOSka`; meta = [ev.city, when, ev.place].filter(Boolean).join(', '); }
-  else if (d === 0) { num = 'Dnes'; unit = 'je GOSko'; meta = [ev.city, ev.place].filter(Boolean).join(', '); }
+  else if (d > 0) { num = String(d); unit = `${plural(d, 'deň', 'dni', 'dní')} do ďalšieho GOSka`; meta = [ev.place && ev.city && ev.place.includes(ev.city) ? null : ev.city, when, ev.place].filter(Boolean).join(', '); }
+  else if (d === 0) { num = 'Dnes'; unit = 'je GOSko'; meta = [ev.place && ev.city && ev.place.includes(ev.city) ? null : ev.city, ev.place].filter(Boolean).join(', '); }
   else { num = 'Výsledky'; unit = 'čoskoro'; meta = `${ev.name} sa už odohral.`; }
   const open = d === null || d >= 0;
   return h('section', { class: 'countdown', 'aria-label': 'Odpočet do ďalšieho eventu' }, h('div', { class: 'wrap cd-in' },
@@ -1648,6 +1658,7 @@ async function pageEvent(root, id) {
           isNext && ev.registration ? h('button', { class: 'btn primary', type: 'button', onclick: () => registerDialog(ev) }, 'Chcem jazdiť') : null,
           isNext && ev.date ? h('button', { class: 'btn', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Do kalendára') : null,
           isNext && !ev.date ? h('button', { class: 'btn', type: 'button', onclick: () => newsletterDialog('event') }, 'Daj mi vedieť dátum') : null,
+          safeUrl(ev.videoUrl) ? h('a', { class: 'btn', href: ev.videoUrl, target: '_blank', rel: 'noopener' }, 'Pozrieť video') : null,
           !isNext && cats.length ? h('button', { class: 'btn primary', type: 'button', onclick: () => sections.find(s => s[0] === 'vysledky')?.[2].scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 'Výsledky', icon('arrow')) : null,
           h('a', { class: 'btn', href: ig, target: '_blank', rel: 'noopener' }, icon('insta'), '@' + SITE.instagram))))),
     h('div', { class: 'evw-jumpbar' }, h('div', { class: 'wrap' }, jump)),
@@ -1778,7 +1789,7 @@ function pageKarta(root, s) {
     h('p', { class: 'note' }, 'Fotku použijeme len na GOSko webe a profiloch. Kedykoľvek ju vieme odstrániť. U16: napíš cez rodiča.'),
     h('div', { class: 'actions' },
       info.photo ? h('a', { class: 'btn primary', href: `mailto:${SITE.email || 'rdurica1995@gmail.com'}?subject=${encodeURIComponent('Karta ' + r.name + ': súhlasím')}&body=${encodeURIComponent(`Súhlasím, aby GOSko použilo moju fotku na karte (${url}).`)}` }, 'Súhlasím s fotkou') : null,
-      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: 'https://ig.me/m/g.o.s.ko', target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
+      h('a', { class: 'btn' + (info.photo ? '' : ' primary'), href: `https://ig.me/m/${SITE.instagram}`, target: '_blank', rel: 'noopener' }, info.photo ? 'Pošlem lepšiu' : 'Pošlem fotku na Instagram')));
   const adminBox = h('div', { class: 'kt-admin' });
   store.isAdmin().then(ok => { if (!ok) return; const b = h('button', { class: 'btn small', type: 'button', onclick: e => copy(msgFor(), e.currentTarget, 'Správa skopírovaná') }, 'Skopírovať správu pre jazdca (admin)'); adminBox.append(b); }).catch(() => {});
   root.append(h('div', { class: 'kt-page' }, stage, h('div', { class: 'wrap kt-below' }, share, h('div', { class: 'actions kt-actions' }, h('a', { class: 'btn', href: '#/jazdec/' + s }, 'Celý profil')), ask, adminBox)));
@@ -2016,7 +2027,7 @@ function pagePartners(root, sub) {
 
     h('section', { class: 'sec light' }, h('div', { class: 'wrap' },
       h('span', { class: 'mono pt-k' }, 'Plán 2026/27'),
-      h('h2', {}, 'Pilot v novembri, potom hlavná sezóna'),
+      h('h2', {}, 'Pilot v decembri, potom hlavná sezóna'),
       h('p', { class: 'lead' }, 'Tri krajské mestá a finále v Bratislave. Mestá vyberáme spolu s partnermi.'),
       h('ol', { class: 'pt-plan' }, PLAN.map(p => h('li', { class: (p.dark ? 'dark' : '') + (p.red ? ' red' : '') }, h('span', { class: 'mono' }, p.when), h('b', {}, p.title), h('span', {}, p.place), p.note ? h('small', {}, p.note) : null))),
       h('div', { class: 'pt-three small' },
@@ -2037,7 +2048,8 @@ function pagePartners(root, sub) {
   form.append(h('h2', {}, 'Zavolaj si GOSko'),
     h('p', { class: 'lead' }, 'Mesto, skatepark, škola alebo firma? Napíš, čo máš v hlave, a ozveme sa.'),
     h('button', { class: 'btn primary', type: 'button', onclick: bookDialog }, 'Napísať nám'),
-    SITE.email ? h('p', { class: 'note dark' }, 'Alebo priamo na ', h('a', { href: 'mailto:' + SITE.email }, SITE.email), '.') : h('p', { class: 'note dark' }, 'Alebo nám napíš na Instagram ', igLink(SITE.instagram), '.'));
+    h('p', { class: 'note dark' }, 'Alebo nám napíš či zavolaj priamo:'),
+    contactsEl() || (SITE.email ? h('p', { class: 'note dark' }, h('a', { href: 'mailto:' + SITE.email }, SITE.email)) : h('p', { class: 'note dark' }, 'Napíš nám na Instagram ', igLink(SITE.instagram), '.')));
   if (sub === 'zavolaj') requestAnimationFrame(() => form.scrollIntoView());
 }
 function bookDialog() {
@@ -2096,7 +2108,7 @@ function postDialog(post, done) {
     title: post ? 'Upraviť novinku' : 'Pridať novinku', submit: post ? 'Uložiť' : 'Zverejniť',
     intro: 'Stačí nadpis a pár viet. Fotka a odkaz sú nepovinné.',
     fields: [
-      { name: 'title', label: 'Nadpis', required: true, max: 120, value: post?.title, placeholder: 'napr. GOSko 3 bude 21. novembra' },
+      { name: 'title', label: 'Nadpis', required: true, max: 120, value: post?.title, placeholder: 'napr. GOSko 3 je už 5. decembra' },
       { name: 'summary', label: 'Krátko (1 – 2 vety)', type: 'textarea', max: 300, value: post?.summary, hint: 'Ukáže sa v zozname noviniek a na úvodke.' },
       { name: 'body', label: 'Celý text', type: 'textarea', rows: 7, max: 20000, value: post?.body, hint: 'Nový odsek = prázdny riadok. Nepovinné.' },
       { name: 'photo', label: 'Fotka', type: 'custom', hint: post?.image_url ? 'Nová fotka nahradí tú súčasnú.' : 'Nepovinné. Fotku zmenšíme pred odoslaním.', render: () => {
@@ -2523,7 +2535,7 @@ function shareMediaDialog(file, kind, r) {
     h('div', { class: 'dlg-head' }, h('h3', { class: 'wide' }, isVideo ? 'Video karty' : 'Karta na stories'), h('button', { class: 'x', type: 'button', 'aria-label': 'Zavrieť', onclick: () => dlg.close() }, '✕')),
     h('div', { class: 'dlg-body card-body-dlg' }, media,
       h('div', { class: 'form-actions' },
-        canShare && h('button', { class: 'btn primary', type: 'button', onclick: () => navigator.share({ files: [file], title: `${r.name} na GOSko`, text: `${r.name} na GOSko @g.o.s.ko` }).catch(() => {}) }, 'Zdieľať'),
+        canShare && h('button', { class: 'btn primary', type: 'button', onclick: () => navigator.share({ files: [file], title: `${r.name} na GOSko`, text: `${r.name} na GOSko @${SITE.instagram}` }).catch(() => {}) }, 'Zdieľať'),
         h('a', { class: 'btn' + (canShare ? '' : ' primary'), href: url, download: file.name }, isVideo ? 'Stiahnuť video' : 'Stiahnuť obrázok')),
       h('p', { class: 'note dark' }, isVideo ? 'Video je na výšku, 6 sekúnd. Na mobile ho po stiahnutí nájdeš v galérii.' : 'Formát sedí na Instagram Story. Na mobile môžeš obrázok aj podržať a uložiť.')));
   dlg.addEventListener('close', () => { URL.revokeObjectURL(url); dlg.remove(); });
@@ -2874,7 +2886,8 @@ function pageMediaKit(root) {
       h('h2', { class: 'wide' }, 'S nami boli'),
       h('p', { class: 'kit-partners' }, Object.values(PARTNERS).map(p => `${p.name} (@${p.instagram})`).join('   ')),
       h('h2', { class: 'wide' }, 'Kontakt'),
-      h('p', {}, SITE.email ? SITE.email + '   ' : '', 'Instagram @' + SITE.instagram, '   ', location.origin + APP_BASE)));
+      contactsEl() || h('p', {}, SITE.email || ''),
+      h('p', {}, 'Instagram @' + SITE.instagram, '   ', location.origin + APP_BASE)));
   root.append(h('div', { class: 'wrap page-body kit-screen' },
     h('div', { class: 'actions no-print' }, h('a', { class: 'btn', href: '#/partneri' }, 'Späť'), h('button', { class: 'btn primary', type: 'button', onclick: () => window.print() }, 'Uložiť ako PDF')),
     h('p', { class: 'note no-print' }, 'Po ťuknutí vyber v tlači „Uložiť ako PDF“. Čísla sa berú priamo z webu, takže sú vždy aktuálne.'),
@@ -2936,7 +2949,7 @@ function pageAbout(root) {
       h('section', { class: 'about ab-grid' },
         h('div', { class: 'ab-copy' },
           h('p', { class: 'lead' }, 'Robíme pop-up súťaže po mestách, vedieme rebríček jazdcov a staviame digitálny svet pre skejterov: mapu spotov, 3D dosky a trik mesiaca.'),
-          h('p', {}, 'Začali sme v máji 2026 v Bratislave, v júni nasledovala Žilina na Shred Feste. V novembri štartuje pilot novej sezóny a v roku 2027 chceme obísť krajské mestá na Slovensku.'),
+          h('p', {}, 'Začali sme v máji 2026 v Bratislave, v júni nasledovala Žilina na Shred Feste. 5. decembra 2026 štartuje v HANGAIR Bratislava pilot novej sezóny (GOSko 3) a v roku 2027 chceme obísť krajské mestá na Slovensku.'),
           h('ul', { class: 'ab-stats' }, FACTS.slice(0, 4).map(f => h('li', {}, h('b', {}, f.num), h('span', {}, f.label))))),
         h('div', { class: 'ab-pillars' },
           pillar('#/eventy', '01', 'Eventy', 'Kde sme jazdili a kde budeme.'),
@@ -2949,10 +2962,11 @@ function pageAbout(root) {
           h('span', { class: 'tm-ini', 'aria-hidden': 'true' }, t.ini),
           h('span', { class: 'tm-body' }, h('b', {}, t.name), h('span', {}, t.role),
             h('span', { class: 'tm-links' }, t.links.map(([label, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, label))))))),
-        h('p', { class: 'note' }, 'Píš nám na ', h('a', { href: 'mailto:' + SITE.email }, SITE.email), ' alebo na Instagram ', igLink(SITE.instagram), '.'))));
+        h('p', { class: 'note' }, 'Píš nám na Instagram ', igLink(SITE.instagram), ' alebo priamo:'),
+        contactsEl() || h('p', { class: 'note' }, h('a', { href: 'mailto:' + SITE.email }, SITE.email)))));
 }
 const TEAM = [
-  { name: 'Robert Ďurica', ini: 'RĎ', role: 'Organizácia, eventy a web', links: [['Web', 'https://offthewallhack.github.io/rd2026/'], ['@robodurica', 'https://www.instagram.com/robodurica/']] },
+  { name: 'Robert Ďurica', ini: 'RĎ', role: 'Organizácia, eventy a web', links: [['Web', 'https://offthewallhack.github.io/rd2026/'], ['@duriica', 'https://www.instagram.com/duriica/']] },
   { name: 'Radoslav „Piry“ Pirožek', ini: 'RP', role: 'Studnica hypotéz', links: [['@studnicahypotez', 'https://www.instagram.com/studnicahypotez/']] },
   { name: 'Jakub Sluka', ini: 'JS', role: '3Style Academy, partner a jazdec', links: [['@3styleacademy.eu', 'https://www.instagram.com/3styleacademy.eu/'], ['Profil jazdca', '#/jazdec/jakub-sluka']] },
 ];
@@ -3490,7 +3504,8 @@ function pageParents(root) {
          ['Súhlas rodiča', 'Pri registrácii jazdca do 16 rokov potvrdzujete súhlas s účasťou a so zverejnením výsledkov. Bez neho jazdec v U16 nesúťaží.'],
          ['Čo priniesť', 'Dosku, prilbu a chrániče, vodu a niečo na zahryznutie. Registrácia je zadarmo, vstupný QR kód príde po registrácii.'],
          ['Fotky a súkromie', 'Na eventoch fotíme. Ak si neprajete, aby bolo dieťa na fotke alebo s celým menom v rebríčku, stačí nám napísať a upravíme to.'],
-         ['Kontakt', `Najrýchlejšie cez Instagram @${SITE.instagram}${SITE.email ? ' alebo e-mail ' + SITE.email : ''}. Na evente sa pýtajte crew v tričku GOSko.`]].map(([t, d]) => h('section', { class: 'par-card' }, h('h2', {}, t), h('p', {}, d)))),
+         ].map(([t, d]) => h('section', { class: 'par-card' }, h('h2', {}, t), h('p', {}, d))),
+        h('section', { class: 'par-card' }, h('h2', {}, 'Kontakt'), h('p', {}, 'Najrýchlejšie cez Instagram ', igLink(SITE.instagram), ' alebo priamo na kontaktoch nižšie. Na evente sa pýtajte crew v tričku GOSko.'), contactsEl())),
       h('h2', { class: 'evw-h' }, 'Časté otázky'),
       qa('Od koľkých rokov môže dieťa jazdiť?', h('p', {}, 'Vekovú hranicu nemáme. Dôležité je, aby jazdec zvládal základy a cítil sa na doske istý.')),
       qa('Stojí to niečo?', h('p', {}, 'Registrácia aj účasť sú zadarmo. Ceny pre víťazov dávajú partneri.')),

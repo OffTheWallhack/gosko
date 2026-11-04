@@ -81,10 +81,10 @@ describe('UserError', () => {
 describe('prenos passov', () => {
   const pass = { token: '3f2b8c1e-9a4d-4c2b-8e1f-0a1b2c3d4e5f', eventId: 'bratislava-2', event: 'GOSko Bratislava', date: '', name: 'Ľuboš Čierny 🛹', category: 'u16' };
   test('pass sa zakóduje a dekóduje bez straty', () => {
-    const s = encodePasses([pass, { ...pass, token: 'a1b2c3d4-0000-4000-8000-000000000000', category: 'open', date: '2026-11-14' }]);
+    const s = encodePasses([pass, { ...pass, token: 'a1b2c3d4-0000-4000-8000-000000000000', category: 'open', date: '2026-12-05' }]);
     assert.match(s, /^[A-Za-z0-9_-]+$/, 'base64url, bez + / =');
     const back = decodePasses(s);
-    assert.deepEqual(back, [pass, { ...pass, token: 'a1b2c3d4-0000-4000-8000-000000000000', category: 'open', date: '2026-11-14' }]);
+    assert.deepEqual(back, [pass, { ...pass, token: 'a1b2c3d4-0000-4000-8000-000000000000', category: 'open', date: '2026-12-05' }]);
   });
   test('zakóduje len prenášané polia', () => {
     const s = encodePasses([{ ...pass, created: 123, secret: 'x' }]);
