@@ -3199,3 +3199,7 @@ button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;co
 .contact a{display:block;padding:7px 0;overflow-wrap:anywhere;color:inherit;text-decoration:underline;text-underline-offset:3px}
 .p-role{flex-basis:100%;color:var(--muted-dark);font-size:.9rem}
 .light .p-role{color:var(--muted-light)}
+
+/* odmena za registráciu: riadok pod QR passom */
+.reg-gift{margin:10px 0 2px;padding:10px 14px;border:1.5px dashed rgba(243,235,221,.4);border-radius:14px;font-size:.92rem;line-height:1.4}
+.reg-gift b{color:#FFD21F}

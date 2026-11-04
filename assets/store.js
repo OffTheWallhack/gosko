@@ -249,9 +249,9 @@ function demoStore() {
 }
 
 async function liveStore(CONFIG) {
-  let createClient;
-  if (CONFIG.BACKEND_V2) { await loadScript(SUPABASE_JS); ({ createClient } = window.supabase); }
-  else ({ createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'));
+  /* supabase-js vždy z vlastnej kópie na webe (assets/vendor), nie z CDN: keď CDN nejde (adblock, slabá sieť),
+     web by inak potichu spadol do ukážkového režimu a registrácie by sa do databázy nezapísali */
+  await loadScript(SUPABASE_JS); const { createClient } = window.supabase;
   const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'gosko-auth' },
   });

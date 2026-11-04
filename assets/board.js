@@ -153,6 +153,12 @@ let ART = null;
 /* mikulášska čiapka na hlave ducha (zapína sa v data.js cez hat: 'santa' pri evente; žiadny text, len čiapka) */
 function santaHat(x) {
   x.save(); x.translate(205, 163); x.rotate(-.24); x.scale(.86, .86);
+  santaHatAt(x);
+  x.restore();
+}
+/* čiapka v aktuálnych súradniciach (stred lemu v bode 0,0) */
+function santaHatAt(x) {
+  x.save();
   x.lineJoin = 'round'; x.lineCap = 'round';
   // tieň pod čiapkou
   x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.ellipse(2, 10, 44, 9, 0, 0, 7); x.fill();
@@ -299,6 +305,21 @@ export function stickerCanvas(spec, logo, size = 512) {
       if (GHOST) { const gw = 170, gh = gw * GHOST.height / GHOST.width; x.drawImage(GHOST, 256 - gw / 2, 62, gw, gh); }
       x.fillStyle = '#0e0d0c'; stretch(x, 'expanded'); fit(x, title, 900, 380, 70); x.fillText(title, 256, 330);
       if (sub) { stretch(x, 'condensed'); fit(x, sub, 700, 300, 40); x.fillText(sub, 256, 392); }
+      break;
+    }
+    case 'rider': { // odmena za registráciu: „JAZDÍM“ + názov eventu, dole pásik s dátumom a mestom
+      x.save(); x.translate(256, 256); x.rotate(.05);
+      x.fillStyle = '#F3EBDD'; rr(x, -236, -150, 472, 300, 26); x.fill();
+      x.fillStyle = '#0e0d0c'; rr(x, -222, -136, 444, 272, 16); x.fill();
+      x.setLineDash([10, 8]); x.lineWidth = 3; x.strokeStyle = 'rgba(243,235,221,.45)'; rr(x, -208, -122, 416, 244, 10); x.stroke(); x.setLineDash([]);
+      x.textAlign = 'center'; x.fillStyle = '#a49b8f'; stretch(x, 'expanded');
+      x.font = `800 26px ${FONT}`; x.fillText('REGISTROVANÝ JAZDEC', 0, -92);
+      x.fillStyle = '#F3EBDD'; stretch(x, 'condensed'); fit(x, 'JAZDÍM', 900, 400, 118); x.fillText('JAZDÍM', 0, -18);
+      x.fillStyle = '#FFD21F'; stretch(x, 'expanded'); fit(x, title, 900, 400, 50); x.fillText(title, 0, 52);
+      x.fillStyle = '#A01414'; x.fillRect(-222, 92, 444, 44);
+      x.fillStyle = '#F3EBDD'; stretch(x, 'expanded'); fit(x, sub || 'GOSKO.SK', 800, 400, 24); x.fillText(sub || 'GOSKO.SK', 0, 115);
+      if (spec.hat === 'santa') { x.translate(-168, -112); x.scale(.6, .6); x.rotate(-.3); santaHatAt(x); }
+      x.restore();
       break;
     }
     case 'skate': { // odomknutá nálepka z hry S.K.A.T.E. na úvodke

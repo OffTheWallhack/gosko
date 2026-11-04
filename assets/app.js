@@ -634,6 +634,19 @@ const LSx = {
 };
 const MY_STICKERS = 'gosko:my-stickers', MY_DECK = 'gosko:deck';
 const SKATE_STICKER = { kind: 'skate', title: 'S.K.A.T.E.' };
+/* nálepky, ktoré si človek odomkol v tomto prehliadači: 'skate' (hra S.K.A.T.E.) a 'reg:<event>' (registrácia na event) */
+function unlockSticker(id) {
+  const have = LSx.get(MY_STICKERS, []);
+  if (have.includes(id)) return false;
+  LSx.set(MY_STICKERS, [...have, id]); return true;
+}
+function myStickers() {
+  return LSx.get(MY_STICKERS, []).map(id => {
+    if (id === 'skate') return SKATE_STICKER;
+    const ev = id.startsWith('reg:') && EVENTS.find(e => e.id === id.slice(4));
+    return ev ? { kind: 'rider', title: ev.name, sub: ev.date ? shortDate(ev.date) + ' ' + ev.city : ev.city, hat: ev.hat, link: '#/event/' + ev.id } : null;
+  }).filter(Boolean);
+}
 function toast(text, img) {
   const t = h('div', { class: 'toast', role: 'status' }, img ? h('img', { src: img, alt: '' }) : null, h('span', {}, text));
   document.body.append(t);
@@ -774,7 +787,7 @@ function saveLoadoutSoon(look) {
 function boardTeaser() {
   const canvas = h('canvas', { 'aria-hidden': 'true' });
   const stage = h('div', { class: 'bt-stage' }, canvas);
-  const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
+  const stickers = () => [...lootStickers(cachedInventory()), ...myStickers(), ...EVENTS.map(eventSticker)];
   let api = null, started = false;
   /* tvoj duch (farby z profilu) stojí na doske; obrázok z SVG sa nakreslí do plátna pre 3D scénu */
   const ghostCanvas = () => ghostSvg(localGhost()).then(svg => new Promise(ok => {
@@ -867,7 +880,7 @@ function boardStudio({ page = false } = {}) {
   const canvas = h('canvas', { 'aria-label': 'Tvoja 3D skateboard doska. Ťahaj na otočenie, dvojklik ju prevráti.' });
   const stage = h('div', { class: 'b3-stage' }, canvas);
   let api = null;
-  const stickers = () => [...lootStickers(cachedInventory()), ...(LSx.get(MY_STICKERS, []).includes('skate') ? [SKATE_STICKER] : []), ...EVENTS.map(eventSticker)];
+  const stickers = () => [...lootStickers(cachedInventory()), ...myStickers(), ...EVENTS.map(eventSticker)];
   let startBoard;
   const boardP = new Promise(res => { startBoard = res; }).then(() => mountBoard(canvas, { stickers: stickers(), onSticker: go, look, scene: sceneName })).then(a => (api = a));
   if (page || !('IntersectionObserver' in window)) startBoard();
@@ -1478,7 +1491,8 @@ function registerDialog(ev) {
   if (V2) return registerDialogV2(ev);
   formDialog({
     title: 'Chcem jazdiť', submit: 'Zaregistrovať sa',
-    intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}. Keď zverejníme dátum a miesto, ozveme sa ti.`,
+    /* potvrdenie e-mailom zatiaľ neposielame (vlastné maily na gosko.sk ešte nemáme): pass dostane človek hneď tu na webe */
+    intro: `${ev.name}${ev.date ? ', ' + fmtDate(ev.date) : ''}${ev.place ? ', ' + ev.place : ''}. Registrácia je zadarmo. Hneď po odoslaní dostaneš svoj vstupný QR kód a nálepku na dosku.`,
     fields: [
       { name: 'name', label: 'Meno alebo prezývka', required: true, max: 40, autocomplete: 'name', value: LSx.get('gosko:reg-me', {}).name },
       { name: 'instagram', label: 'Instagram', max: 40, placeholder: '@tvojmeno', value: LSx.get('gosko:reg-me', {}).instagram },
@@ -1490,20 +1504,25 @@ function registerDialog(ev) {
       { name: 'gdpr', label: ['Súhlasím, že GOSko použije moje údaje na organizáciu eventu. ', h('a', { href: '#/sukromie', target: '_blank', rel: 'noopener' }, 'Ako narábame s údajmi'), '.'], type: 'checkbox', required: true },
     ],
     onSubmit: async v => {
+      /* registrácia musí byť v databáze (crew podľa nej robí check-in): keď databáza nejde, radšej chyba než falošný pass */
+      if (store.mode !== 'live' && CONFIG.SUPABASE_URL) throw new UserError('Registráciu sa teraz nepodarilo uložiť (databáza nie je dostupná). Skús to o chvíľu znova alebo nám napíš na Instagram @' + SITE.instagram + '.');
       const token = newToken();
       await store.send('registrations', { event_id: ev.id, token, name: v.name, instagram: v.instagram, city: v.city, category: v.category, contact: v.contact, parent_consent: !!v.parent_consent });
       if (v.newsletter && isEmail(v.contact)) store.subscribe(v.contact, 'registracia').catch(() => {});
       LSx.set('gosko:reg-me', { name: v.name, instagram: v.instagram, city: v.city, contact: v.contact });
       const pass = { token, eventId: ev.id, event: ev.name, date: ev.date, name: v.name, category: v.category, created: Date.now() };
       LSX.set('gosko:passes', [pass, ...LSX.get('gosko:passes', []).filter(p => p.token !== token)]);
+      /* odmena za registráciu: nálepka „Jazdím GOSko 3“ na vlastnú dosku (ostáva v tomto prehliadači ako nálepka zo S.K.A.T.E.) */
+      const unlocked = unlockSticker('reg:' + ev.id);
       updateMenu();
       return h('div', { class: 'pass-done' },
         h('p', {}, 'Si zaregistrovaný. Toto je tvoj vstupný QR kód. Na evente ho ukážeš crew pri príchode.'),
         passCard(pass),
+        unlocked ? h('p', { class: 'reg-gift' }, h('b', {}, 'Nová nálepka na dosku: '), `„Jazdím ${ev.name}“. Nájdeš ju na svojej doske v garáži a v profile.`) : null,
         h('div', { class: 'actions' },
           ev.date ? h('button', { class: 'btn primary', type: 'button', onclick: () => downloadIcs({ title: ev.name, date: ev.date, place: ev.place }) }, 'Pridať do kalendára') : null,
           h('a', { class: 'btn', href: '#/pass' }, 'Môj pass')),
-        h('p', { class: 'note dark' }, ev.date ? 'Pass nájdeš v menu pod „Môj pass“. Pre istotu si sprav screenshot.' : 'Keď zverejníme dátum, pošleme ti ho a pridáš si ho do kalendára. Pass nájdeš v menu pod „Môj pass“.'));
+        h('p', { class: 'note dark' }, 'Pass nájdeš v menu pod „Môj pass“. E-mail s potvrdením neposielame, preto si pre istotu sprav screenshot.'));
     },
   });
 }
