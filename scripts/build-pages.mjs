@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const template0 = readFileSync(join(ROOT, 'index.html'), 'utf8');
 const metaBase = /<meta name="gosko:base-url" content="([^"]+)">/.exec(template0)?.[1];
-const SITE_URL = (process.env.SITE_URL || metaBase || 'https://offthewallhack.github.io/gosko/').replace(/\/?$/, '/');
+const SITE_URL = (process.env.SITE_URL || metaBase || 'https://gosko.sk/').replace(/\/?$/, '/');
 const BASE_PATH = new URL(SITE_URL).pathname;
 const { CONFIG, SITE, EVENTS, RIDERS = {}, CREWS = [] } = await import(join(ROOT, 'data.js'));
 const { appHead } = await import(join(ROOT, 'assets/game/return.js'));
