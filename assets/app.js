@@ -1006,14 +1006,20 @@ function pageHome(root) {
   /* ---------- 1. hero: video, logo, maskot, pás eventov (novinky na titulke nie sú, nájdeš ich v menu) ---------- */
   let media;
   if (SITE.heroVideo && !reduced) {
-    /* Menšie video (540p) dostane telefón, malá obrazovka aj slabší počítač (starý iMac, málo jadier), plné len silný počítač.
-       Zdroje majú uvedený kodek, takže prehliadač hneď vie, ktorý zvládne, a nesťahuje zbytočne ten, ktorý nespustí.
-       Atribút media pri zdrojoch videa viaceré prehliadače ignorujú, preto výber robíme tu. */
+    /* Menšie video (720p) dostane telefón, malá obrazovka, slabší počítač (starý iMac, málo jadier) a pomalý alebo šetriaci
+       internet, plné (1080p) len silný počítač. Zdroje majú uvedený kodek, takže prehliadač hneď vie, ktorý zvládne,
+       a nesťahuje zbytočne ten, ktorý nespustí. Atribút media pri zdrojoch videa viaceré prehliadače ignorujú, preto výber robíme tu.
+       Safari a všetko na iPhone (WebKit) dostane MP4 ako prvé: H.264 dekóduje hardvérovo a WebM sa mu na konci zasekávalo
+       pri opakovaní (ostalo stáť na poslednom zábere). Ostatné prehliadače dostanú menší WebM (VP9). */
     const base = SITE.heroVideo.replace(/\.mp4$/, '');
     const src = (url, type) => h('source', { src: url, type });
-    const small = [src(base + '-720.webm', 'video/webm; codecs="vp9"'), src(base + '-720.mp4', 'video/mp4; codecs="avc1.64001f"')];
-    const full = [src(base + '.webm', 'video/webm; codecs="vp9"'), src(SITE.heroVideo, 'video/mp4; codecs="avc1.640032"')];
-    const lowPower = innerWidth <= 900 || (navigator.hardwareConcurrency || 4) < 6 || (navigator.deviceMemory || 8) < 4;
+    const apple = /Apple/.test(navigator.vendor || '');
+    const pair = (webm, mp4) => apple ? [mp4, webm] : [webm, mp4];
+    const small = pair(src(base + '-720.webm', 'video/webm; codecs="vp9"'), src(base + '-720.mp4', 'video/mp4; codecs="avc1.64001f"'));
+    const full = pair(src(base + '.webm', 'video/webm; codecs="vp9"'), src(SITE.heroVideo, 'video/mp4; codecs="avc1.640029"'));
+    const net = navigator.connection || {};
+    const lowPower = innerWidth <= 900 || (navigator.hardwareConcurrency || 4) < 6 || (navigator.deviceMemory || 8) < 4
+      || net.saveData === true || /(^|slow-)(2g|3g)$/.test(net.effectiveType || '');
     media = h('video', { class: 'vh-video', poster: SITE.heroPoster, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' },
       ...(lowPower ? small : [...full, ...small]));
   } else media = h('div', { class: 'vh-yt' }, h('img', { class: 'vh-poster', src: SITE.heroPoster, alt: '' }));
@@ -1039,7 +1045,28 @@ function pageHome(root) {
   // niektoré telefóny (úsporný režim) autoplay zablokujú: skúsime znova pri prvom dotyku alebo scrolle
   const kick = () => tryPlay();
   ['touchstart', 'pointerdown', 'keydown'].forEach(t => addEventListener(t, kick, { passive: true }));
-  if (isVideo) { media.addEventListener('canplay', tryPlay); media.addEventListener('pause', () => setTimeout(tryPlay, 300)); }
+  if (isVideo) {
+    media.addEventListener('canplay', tryPlay);
+    media.addEventListener('pause', () => setTimeout(tryPlay, 300));
+    // keby opakovanie (loop) predsa skončilo, pustíme video od začiatku
+    media.addEventListener('ended', () => { media.currentTime = 0; tryPlay(); });
+  }
+  /* Strážca zaseknutia: keď má video hrať, ale 2 sekundy sa nehne, na konci ho pustíme od začiatku
+     a v strede ho posunieme o kúsok dopredu (stáva sa pri opakovaní v Safari a pri zaseknutom dekodéri).
+     Keď sa ešte sťahuje (readyState < 3), nerobíme nič, to prehliadač dobehne sám. */
+  let lastT = -1, still = 0;
+  const guard = isVideo ? setInterval(() => {
+    if (!wantPlay || document.hidden || media.readyState < 2 || !media.duration) { still = 0; lastT = -1; return; }
+    const t = media.currentTime;
+    still = Math.abs(t - lastT) < 0.01 ? still + 1 : 0;
+    lastT = t;
+    if (still < 2) return;
+    still = 0;
+    if (media.duration - t < 0.6) media.currentTime = 0;
+    else if (!media.paused && media.readyState >= 3) media.currentTime = t + 0.1;
+    else return;
+    media.play().catch(() => {});
+  }, 1000) : 0;
   const onVis = () => { if (!document.hidden) tryPlay(); };
   document.addEventListener('visibilitychange', onVis);
   const shade = h('div', { class: 'vh-shade', 'aria-hidden': 'true' });
@@ -1084,7 +1111,7 @@ function pageHome(root) {
   addEventListener('resize', onScroll, { passive: true });
   root.append(vbg, hero, after);
   onScroll(); tryPlay();
-  return () => { wantPlay = false; removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
+  return () => { wantPlay = false; clearInterval(guard); removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); ['touchstart', 'pointerdown', 'keydown'].forEach(t => removeEventListener(t, kick)); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf); studio.cleanup(); if (isVideo) { media.pause(); media.removeAttribute('src'); media.load(); } };
 }
 
 function pageBoard(root) {

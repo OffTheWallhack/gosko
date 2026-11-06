@@ -26,7 +26,7 @@ Cieľ: dokončiť a vyčistiť web gosko.sk tak, aby sa dal spustiť naostro. Gh
 - Mapa spotov je v menu vpravo, nie v hornej lište (hore: Eventy, Rebríček, Komunita).
 - Fotky skateparkov (`SKATEPARKS` v `data.js`, súbory v `img/parks/`) sa menia len podľa Google Drive priečinka GOSKO/Skateparky. Zatiaľ sú odtiaľ Liptovský Mikuláš (2 fotky) a Skatepark Janka Kráľa pod Mostom SNP („Pod ufom“, 3 fotky). Ostatné parky ostávajú, ako boli.
 - O občianskom združení (OZ) zatiaľ na webe nepíšeme nič: žiadny názov, sídlo, IČO ani „doplníme čoskoro“. Text zmizol z päty, Kto sme, Pre partnerov aj zo Súkromia. Keď budú údaje hotové, doplnia sa a pridá sa `SITE.org`.
-- Hero video: slabší počítač a malá obrazovka dostanú 540p (`video/hero-720.*`), plné video len silný počítač. Pri zapnutom „znížené animácie“ v systéme sa video zámerne nespustí (zobrazí sa obrázok).
+- Hero video: slabší počítač, malá obrazovka a pomalý internet dostanú 720p (`video/hero-720.*`), Safari/iPhone najprv MP4 (WebM sa mu zasekával na konci), strážca v `pageHome` pustí zaseknuté video znova, plné video len silný počítač. Pri zapnutom „znížené animácie“ v systéme sa video zámerne nespustí (zobrazí sa obrázok).
 - Stránka sa nepribližuje (zoom vypnutý okrem mapy a 3D).
 - Ochrana osobných údajov `/sukromie` – návrh, právnikovi pôjde až po dokončení webu.
 
