@@ -145,7 +145,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?:admin|checkin|crew|doska|event|eventy|feed|hra|import-passes|jazdci|jazdec|kalendar|karta|komunita|loadout|mapa|novinka|novinky|o-nas|parky|partner|partneri|pass|pravidla|profil|rebricek|registracia|rodicia|shop|sien-slavy|spot|spoty|sukromie|trik-tyzdna|tv)(?:/[^.]*)?)",
+      "source": "/((?:admin|checkin|crew|doska|event|eventy|feed|hra|import-passes|jazdci|jazdec|kalendar|karta|komunita|loadout|mapa|novinka|novinky|o-nas|parky|partner|partneri|pass|pravidla|profil|rebricek|registracia|rodicia|shop|sien-slavy|spot|spoty|sukromie|trik-tyzdna|triky|tv)(?:/[^.]*)?)",
       "destination": "/index.html"
     }
   ],

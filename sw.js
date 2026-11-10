@@ -1,9 +1,9 @@
 /* GOSko service worker: web funguje aj offline a dá sa pridať na plochu.
    Pri zmene webu zvýš číslo verzie. */
-const VERSION = 'gosko-v105';
+const VERSION = 'gosko-v106';
 const SHELL = ['./', 'index.html', 'data.js', 'assets/style.css', 'assets/app.js', 'assets/board.js', 'assets/sticker-art.js', 'assets/park.js',
   'assets/store.js', 'assets/deco.js', 'assets/badges.js', 'assets/card.js', 'assets/qr.js', 'assets/map.js', 'assets/pwa.js', 'assets/bracket.js', 'assets/crt.js', 'assets/mascot.js', 'assets/ghost.js', 'assets/ghost-editor.js', 'assets/pixel-ghost.js', 'assets/profile.js', 'assets/looks.js',
-  'assets/ranking.js', 'assets/util.js', 'assets/api.js', 'assets/login.js', 'assets/register.js', 'assets/pages.js',
+  'assets/extras.js', 'assets/tricks.js', 'assets/search.js', 'assets/ranking.js', 'assets/util.js', 'assets/api.js', 'assets/login.js', 'assets/register.js', 'assets/pages.js',
   'assets/vendor/supabase-2.117.2.js', 'assets/vendor/qrcode-generator-1.4.4.js',
   'img/logo.webp', 'img/ghost.svg', 'img/ghost-cream.svg', 'img/gosko-wordmark.svg', 'img/gosko-wordmark-cream.svg', 'img/gosko-wordmark-plain.svg', 'img/sticker-cut.webp', 'icons/icon-192.png', 'manifest.webmanifest',
   /* hra Ghoskate (demo na /hra); MapLibre (assets/vendor/maplibre-gl-6.12.0, ~1,2 MB) sa uloží do cache až pri prvom otvorení mapy */

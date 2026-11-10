@@ -311,3 +311,62 @@ export const CREWS = [
   { id: 'cube', hidden: true, name: 'Cube Skateshop', city: 'Sládkovičovo', instagram: '', organizer: 'CubeSkateshop.sk', about: 'Skateshop a organizátor Cube Skate Day.', members: [] },
   { id: 'hangair', hidden: true, name: 'Hangair', city: 'Bratislava', instagram: '', organizer: 'Hangair', about: 'Akadémia akčných športov vo Vajnoroch, vnútorný aj vonkajší park.', members: [] },
 ];
+
+/* =====================================================================
+   TRIKY: stránka /triky (slovník trikov, „Trik dňa“ a „Hádž trik“ pre Game of S.K.A.T.E.)
+   Upravuješ len tento blok:
+   - TRICKS: pridaj, uprav alebo zmaž riadok. name = názov, level = zaklad | stredne | tazke,
+     how = ako sa robí (1 – 2 vety), tip = rada navyše (nepovinné).
+   - Trik dňa sa mení každý deň sám a prejde všetky triky, kým sa zopakuje.
+   - TRICKS_PAGE: nadpis a texty stránky. Keď dáš TRICKS_PAGE.enabled = false, stránka aj odkazy zmiznú.
+   ===================================================================== */
+export const TRICKS_PAGE = {
+  enabled: true,
+  title: 'Triky',
+  lead: 'Slovník trikov, trik dňa a hádzanie trikov na Game of S.K.A.T.E. Nájdeš tu, čo sa dá robiť a ako na to.',
+  /* text nad hádzaním trikov */
+  gosIntro: 'Hádž si trik a zahraj si Game of S.K.A.T.E. aj s kamošom. Kto trik nedá, dostane písmeno. Kto zbiera S, K, A, T, E ako prvý, prehral.',
+  /* upozornenie pod zoznamom */
+  safety: 'Bezpečnosť na prvom mieste: prilba, chrániče a nové triky najprv na rovine alebo v bezpečnom parku.',
+};
+export const TRICK_LEVELS = [
+  { id: 'zaklad', label: 'Základ' },
+  { id: 'stredne', label: 'Stredné' },
+  { id: 'tazke', label: 'Ťažké' },
+];
+export const TRICKS = [
+  { name: 'Ollie', level: 'zaklad', how: 'Zadnou nohou tlačíš tail dosky k zemi a prednou nohou šmykneš po grip páske dopredu. Doska sa zdvihne a ty ju vo vzduchu vyrovnáš.', tip: 'Skáč rovno hore, nie dopredu.' },
+  { name: 'Fakie ollie', level: 'zaklad', how: 'Ollie pri jazde dozadu. Postoj ostáva rovnaký, doska sa len kotúľa opačným smerom.', tip: 'Najprv sa nauč fakie jazdu bez triku.' },
+  { name: 'Kickturn', level: 'zaklad', how: 'Zdvihneš predok dosky na zadné kolesá a otočíš sa na mieste do strany.' },
+  { name: 'Manual', level: 'zaklad', how: 'Balansuješ na zadných kolesách, predok dosky je vo vzduchu a ty sa kotúľaš ďalej.', tip: 'Ťažisko drž nad zadnými kolesami, rukami vyvažuj.' },
+  { name: 'Pop shove-it', level: 'zaklad', how: 'Zadnou nohou odpáliš tail a šmykneš ním dozadu. Doska sa otočí o pol obrátky pod tebou a ty pristaneš späť na ňu.', tip: 'Nohy drž nad skrutkami, nech sa doska točí pod nimi.' },
+  { name: 'Drop in', level: 'zaklad', how: 'Postavíš sa na hranu rampy so zadnými kolesami za hranou, nakloníš sa dopredu a necháš dosku zísť dolu.', tip: 'Predok tela dopredu, nie späť.' },
+  { name: 'Rock to fakie', level: 'zaklad', how: 'Na vrchu rampy preklopíš predok dosky cez hranu, krátko sa oprieš a vrátiš sa dolu dozadu.' },
+  { name: 'Frontside 180', level: 'zaklad', how: 'Ollie, pri ktorom sa so skokom otočíš o pol obrátky tak, že ti ide dopredu hrudník. Dosku otáčaš s telom.', tip: 'Backside je to isté, ale chrbtom dopredu.' },
+  { name: 'Backside 180', level: 'zaklad', how: 'Ollie s otočením tela a dosky o pol obrátky, pri ktorom ti ide dopredu chrbát.' },
+
+  { name: 'Kickflip', level: 'stredne', how: 'Ollie, pri ktorom prednou nohou kopneš cez hranu dosky von. Doska sa v lete otočí o celú obrátku okolo dlhej osi, ty ju chytíš a pristaneš.', tip: 'Doska ide tam, kam ukazuje špička predného chodidla.' },
+  { name: 'Heelflip', level: 'stredne', how: 'Podobné ako kickflip, ale prednou nohou kopneš pätou. Doska sa točí na opačnú stranu.' },
+  { name: 'Nollie', level: 'stredne', how: 'Ollie, ktorý odpáliš z nosa dosky. Predná noha tlačí dolu a zadná šmykne po páske.' },
+  { name: 'Switch ollie', level: 'stredne', how: 'Ollie v opačnom postoji, než ho jazdíš normálne. Hlavne ťa to naučí cítiť dosku obidvoma nohami.' },
+  { name: 'Nose manual', level: 'stredne', how: 'To isté ako manual, ale balansuješ na predných kolesách.' },
+  { name: '50-50 grind', level: 'stredne', how: 'Naskočíš na hranu alebo zábradlie a kĺžeš po ňom oboma osami dosky naraz.', tip: 'Skáč šikmo, nie kolmo na hranu.' },
+  { name: '5-0 grind', level: 'stredne', how: 'Kĺžeš len po zadnej osi a predok dosky máš vo vzduchu.' },
+  { name: 'Nosegrind', level: 'stredne', how: 'Kĺžeš len po prednej osi a zadok dosky máš vo vzduchu.' },
+  { name: 'Boardslide', level: 'stredne', how: 'Hranu máš v strede dosky, doska je kolmo na ňu. Kĺžeš po spodku dosky medzi osami.', tip: 'Skoč s ollie a otoč dosku o štvrť obrátky.' },
+  { name: 'Noseslide', level: 'stredne', how: 'Kĺžeš po hrane špičkou dosky, doska je naprieč hrane.' },
+  { name: 'Tailslide', level: 'stredne', how: 'Kĺžeš po hrane zadnou časťou dosky, doska je naprieč hrane.' },
+  { name: 'Axle stall', level: 'stredne', how: 'Zadné osi položíš na hranu rampy, na chvíľu sa zastavíš a potom sa dolu vrátiš.' },
+  { name: 'Fakie kickflip', level: 'stredne', how: 'Kickflip pri jazde dozadu.' },
+  { name: 'Varial kickflip', level: 'stredne', how: 'Kickflip spojený s pop shove-it, takže doska sa točí naplocho aj okolo dlhej osi.' },
+
+  { name: '360 shove-it', level: 'tazke', how: 'Pop shove-it, pri ktorom sa doska otočí o celú obrátku pod nohami a ty ju chytíš.', tip: 'Silnejší šmyk zadnou nohou dozadu a skok nad dosku.' },
+  { name: 'Tre flip (360 flip)', level: 'tazke', how: '360 shove-it a kickflip naraz. Doska sa točí naplocho aj okolo dlhej osi.' },
+  { name: 'Hardflip', level: 'tazke', how: 'Frontside pop shove-it spojený s kickflipom. Doska sa ti zdanlivo prevalí cez nohy.' },
+  { name: 'Varial heelflip', level: 'tazke', how: 'Frontside pop shove-it spojený s heelflipom.' },
+  { name: 'Backside flip', level: 'tazke', how: 'Backside 180 s kickflipom v jednom skoku.' },
+  { name: 'Nollie flip', level: 'tazke', how: 'Kickflip, ktorý odpáliš z nosa dosky ako nollie.' },
+  { name: 'Switch kickflip', level: 'tazke', how: 'Kickflip v opačnom postoji. Veľká výzva pre koordináciu.' },
+  { name: 'Impossible', level: 'tazke', how: 'Doska sa zvisle obtočí okolo zadnej nohy a ty ju v lete chytíš pod seba.' },
+  { name: 'Bigspin', level: 'tazke', how: '360 shove-it spojený s otočením tela o pol obrátky v rovnakom smere.' },
+];

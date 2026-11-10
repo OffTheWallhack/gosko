@@ -3203,3 +3203,56 @@ button.sw-link{background:none;border:0;padding:0;cursor:pointer;font:inherit;co
 /* odmena za registráciu: riadok pod QR passom */
 .reg-gift{margin:10px 0 2px;padding:10px 14px;border:1.5px dashed rgba(243,235,221,.4);border-radius:14px;font-size:.92rem;line-height:1.4}
 .reg-gift b{color:#FFD21F}
+
+/* v17: Triky (#/triky: trik dňa, hádzanie trikov, slovník) a vyhľadávanie po celom webe (Ctrl+K, „/“, tlačidlo Hľadať) */
+.srch-btn{display:inline-grid;place-items:center;width:40px;height:40px;padding:0;border:2px solid var(--cream);background:transparent;color:var(--cream);cursor:pointer}
+.srch-btn svg,.sh-search svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+@media (max-width:760px){ .srch-btn{display:none} }
+.sh-search{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 14px;padding:13px 14px;border:1.5px solid rgba(243,235,221,.35);border-radius:14px;background:transparent;color:inherit;font-weight:700;cursor:pointer;text-align:left}
+dialog.srch{width:min(560px,calc(100vw - 24px));margin:9vh auto auto;border-radius:16px;overflow:hidden auto}
+.srch-head{display:flex;gap:8px;padding:12px}
+.srch-q{flex:1;min-width:0;font:inherit;font-size:1.1rem;padding:11px 14px;border:2px solid var(--black);background:var(--white);color:var(--black);border-radius:0}
+.srch .x{border-color:var(--black);color:var(--black)}
+.srch-empty{margin:0;padding:2px 16px 14px;color:var(--muted-light);font-size:.92rem}
+.srch-empty:empty{display:none}
+.srch-list{list-style:none;margin:0;padding:0 8px 10px}
+.srch-list a{display:grid;grid-template-columns:76px 1fr;gap:1px 10px;align-items:baseline;padding:10px;text-decoration:none;color:var(--black);border-radius:10px}
+.srch-list a small{grid-column:2;color:var(--muted-light);font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srch-kind{grid-row:span 2;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red)}
+.srch-list li[aria-selected="true"] a,.srch-list a:hover{background:var(--black);color:var(--cream)}
+.srch-list li[aria-selected="true"] a small,.srch-list a:hover small{color:var(--muted-dark)}
+.srch-list li[aria-selected="true"] .srch-kind,.srch-list a:hover .srch-kind{color:#FFB3B5}
+
+.tk-sec{margin:0 0 44px}
+.tk-card{display:grid;gap:4px;align-content:start;padding:14px 16px;border:1.5px solid rgba(243,235,221,.28);border-radius:14px;background:rgba(255,255,255,.03)}
+.tk-card.big{padding:20px;border-color:var(--cream)}
+.tk-name{margin:4px 0 4px;font-size:1.25rem;line-height:1.05}
+.tk-card.big .tk-name{font-size:clamp(1.7rem,6vw,2.6rem)}
+.tk-how{margin:0;max-width:62ch}
+.tk-tip{margin:6px 0 0;color:var(--muted-dark);font-size:.92rem}
+.tk-lvl{justify-self:start;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border:1.5px solid currentColor}
+.tk-lvl.zaklad{color:#7ED6A0}
+.tk-lvl.stredne{color:#FFD21F}
+.tk-lvl.tazke{color:#FF9A9A}
+.tk-list{display:grid;gap:12px;margin-top:14px}
+@media (min-width:760px){ .tk-list{grid-template-columns:1fr 1fr} }
+.tk-q,.tk-names{display:block;width:100%;font:inherit;font-size:1rem;padding:12px 14px;border:2px solid var(--cream);background:transparent;color:var(--cream);border-radius:0;margin:0 0 12px}
+.tk-q::placeholder{color:var(--muted-dark)}
+.tk-throw{margin:16px 0}
+.tk-out:not(:empty){margin:0 0 16px}
+.tk-gos{margin-top:8px;padding-top:10px;border-top:1px solid rgba(243,235,221,.2)}
+.tk-gos summary{cursor:pointer;font-weight:800;padding:8px 0}
+.tk-label{display:grid;gap:6px;margin:6px 0 12px;font-weight:700;font-size:.9375rem}
+.tk-players{list-style:none;margin:14px 0;padding:0;display:grid;gap:8px}
+.tk-players li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 12px;border:1.5px solid rgba(243,235,221,.28);border-radius:12px}
+.tk-players li.on{border-color:var(--cream);background:rgba(243,235,221,.08)}
+.tk-players li.out{opacity:.5}
+.tk-players li.out b{text-decoration:line-through}
+.tk-letters{display:inline-flex;gap:4px;font-weight:900}
+.tk-letters i{font-style:normal;width:1.7em;height:1.7em;display:grid;place-items:center;border:1.5px solid rgba(243,235,221,.4);color:rgba(243,235,221,.4)}
+.tk-letters i.x{background:var(--red);border-color:var(--red);color:#fff}
+.tk-players em{margin-left:auto;font-style:normal;font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.tk-act{display:flex;flex-wrap:wrap;gap:10px}
+.tk-win{margin:8px 0;font-size:1.3rem;font-weight:900}
+.trick-day{align-content:start}
+.trick-day .btn{justify-self:start}

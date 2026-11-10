@@ -13,7 +13,7 @@ const template0 = readFileSync(join(ROOT, 'index.html'), 'utf8');
 const metaBase = /<meta name="gosko:base-url" content="([^"]+)">/.exec(template0)?.[1];
 const SITE_URL = (process.env.SITE_URL || metaBase || 'https://gosko.sk/').replace(/\/?$/, '/');
 const BASE_PATH = new URL(SITE_URL).pathname;
-const { CONFIG, SITE, EVENTS, RIDERS = {}, CREWS = [] } = await import(join(ROOT, 'data.js'));
+const { CONFIG, SITE, EVENTS, RIDERS = {}, CREWS = [], TRICKS_PAGE = { enabled: true } } = await import(join(ROOT, 'data.js'));
 const { appHead } = await import(join(ROOT, 'assets/game/return.js'));
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -96,6 +96,7 @@ const SECTIONS = [
   ['mapa', 'Mapa spotov', 'Skateparky a spoty na Slovensku. Pridaj aj svoj spot a ohodnoť ostatné.'],
   ['parky', 'Postav si skatepark', '3D stavebnica skateparku. Najlepšie parky podľa hlasov idú do top 10.'],
   ['doska', 'Navrhni si dosku', 'Tvoja 3D skateboard doska s nálepkami z GOSko eventov.'],
+  ...(TRICKS_PAGE.enabled ? [['triky', 'Triky', 'Slovník trikov, trik dňa a hádzanie trikov na Game of S.K.A.T.E.']] : []),
   ['trik-tyzdna', 'Trik mesiaca', 'Pošli klip, vyberieme troch finalistov a víťaza určíte hlasovaním.'],
   ['crew', 'Crew', 'Skate crew zo Slovenska: členovia, eventy a spoty.'],
   ['komunita', 'Komunita', 'WhatsApp skupina, trik mesiaca, crew a všetko okolo GOSko komunity.'],
