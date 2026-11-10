@@ -118,7 +118,9 @@ async function updateAcct() {
   const a = $('#acct'); if (!a) return;
   const icon = h('span', { class: 'acct-ghost', 'aria-hidden': 'true' });
   icon.innerHTML = await ghostSvg(S.profile ? S.profile.ghost : S.draft.ghost);
-  a.replaceChildren(icon, h('span', {}, S.profile ? S.profile.nickname || t('top.profile') : t('top.login')));
+  const label = S.profile ? S.profile.nickname || t('top.profile') : t('top.login');
+  a.setAttribute('aria-label', label);   // na mobile je viditeľná len ikona
+  a.replaceChildren(icon, h('span', {}, label));
 }
 
 /* ---------- 3D duch (titulka + karta) ---------- */

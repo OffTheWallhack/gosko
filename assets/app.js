@@ -1,4 +1,6 @@
-import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS, EVENT_MEDIA } from '../data.js';
+import { CONFIG, SITE, POINTS, CATEGORIES, EVENTS, PARTNERS, FACTS, PACKAGES, PRODUCTS, SEASONS, SEASON_RULES, RULES, FAQ, RIDER_PRIVACY, RIDERS, PLAN, SKATEPARKS, CREWS, AWARD_POINTS, EVENT_MEDIA, TRICKS, TRICKS_PAGE } from '../data.js';
+import { pageTricks, trickTeaser, openSearch } from './extras.js';
+import { buildIndex } from './search.js';
 import { tvScene } from './crt.js';
 import { makeBracket, setWinner, clearWinner, toggleCurrent, isComplete, progress, placements, nextMatch, roundName, cleanNames } from './bracket.js';
 import { mountBoard, MAX_STICKERS, DECKS, GRIPS, WHEELS, TRUCKS, DEFAULT_LOOK, SCENES, stickerCanvas, loadLogo, renderBoardImage,
@@ -96,6 +98,7 @@ function applyData() {
     ev.status = base.status === 'next' && has ? 'done' : base.status;
     ev.sticker = base.sticker === 'next' && ev.status === 'done' ? 'band' : base.sticker;
   }
+  searchIndex = null;   // výsledky a jazdci sa zmenili, hľadanie sa poskladá znova
 }
 async function refreshRemote() {
   try {
@@ -1181,7 +1184,8 @@ function siteFeed() {
           h('p', {}, 'Keď vyhlásime dátum a miesto, pošleme ti jeden e-mail. Žiadny spam.'), newsletterInline('feed'),
           h('div', { class: 'news-ghosts', 'aria-hidden': 'true' }, h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }), h('img', { src: 'img/ghost-cream.svg', alt: '' }))),
         h('a', { class: 'fb-card cm-mini', href: SITE.whatsapp || '#/komunita', target: SITE.whatsapp ? '_blank' : null, rel: SITE.whatsapp ? 'noopener' : null },
-          h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.whatsapp ? 'Pridaj sa do WhatsApp skupiny' : 'Trik mesiaca, crew a WhatsApp'), h('span', {}, SITE.whatsapp ? 'Info, eventy, registrácie, otázky aj pravidlá na jednom mieste.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→'))))));
+          h('span', { class: 'mono hs-k' }, 'Komunita'), h('h3', {}, SITE.whatsapp ? 'Pridaj sa do WhatsApp skupiny' : 'Trik mesiaca, crew a WhatsApp'), h('span', {}, SITE.whatsapp ? 'Info, eventy, registrácie, otázky aj pravidlá na jednom mieste.' : 'Pošli klip, hlasuj, nájdi svoju crew.'), h('span', { class: 'cm-go', 'aria-hidden': 'true' }, '→')),
+        trickTeaser({ h, icon })))));
 }
 
 /* podstránky: na konci už len krátky odber noviniek, nie celá úvodka dookola */
@@ -2522,7 +2526,7 @@ async function pageAdmin(root) {
 
 function pageNotFound(root) {
   root.append(pageHead('Tu nič nie je', 'Stránka neexistuje alebo sa presunula.'), h('div', { class: 'wrap page-body' }, h('div', { class: 'actions' },
-    h('a', { class: 'btn primary', href: '#/' }, 'Na úvod'), h('a', { class: 'btn', href: '#/eventy' }, 'Eventy'), h('a', { class: 'btn', href: '#/rebricek' }, 'Rebríček'), h('a', { class: 'btn', href: '#/mapa' }, 'Mapa spotov'))));
+    h('a', { class: 'btn primary', href: '#/' }, 'Na úvod'), h('a', { class: 'btn', href: '#/eventy' }, 'Eventy'), h('a', { class: 'btn', href: '#/rebricek' }, 'Rebríček'), h('a', { class: 'btn', href: '#/mapa' }, 'Mapa spotov'), h('button', { class: 'btn', type: 'button', onclick: () => showSearch() }, 'Hľadať na webe'))));
 }
 
 
@@ -2793,6 +2797,7 @@ function updateMenu() {
   document.querySelectorAll('[data-pass-link]').forEach(a => { a.hidden = !has; });
   const rules = RULES.length > 0 || FAQ.length > 0;
   document.querySelectorAll('[data-rules-link]').forEach(a => { a.hidden = !rules; });
+  document.querySelectorAll('[data-triky-link]').forEach(a => { a.hidden = !(TRICKS_PAGE.enabled && TRICKS.length); });
   // menu: karta Ďalšie GOSko a WhatsApp skupina
   const nx = nextEvent(), a = document.getElementById('sh-next');
   if (a) {
@@ -3672,6 +3677,7 @@ const ROUTES = [
   [/^#\/o-nas$/, pageAbout, 'o-nas'],
   [/^#\/komunita$/, pageCommunity, 'komunita'],
   [/^#\/trik-tyzdna$/, pageTrick, 'komunita'],
+  [/^#\/triky$/, root => TRICKS_PAGE.enabled ? pageTricks(root, { h, pageHead, put, icon }) : pageNotFound(root), 'komunita'],
   [/^#\/crew$/, pageCrews, 'komunita'],
   [/^#\/crew\/([\w-]+)$/, pageCrew, 'komunita'],
   [/^#\/rodicia$/, pageParents, 'komunita'],
@@ -3784,7 +3790,7 @@ function parentOf(rest) {
   if (a === 'crew' && b) return 'crew';
   if (a === 'partner' || (a === 'partneri' && b)) return 'partneri';
   if (a === 'admin' && b) return 'admin';
-  if (['trik-tyzdna', 'crew', 'rodicia'].includes(a)) return 'komunita';
+  if (['trik-tyzdna', 'triky', 'crew', 'rodicia'].includes(a)) return 'komunita';
   return '';
 }
 let backTarget = null;
@@ -3798,6 +3804,42 @@ function goBack() {
   if (backTarget === null) return;
   if (navDepth() > 0) history.back();
   else go('#/' + backTarget);
+}
+
+/* ---------- vyhľadávanie po celom webe (Ctrl+K, „/“, tlačidlo v menu) ---------- */
+let searchIndex = null;
+function siteIndex() {
+  if (searchIndex) return searchIndex;
+  const items = [];
+  const pages = [['Eventy', 'eventy', 'kalendár GOSko a ďalšie eventy'], ['Rebríček', 'rebricek', 'body jazdci sezóna'], ['Sieň slávy', 'sien-slavy', 'víťazi ocenenia'],
+    ['Jazdci', 'jazdci', 'skejteri profily'], ['Novinky', 'novinky', 'články správy'], ['Komunita', 'komunita', 'whatsapp'], ['Trik mesiaca', 'trik-tyzdna', 'klip hlasovanie'],
+    ['Crew', 'crew', 'partie'], ['Mapa spotov', 'mapa', 'skateparky spoty'], ['Postav skatepark', 'parky', '3D stavebnica'], ['Navrhni dosku', 'doska', '3D garáž nálepky'],
+    ['Pre rodičov', 'rodicia', 'bezpečnosť súhlas'], ['Pre partnerov', 'partneri', 'spolupráca'], ['Kto sme', 'o-nas', 'o nás'], ['Ochrana osobných údajov', 'sukromie', 'súkromie gdpr'],
+    ['Môj profil', 'profil', 'duch prihlásenie'], ...(RULES.length || FAQ.length ? [['Pravidlá a FAQ', 'pravidla', 'otázky']] : []),
+    ...(TRICKS_PAGE.enabled && TRICKS.length ? [['Triky: slovník a hádzanie trikov', 'triky', 'trik dňa slovník game of skate']] : []),
+    ...(GAME !== 'off' ? [['Hra Ghoskate', 'hra', 'duch hra']] : [])];
+  for (const [title, path, keys] of pages) items.push({ kind: 'page', title, href: '#/' + path, keys });
+  for (const e of EVENTS) items.push({ kind: 'event', title: e.name, sub: [e.city, e.date ? fmtDate(e.date) : e.when].filter(Boolean).join(' · '), href: '#/event/' + e.id, keys: [e.place, e.organizer, e.about].filter(Boolean).join(' ') });
+  for (const r of riders()) items.push({ kind: 'rider', title: r.name, sub: 'Jazdec', href: '#/jazdec/' + r.slug });
+  for (const c of CREWS) if (!c.hidden) items.push({ kind: 'crew', title: c.name, sub: c.city, href: '#/crew/' + c.id, keys: c.about });
+  for (const [id, p] of Object.entries(PARTNERS)) if (p && p.about && p.name) items.push({ kind: 'partner', title: p.name, href: '#/partner/' + id });
+  for (const k of SKATEPARKS) items.push({ kind: 'park', title: k.name, sub: [k.city, k.area].filter(Boolean).join(' · '), href: '#/mapa' });
+  if (TRICKS_PAGE.enabled) for (const t of TRICKS) items.push({ kind: 'trick', title: t.name, sub: t.how.length > 70 ? t.how.slice(0, 68) + '…' : t.how, href: '#/triky', keys: t.how });
+  return (searchIndex = buildIndex(items));
+}
+const showSearch = () => openSearch({ h, index: siteIndex(), onGo: href => go(href) });
+function initSearch() {
+  document.querySelectorAll('[data-search]').forEach(b => b.addEventListener('click', e => {
+    e.preventDefault();
+    const menu = $('#menu'); if (menu?.open) menu.close();
+    document.body.classList.remove('menu-open'); $('#tab-menu')?.setAttribute('aria-expanded', 'false');
+    showSearch();
+  }));
+  addEventListener('keydown', e => {
+    if (e.defaultPrevented || document.querySelector('dialog[open]')) return;
+    const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey)) { e.preventDefault(); showSearch(); }
+  });
 }
 
 /* menu ako panel zo spodnej lišty */
@@ -3859,6 +3901,7 @@ function initSwipeBack() {
   updateMenu();
   if (GAME === 'off') document.querySelectorAll('.nav-game, .menu-game').forEach(a => { a.hidden = true; });
   initMenu();
+  initSearch();
   initSwipeBack();
   $('#tb-back')?.addEventListener('click', e => { e.preventDefault(); goBack(); });
   if (!history.state) history.replaceState({ n: 0 }, '');
