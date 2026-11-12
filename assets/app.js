@@ -21,7 +21,7 @@ import { NAME_MODES, COUNTRIES, isMinor, todayIn, validateRegistration, buildPay
 import { apiRequest, browserFetch } from './api.js';
 import { explorerUrl } from './ranking.js';
 import { consumeReturn, isGameRoute, appHead } from './game/return.js';
-import { loginMode, credentialsError, loginErrorMessage, signUpOutcome, MIN_PASSWORD } from './login.js';
+import { resetRequestError, newPasswordError, resetErrorMessage, loginMode, credentialsError, loginErrorMessage, signUpOutcome, MIN_PASSWORD } from './login.js';
 
 /* ---------- pomocníci ---------- */
 /* Skutočné adresy: web žije pod BASE (napr. /gosko/), vnútorné odkazy píšeme ako '#/eventy' a menia sa na /gosko/eventy. */
@@ -271,6 +271,38 @@ const authErr = err => {
 };
 /* Prihlásenie podľa CONFIG.LOGIN_MODE: 'magic' = odkaz alebo kód z e-mailu, voliteľne heslo; 'password' = e-mail a heslo aj s novým účtom (assets/login.js). */
 const LOGIN_MODE = loginMode(CONFIG);
+/* Zabudnuté heslo: pošleme e-mail s odkazom. Odkaz človeka prihlási a otvorí okno na nové heslo. */
+function forgotPasswordDialog(email = '') {
+  return formDialog({
+    title: 'Zabudol som heslo', submit: 'Poslať odkaz',
+    intro: 'Napíš e-mail, s ktorým si sa prihlasoval. Pošleme ti odkaz, cez ktorý si nastavíš nové heslo.',
+    fields: [{ name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email', value: email }],
+    onSubmit: async v => {
+      const problem = resetRequestError(v);
+      if (problem) throw new UserError(problem);
+      try { await store.resetPassword(v.email.toLowerCase()); } catch (err) { if (!err?.code && !err?.status) console.error(err); throw new UserError(resetErrorMessage(err)); }
+      return `Ak je e-mail ${v.email} u nás zaregistrovaný, poslali sme naň odkaz na nové heslo. Otvor ho v tomto zariadení. Pozri aj spam.`;
+    },
+  });
+}
+/* Okno „Nastav nové heslo“ po kliknutí na odkaz z reset e-mailu (človek je v tej chvíli už prihlásený). */
+function newPasswordDialog() {
+  return formDialog({
+    title: 'Nastav nové heslo', submit: 'Uložiť heslo',
+    intro: 'Vymysli si nové heslo. Potom sa ním budeš prihlasovať.',
+    fields: [
+      { name: 'password', label: 'Nové heslo', type: 'password', required: true, autocomplete: 'new-password', hint: `Aspoň ${MIN_PASSWORD} znakov.` },
+      { name: 'password2', label: 'Nové heslo ešte raz', type: 'password', required: true, autocomplete: 'new-password' },
+    ],
+    onSubmit: async v => {
+      const problem = newPasswordError(v);
+      if (problem) throw new UserError(problem);
+      try { await store.setPassword(v.password); } catch (err) { if (!err?.code && !err?.status) console.error(err); throw new UserError(resetErrorMessage(err)); }
+      updateAccount();
+      return 'Heslo je zmenené. Si prihlásený. Nabudúce sa prihlásiš e-mailom a týmto heslom.';
+    },
+  });
+}
 function loginDialog(after) {
   return LOGIN_MODE === 'password' ? passwordLoginDialog(after) : magicLoginDialog(after);
 }
@@ -282,7 +314,8 @@ function passwordLoginDialog(after, { signUp = false, email = '' } = {}) {
     intro: signUp
       ? 'Založ si účet e-mailom a heslom. Potom ti pošleme e-mail s odkazom, ktorým e-mail potvrdíš.'
       : h('span', {}, 'Prihlás sa e-mailom a heslom. Prihlásený ostaneš aj nabudúce. Nemáš účet? ',
-        h('button', { class: 'linklike', type: 'button', onclick: () => { dlg.close(); passwordLoginDialog(after, { signUp: true }); } }, 'Založ si ho'), '.'),
+        h('button', { class: 'linklike', type: 'button', onclick: () => { dlg.close(); passwordLoginDialog(after, { signUp: true }); } }, 'Založ si ho'), '. ',
+        h('button', { class: 'linklike', type: 'button', onclick: () => { const em = dlg.querySelector('[name=email]')?.value.trim() || ''; dlg.close(); forgotPasswordDialog(em); } }, 'Zabudol som heslo'), '.'),
     fields: [
       { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email', value: email },
       { name: 'password', label: 'Heslo', type: 'password', required: true, autocomplete: signUp ? 'new-password' : 'current-password',
@@ -325,7 +358,8 @@ function magicLoginDialog(after) {
   const done = () => { toast('Si prihlásený. Vitaj na GOSku!'); updateAccount(); after && after(); };
   formDialog({
     title: 'Prihlásenie', submit: 'Pokračovať',
-    intro: 'Zadaj e-mail. Ak máš nastavené heslo, napíš ho. Inak ti pošleme e-mail s prihlasovacím odkazom.',
+    intro: h('span', {}, 'Zadaj e-mail. Ak máš nastavené heslo, napíš ho. Inak ti pošleme e-mail s prihlasovacím odkazom. ',
+      h('button', { class: 'linklike', type: 'button', onclick: () => { const em = document.querySelector('dialog[open] [name=email]')?.value.trim() || ''; document.querySelector('dialog[open]')?.close(); forgotPasswordDialog(em); } }, 'Zabudol som heslo'), '.'),
     fields: [
       { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email' },
       { name: 'password', label: 'Heslo (nepovinné)', type: 'password', autocomplete: 'current-password', hint: 'Heslo si nastavíš v profile po prvom prihlásení.' },
@@ -3917,6 +3951,8 @@ function initSwipeBack() {
     if (err) setTimeout(() => toast('Prihlasovací odkaz nefungoval: ' + err.replace(/\+/g, ' ') + '. Pošli si nový.'), 800);
   }
   store.onAuth(() => { updateAccount(); syncProfile(); onAuthChange && onAuthChange(); });
+  // návrat z e-mailu „Zabudol som heslo“: človek je prihlásený, hneď mu ponúkneme nové heslo
+  if (store.recovering()) setTimeout(() => { if (store.recovering() && !document.querySelector('dialog[open]')) newPasswordDialog(); }, 600);
   // hra: prihlásenie odkazom z e-mailu otvorí úvod, hráča vráť tam, odkiaľ sa prihlasoval (assets/game/return.js)
   if (GAME === 'live' && await store.signedIn()) { const back = consumeReturn(); if (back) history.replaceState({ n: 0 }, '', back); }
   updateAccount();

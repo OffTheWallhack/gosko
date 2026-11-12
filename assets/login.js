@@ -46,3 +46,32 @@ export function signUpOutcome(data = {}) {
   if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return 'exists';
   return 'confirm_email';
 }
+
+/* Zabudnuté heslo: kontrola e-mailu pred odoslaním reset e-mailu. Vráti text chyby alebo ''. */
+export function resetRequestError({ email } = {}) {
+  return isEmail(String(email || '').trim()) ? '' : 'Skontroluj e-mail.';
+}
+
+/* Nové heslo po kliknutí na odkaz z reset e-mailu. Vráti text chyby alebo ''. */
+export function newPasswordError({ password, password2 } = {}) {
+  if (!password || password.length < MIN_PASSWORD) return `Heslo musí mať aspoň ${MIN_PASSWORD} znakov.`;
+  if (password !== password2) return 'Heslá sa nezhodujú.';
+  return '';
+}
+
+/* Chyba pri posielaní reset e-mailu / ukladaní nového hesla -> text pre človeka. */
+export function resetErrorMessage(err) {
+  const code = err?.code || err?.error_code || '';
+  const msg = String(err?.message || err?.msg || '');
+  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || err?.status === 429 || /rate limit/i.test(msg))
+    return 'Poslali sme už veľa e-mailov. Počkaj pár minút a skús to znova.';
+  if (code === 'same_password' || /different from the old/i.test(msg)) return 'Nové heslo musí byť iné ako staré.';
+  if (code === 'weak_password' || /password should be/i.test(msg)) return `Heslo je príliš slabé. Použi aspoň ${MIN_PASSWORD} znakov, písmená aj čísla.`;
+  if (code === 'session_not_found' || code === 'not_authenticated' || /session/i.test(msg)) return 'Odkaz z e-mailu už vypršal. Pošli si nový cez „Zabudol som heslo“.';
+  return 'Nepodarilo sa. Skús to znova.';
+}
+
+/* Je to návrat z reset e-mailu? (Supabase pridá do adresy type=recovery.) */
+export function isRecoveryUrl(hash = '', search = '') {
+  return /(^|[#&?])type=recovery(&|$)/.test(String(hash) + '&' + String(search).replace(/^\?/, ''));
+}

@@ -47,6 +47,12 @@ describe('getStore s BACKEND_V2', () => {
     await assert.rejects(s.listResults(), UserError, 'čítanie tiež priznáva výpadok');
   });
 
+  test('offline a demo store: recovering() je false a nehádže (okno na nové heslo sa nesmie otvoriť)', async () => {
+    const s = await quiet(() => getStore({ ...V2, SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'k' }));
+    assert.equal(s.recovering(), false);
+    assert.equal((await getStore({})).recovering(), false);
+  });
+
   test('offline store má všetky metódy live store', async () => {
     const s = await quiet(() => getStore({ ...V2, SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'k' }));
     const demo = await getStore({});

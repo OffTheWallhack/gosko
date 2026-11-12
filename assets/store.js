@@ -1,6 +1,7 @@
 import { UserError } from './util.js';
 import { loadScript } from './qr.js';
 import { apiRequest, browserFetch } from './api.js';
+import { isRecoveryUrl } from './login.js';
 
 /* @supabase/supabase-js 2.117.2 (UMD, globál window.supabase), uložené na webe: assets/vendor/SOURCES.txt.
    Používa sa pri CONFIG.BACKEND_V2 (bez závislosti od CDN); inak ide knižnica z jsDelivr ako doteraz. */
@@ -86,6 +87,7 @@ function demoStore() {
     async signedIn() { return true; },
     async email() { return ''; },
     async login() {}, async loginPassword() {}, async verifyCode() {}, async verifyLink() {}, async setPassword() {}, async logout() {},
+    async resetPassword() {}, recovering() { return false; },
     async listParks() { return loadParks(); },
     async myVotes() { return new Set(LS.get(K.votes, [])); },
     async submitPark(park) {
@@ -255,6 +257,9 @@ async function liveStore(CONFIG) {
   const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'gosko-auth' },
   });
+  /* návrat z reset e-mailu: adresu čítame ešte pred čistením, udalosť PASSWORD_RECOVERY môže prísť skôr, než sa ju appka stihne opýtať */
+  let recovery = isRecoveryUrl(location.hash, location.search);
+  sb.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') recovery = true; });
   const session = async () => (await sb.auth.getSession()).data.session;
   const must = ({ data, error }) => { if (error) throw error; return data; };
   const created = r => ({ ...r, created: Date.parse(r.created_at) });
@@ -294,7 +299,10 @@ async function liveStore(CONFIG) {
       if (code) { must(await sb.auth.exchangeCodeForSession(code)); return; }
       throw new Error('link');
     },
-    async setPassword(password) { must(await sb.auth.updateUser({ password })); },
+    async setPassword(password) { must(await sb.auth.updateUser({ password })); recovery = false; },
+    /* zabudnuté heslo: pošle e-mail s odkazom, ktorý človeka prihlási a otvorí okno na nové heslo */
+    async resetPassword(email) { must(await sb.auth.resetPasswordForEmail(email, { redirectTo: appRoot() })); },
+    recovering() { return recovery; },
     async logout() { await sb.auth.signOut(); },
     async listParks() {
       const data = must(await sb.from('parks_ranked').select('*').order('votes', { ascending: false }).limit(300));
@@ -617,6 +625,6 @@ function offlineStore() {
   const down = async () => { throw new UserError(OFFLINE_MSG); };
   const base = { mode: 'offline', message: OFFLINE_MSG, client: null, onAuth() {}, async signedIn() { return false; }, async email() { return ''; },
     async isAdmin() { return false; }, async myVotes() { return new Set(); }, async logout() {}, async accessToken() { return ''; }, async me() { return null; },
-    async myProfile() { return null; }, async myInventory() { return []; } };
+    async myProfile() { return null; }, async myInventory() { return []; }, recovering() { return false; } };
   return new Proxy(base, { get: (t, k) => (k in t || typeof k === 'symbol' || k === 'then' ? t[k] : down), has: (t, k) => k !== 'then' });
 }
