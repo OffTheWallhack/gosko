@@ -1,7 +1,7 @@
 // Prihlásenie: prepínač CONFIG.LOGIN_MODE, kontrola formulára, hlášky chýb Supabase Auth, výsledok registrácie.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loginMode, credentialsError, loginErrorMessage, signUpOutcome, MIN_PASSWORD } from '../../assets/login.js';
+import { loginMode, credentialsError, loginErrorMessage, signUpOutcome, resetRequestError, newPasswordError, resetErrorMessage, isRecoveryUrl, MIN_PASSWORD } from '../../assets/login.js';
 import { CONFIG } from '../../data.js';
 
 describe('loginMode', () => {
@@ -58,4 +58,37 @@ describe('signUpOutcome', () => {
   test('so session je hneď prihlásený (potvrdzovanie e-mailu vypnuté)', () => assert.equal(signUpOutcome({ session: {}, user: {} }), 'signed_in'));
   test('bez session treba potvrdiť e-mail', () => assert.equal(signUpOutcome({ session: null, user: { identities: [{}] } }), 'confirm_email'));
   test('existujúci e-mail (prázdne identities)', () => assert.equal(signUpOutcome({ session: null, user: { identities: [] } }), 'exists'));
+});
+
+describe('zabudnuté heslo', () => {
+  test('reset: kontrola e-mailu', () => {
+    assert.equal(resetRequestError({ email: 'a@b.sk' }), '');
+    assert.equal(resetRequestError({ email: ' a@b.sk ' }), '');
+    assert.match(resetRequestError({ email: 'zly' }), /e-mail/);
+    assert.match(resetRequestError({}), /e-mail/);
+  });
+  test('nové heslo: dĺžka a zhoda', () => {
+    const ok = 'a'.repeat(MIN_PASSWORD);
+    assert.equal(newPasswordError({ password: ok, password2: ok }), '');
+    assert.match(newPasswordError({ password: 'kratke', password2: 'kratke' }), /aspoň/);
+    assert.match(newPasswordError({ password: '', password2: '' }), /aspoň/);
+    assert.match(newPasswordError({ password: ok, password2: ok + 'x' }), /nezhodujú/);
+  });
+  test('hlášky chýb', () => {
+    assert.match(resetErrorMessage({ status: 429 }), /veľa e-mailov/);
+    assert.match(resetErrorMessage({ code: 'over_email_send_rate_limit' }), /veľa e-mailov/);
+    assert.match(resetErrorMessage({ code: 'same_password' }), /iné ako staré/);
+    assert.match(resetErrorMessage({ code: 'weak_password' }), /slabé/);
+    assert.match(resetErrorMessage({ code: 'session_not_found' }), /vypršal/);
+    assert.equal(resetErrorMessage(new Error('fetch failed: secret')), 'Nepodarilo sa. Skús to znova.');
+    assert.equal(resetErrorMessage(null), 'Nepodarilo sa. Skús to znova.');
+  });
+  test('návrat z reset e-mailu sa pozná podľa type=recovery', () => {
+    assert.equal(isRecoveryUrl('#access_token=a&refresh_token=b&type=recovery'), true);
+    assert.equal(isRecoveryUrl('#type=recovery&access_token=a'), true);
+    assert.equal(isRecoveryUrl('', '?type=recovery&code=1'), true);
+    assert.equal(isRecoveryUrl('#access_token=a&type=magiclink'), false);
+    assert.equal(isRecoveryUrl('#/profil'), false);
+    assert.equal(isRecoveryUrl(), false);
+  });
 });
