@@ -303,8 +303,30 @@ function newPasswordDialog() {
     },
   });
 }
+/* „Pokračovať cez Google“ nad e-mailovým prihlásením; ukáže sa, len keď je Google zapnutý v Supabase */
+function googleLogin() {
+  const box = h('div', { class: 'google-login', hidden: true });
+  const msg = h('p', { class: 'form-msg', role: 'alert' });
+  Promise.resolve(store?.googleEnabled?.()).then(on => {
+    if (!on) return;
+    box.append(
+      h('button', { class: 'btn google-btn', type: 'button', onclick: async e => {
+        const btn = e.currentTarget; btn.disabled = true; msg.textContent = '';
+        try { await store.loginGoogle(); } catch (err) { console.error(err); msg.textContent = 'Prihlásenie cez Google sa nepodarilo. Skús to znova alebo použi e-mail.'; btn.disabled = false; }
+      } }, h('span', { class: 'g-mark', 'aria-hidden': 'true' }, 'G'), 'Pokračovať cez Google'),
+      msg,
+      h('p', { class: 'or-line' }, h('span', {}, 'alebo e-mailom')));
+    box.hidden = false;
+  }).catch(() => {});
+  return box;
+}
+function withGoogle(dlg) {
+  const form = dlg?.querySelector?.('form.dlg-body');
+  if (form) form.prepend(googleLogin());
+  return dlg;
+}
 function loginDialog(after) {
-  return LOGIN_MODE === 'password' ? passwordLoginDialog(after) : magicLoginDialog(after);
+  return withGoogle(LOGIN_MODE === 'password' ? passwordLoginDialog(after) : magicLoginDialog(after));
 }
 function passwordLoginDialog(after, { signUp = false, email = '' } = {}) {
   const fail = err => { if (!err?.code && !err?.status) console.error(err); throw new UserError(loginErrorMessage(err)); };
@@ -314,7 +336,7 @@ function passwordLoginDialog(after, { signUp = false, email = '' } = {}) {
     intro: signUp
       ? 'Založ si účet e-mailom a heslom. Potom ti pošleme e-mail s odkazom, ktorým e-mail potvrdíš.'
       : h('span', {}, 'Prihlás sa e-mailom a heslom. Prihlásený ostaneš aj nabudúce. Nemáš účet? ',
-        h('button', { class: 'linklike', type: 'button', onclick: () => { dlg.close(); passwordLoginDialog(after, { signUp: true }); } }, 'Založ si ho'), '. ',
+        h('button', { class: 'linklike', type: 'button', onclick: () => { dlg.close(); withGoogle(passwordLoginDialog(after, { signUp: true })); } }, 'Založ si ho'), '. ',
         h('button', { class: 'linklike', type: 'button', onclick: () => { const em = dlg.querySelector('[name=email]')?.value.trim() || ''; dlg.close(); forgotPasswordDialog(em); } }, 'Zabudol som heslo'), '.'),
     fields: [
       { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email', value: email },
@@ -356,9 +378,9 @@ function passwordLoginDialog(after, { signUp = false, email = '' } = {}) {
 }
 function magicLoginDialog(after) {
   const done = () => { toast('Si prihlásený. Vitaj na GOSku!'); updateAccount(); after && after(); };
-  formDialog({
+  return formDialog({
     title: 'Prihlásenie', submit: 'Pokračovať',
-    intro: h('span', {}, 'Zadaj e-mail. Ak máš nastavené heslo, napíš ho. Inak ti pošleme e-mail s prihlasovacím odkazom. ',
+    intro: h('span', {}, 'Zadaj e-mail. Ak máš nastavené heslo, napíš ho. Inak ti pošleme e-mail s prihlasovacím odkazom. Účet ešte nemáš? Stačí zadať e-mail, založí sa sám. ',
       h('button', { class: 'linklike', type: 'button', onclick: () => { const em = document.querySelector('dialog[open] [name=email]')?.value.trim() || ''; document.querySelector('dialog[open]')?.close(); forgotPasswordDialog(em); } }, 'Zabudol som heslo'), '.'),
     fields: [
       { name: 'email', label: 'E-mail', type: 'email', required: true, autocomplete: 'email' },
@@ -3726,9 +3748,10 @@ const ROUTES = [
   ...(V2 ? [
     [/^#\/registracia\/potvrdene$/, pageRegisterDone, 'eventy'],
     [/^#\/registracia\/neplatny-odkaz$/, pageRegisterBadLink, 'eventy'],
-    [/^#\/registracia\/([\w-]+)$/, pageRegister, 'eventy'],
     [/^#\/pass\/([\w-]+)$/, pagePass, ''],
   ] : []),
+  /* priamy odkaz na registráciu (bio, plagát): gosko.sk/registracia/<id eventu>, funguje aj bez BACKEND_V2 */
+  [/^#\/registracia\/([\w-]+)$/, pageRegister, 'eventy'],
   /* hra Ghoskate: všetko pod #/hra (isGameRoute v game/return.js) */
   ...(GAME === 'live' ? [
     [/^#\/hra$/, gamePage('pageGameMap'), 'hra'],

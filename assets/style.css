@@ -3256,3 +3256,10 @@ dialog.srch{width:min(560px,calc(100vw - 24px));margin:9vh auto auto;border-radi
 .tk-win{margin:8px 0;font-size:1.3rem;font-weight:900}
 .trick-day{align-content:start}
 .trick-day .btn{justify-self:start}
+
+/* prihlásenie cez Google (googleLogin v app.js) */
+.google-login{display:grid;gap:10px;margin-bottom:6px}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:#fff;color:#1f1f1f;border-color:#dadce0;font-weight:600}
+.google-btn .g-mark{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:conic-gradient(#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0);color:#fff;font:700 13px/1 system-ui,sans-serif}
+.or-line{display:flex;align-items:center;gap:10px;margin:2px 0 0;font-size:.85rem;opacity:.7}
+.or-line::before,.or-line::after{content:"";flex:1;border-top:1px solid currentColor;opacity:.35}
