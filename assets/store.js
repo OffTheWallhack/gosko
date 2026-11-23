@@ -263,6 +263,7 @@ async function liveStore(CONFIG) {
   const session = async () => (await sb.auth.getSession()).data.session;
   const must = ({ data, error }) => { if (error) throw error; return data; };
   const created = r => ({ ...r, created: Date.parse(r.created_at) });
+  let googleP = null;
   const live = {
     mode: 'live',
     /* Supabase klient pre hru Ghoskate na /hra (assets/game/api.js) */
@@ -279,6 +280,14 @@ async function liveStore(CONFIG) {
     async signedIn() { return !!(await session()); },
     async email() { return (await session())?.user?.email || ''; },
     async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } })); },
+    /* Prihlásenie cez Google: presmeruje na Google a späť na web (#access_token alebo ?code= spracuje boot v app.js).
+       Účet s rovnakým overeným e-mailom Supabase spojí s existujúcim, takže starý účet aj admin ostanú. */
+    async loginGoogle() { must(await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: appRoot() + 'profil' } })); },
+    /* Je Google zapnutý v Supabase (Authentication → Providers)? Kým nie, tlačidlo sa neukáže. */
+    googleEnabled() {
+      return (googleP ||= fetch(CONFIG.SUPABASE_URL + '/auth/v1/settings', { headers: { apikey: CONFIG.SUPABASE_ANON_KEY } })
+        .then(r => r.ok ? r.json() : {}).then(j => !!j?.external?.google).catch(() => false));
+    },
     async loginPassword(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
     async verifyCode(email, token) {
       token = String(token || '').replace(/\s/g, '');
