@@ -2486,6 +2486,31 @@ async function pageAdmin(root) {
     h('a', { class: 'btn primary', href: '#/admin/vysledky' }, 'Zapisovať výsledky'),
     h('a', { class: 'btn primary', href: '#/admin/spoty' }, 'Spoty na mape'),
     h('a', { class: 'btn primary', href: '#/admin/scan' }, 'Check-in (skener)')));
+  /* správa adminov: ukáže sa len majiteľovi (iným RPC vráti chybu a sekcia sa nezobrazí) */
+  if (store.mode === 'live') {
+    const admins = await store.ownerAdmins().catch(() => null);
+    if (admins) {
+      const box = h('div'), msg = h('p', { class: 'form-msg', role: 'status' });
+      const render = async () => {
+        const list = await store.ownerAdmins().catch(() => []);
+        box.replaceChildren(h('ul', { class: 'admin-list' }, list.map(a => h('li', {},
+          h('span', {}, h('b', {}, a.email), a.pending ? ' · čaká na prvé prihlásenie' : ''),
+          a.email.toLowerCase() === 'rdurica1995@gmail.com' ? h('span', { class: 'note' }, 'majiteľ') :
+            h('button', { class: 'btn small', type: 'button', onclick: async () => {
+              if (!confirm(`Odobrať admina ${a.email}?`)) return;
+              try { await store.ownerRemoveAdmin(a.email); } catch (err) { console.error(err); msg.textContent = 'Nepodarilo sa odobrať.'; }
+              render(); } }, 'Odobrať')))));
+      };
+      const input = h('input', { type: 'email', placeholder: 'e-mail nového admina', autocomplete: 'off', 'aria-label': 'E-mail nového admina' });
+      put(body, section('Správa adminov', h('p', { class: 'note' }, 'Len ty môžeš pridať alebo odobrať admina. Nový admin dostane práva po prihlásení s týmto e-mailom (cez Google alebo e-mailom).'), box,
+        h('div', { class: 'admin-row' }, input, h('button', { class: 'btn small primary', type: 'button', onclick: async () => {
+          const em = input.value.trim().toLowerCase(); msg.textContent = '';
+          if (!isEmail(em)) { msg.textContent = 'Zadaj platný e-mail.'; return; }
+          try { await store.ownerAddAdmin(em); input.value = ''; } catch (err) { console.error(err); msg.textContent = 'Nepodarilo sa pridať.'; }
+          render(); } }, 'Pridať admina')), msg));
+      render();
+    }
+  }
   const postsBox = h('div');
   async function renderPosts() {
     const list = await store.allPosts().catch(() => []);

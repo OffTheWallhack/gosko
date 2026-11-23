@@ -3263,3 +3263,6 @@ dialog.srch{width:min(560px,calc(100vw - 24px));margin:9vh auto auto;border-radi
 .google-btn .g-mark{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:conic-gradient(#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0);color:#fff;font:700 13px/1 system-ui,sans-serif}
 .or-line{display:flex;align-items:center;gap:10px;margin:2px 0 0;font-size:.85rem;opacity:.7}
 .or-line::before,.or-line::after{content:"";flex:1;border-top:1px solid currentColor;opacity:.35}
+
+/* telefón: texty na 85 % (všetko v rem sa zmenší naraz) */
+@media (max-width:760px){ html{font-size:85%;-webkit-text-size-adjust:100%;text-size-adjust:100%} }

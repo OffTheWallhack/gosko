@@ -86,6 +86,7 @@ function demoStore() {
     async eventRegistrations() { return []; },
     async signedIn() { return true; },
     async email() { return ''; },
+    async ownerAdmins() { return []; }, async ownerAddAdmin() {}, async ownerRemoveAdmin() {},
     async login() {}, async loginPassword() {}, async verifyCode() {}, async verifyLink() {}, async setPassword() {}, async logout() {},
     async resetPassword() {}, recovering() { return false; },
     async listParks() { return loadParks(); },
@@ -282,6 +283,10 @@ async function liveStore(CONFIG) {
     async login(email) { must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } })); },
     /* Prihlásenie cez Google: presmeruje na Google a späť na web (#access_token alebo ?code= spracuje boot v app.js).
        Účet s rovnakým overeným e-mailom Supabase spojí s existujúcim, takže starý účet aj admin ostanú. */
+    /* správa adminov: len majiteľ (funkcie v DB 020_owner_admins.sql kontrolujú e-mail) */
+    async ownerAdmins() { return must(await sb.rpc('owner_list_admins')); },
+    async ownerAddAdmin(email) { must(await sb.rpc('owner_add_admin', { p_email: email })); },
+    async ownerRemoveAdmin(email) { must(await sb.rpc('owner_remove_admin', { p_email: email })); },
     async loginGoogle() { must(await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: appRoot() + 'profil' } })); },
     /* Je Google zapnutý v Supabase (Authentication → Providers)? Kým nie, tlačidlo sa neukáže. */
     googleEnabled() {
