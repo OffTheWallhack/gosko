@@ -119,6 +119,10 @@ for (const [p, t, d] of SECTIONS) page(p, { title: t, description: d, head: p ==
 for (const e of EVENTS) page(`event/${e.id}`, { title: e.name, type: 'article', image: e.photos?.[0]?.src,
   description: clip([e.status === 'next' ? 'Ďalší stop GOSko' : 'GOSko', e.place, e.date ? fmt(e.date) : e.when || 'coming soon', e.about].filter(Boolean).join(' · ')),
   body: e.results ? list(Object.entries(e.results).flatMap(([c, n]) => n.map((x, i) => `${esc(c)} ${i + 1}. ${link(`jazdec/${slug(x)}`, x)}`))) : '' });
+/* priamy odkaz na registráciu (bio, plagát): gosko.sk/registracia/<id>, len pre event s otvorenou registráciou */
+for (const e of EVENTS.filter(e => e.status === 'next' && e.registration)) page(`registracia/${e.id}`, { title: `Registrácia: ${e.name}`, type: 'article', image: e.photos?.[0]?.src,
+  description: clip(['Zaregistruj sa na ' + e.name, e.place, e.date ? fmt(e.date) : '', 'Registrácia je zadarmo, QR pass dostaneš hneď.'].filter(Boolean).join(' · ')),
+  body: `<p>${link(`event/${e.id}`, 'Detail eventu')}</p>` });
 for (const r of riders.values()) page(`jazdec/${r.slug}`, { title: r.name, type: 'profile', image: RIDERS[r.slug]?.photo,
   description: clip(`${r.name} na GOSko: ${r.res.join('; ')}.`), body: list(r.res.map(esc)) });
 page('profil', { title: 'Môj profil', description: 'Tvoj duch, doska a profil jazdca na GOSko.', noindex: true, listed: false });
